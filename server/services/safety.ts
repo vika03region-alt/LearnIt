@@ -36,8 +36,8 @@ class SafetyService {
 
         const recentLogs = safetyLogs
           .filter(log => log.platformId === platform.id)
-          .filter(log => this.isWithin24Hours(log.checkTime))
-          .sort((a, b) => b.checkTime.getTime() - a.checkTime.getTime());
+          .filter(log => log.checkTime && this.isWithin24Hours(log.checkTime))
+          .sort((a, b) => (b.checkTime?.getTime() || 0) - (a.checkTime?.getTime() || 0));
 
         const latestLog = recentLogs[0];
         const rateLimits = await storage.getRateLimits(platform.id);
@@ -84,7 +84,8 @@ class SafetyService {
 
       return status;
     } catch (error) {
-      throw new Error(`Failed to get safety status: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get safety status: ${message}`);
     }
   }
 
@@ -110,7 +111,7 @@ class SafetyService {
           const percentage = (actionCount / limit.maxActions) * 100;
           let status: 'safe' | 'warning' | 'critical' = 'safe';
           
-          if (percentage >= limit.warningThreshold * 100) {
+          if (percentage >= (limit.warningThreshold || 0.8) * 100) {
             status = percentage >= 90 ? 'critical' : 'warning';
             issues.push(`${platform.displayName}: ${limit.actionType} at ${percentage.toFixed(1)}%`);
           }
@@ -131,6 +132,7 @@ class SafetyService {
       // Log the safety check activity
       await storage.createActivityLog({
         userId,
+        platformId: null,
         action: 'Safety Check',
         description: `Performed safety check - ${issues.length} issues found`,
         status: issues.length > 0 ? 'warning' : 'success',
@@ -142,7 +144,8 @@ class SafetyService {
         issues,
       };
     } catch (error) {
-      throw new Error(`Failed to perform safety check: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to perform safety check: ${message}`);
     }
   }
 
@@ -168,7 +171,7 @@ class SafetyService {
       let status: 'safe' | 'warning' | 'critical' = 'safe';
       if (percentage >= 90) {
         status = 'critical';
-      } else if (percentage >= relevantLimit.warningThreshold * 100) {
+      } else if (percentage >= (relevantLimit.warningThreshold || 0.8) * 100) {
         status = 'warning';
       }
 
@@ -187,10 +190,11 @@ class SafetyService {
         const platform = await storage.getPlatform(platformId);
         await storage.createActivityLog({
           userId,
+          platformId,
           action: 'Rate Limit Warning',
           description: `${platform?.displayName || 'Platform'} ${actionType} approaching limit (${percentage.toFixed(1)}%)`,
-          platformId,
           status: 'warning',
+          metadata: {},
         });
       }
     } catch (error) {
@@ -200,7 +204,7 @@ class SafetyService {
 
   private async getRecentSafetyLogs(userId: string, platformId: number) {
     const allLogs = await storage.getUserSafetyLogs(userId, platformId);
-    return allLogs.filter(log => this.isWithin24Hours(log.checkTime));
+    return allLogs.filter(log => log.checkTime && this.isWithin24Hours(log.checkTime));
   }
 
   private isWithin24Hours(date: Date): boolean {

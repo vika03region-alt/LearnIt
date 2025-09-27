@@ -31,9 +31,9 @@ export default function SafetyStatus({ status }: SafetyStatusProps) {
           titleClass: 'text-green-900',
           descClass: 'text-green-700',
           badgeClass: 'bg-green-100 text-green-800',
-          badgeText: 'БЕЗОПАСНО',
+          badgeText: 'ЗАЩИЩЕНО',
           buttonClass: 'bg-green-600 hover:bg-green-700',
-          title: 'Все системы защищены',
+          title: 'Все системы под надёжной защитой',
         };
       case 'warning':
         return {
@@ -44,9 +44,9 @@ export default function SafetyStatus({ status }: SafetyStatusProps) {
           titleClass: 'text-yellow-900',
           descClass: 'text-yellow-700',
           badgeClass: 'bg-yellow-100 text-yellow-800',
-          badgeText: 'ПРЕДУПРЕЖДЕНИЕ',
+          badgeText: 'ВНИМАНИЕ',
           buttonClass: 'bg-yellow-600 hover:bg-yellow-700',
-          title: 'Лимиты близки к превышению',
+          title: 'Дозволенные пределы приближаются к исчерпанию',
         };
       case 'critical':
         return {
@@ -57,9 +57,9 @@ export default function SafetyStatus({ status }: SafetyStatusProps) {
           titleClass: 'text-red-900',
           descClass: 'text-red-700',
           badgeClass: 'bg-red-100 text-red-800',
-          badgeText: 'КРИТИЧНО',
+          badgeText: 'ЭКСТРЕННО',
           buttonClass: 'bg-red-600 hover:bg-red-700',
-          title: 'Критические лимиты достигнуты',
+          title: 'Критические пределы салона достигнуты',
         };
       default:
         return {

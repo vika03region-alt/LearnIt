@@ -120,7 +120,7 @@ export default function DeepAnalytics({ userId, platformId }: DeepAnalyticsProps
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="w-5 h-5" />
-            Глубокая аналитика платформы
+            Обстоятельная Аналитика Салона
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -129,7 +129,7 @@ export default function DeepAnalytics({ userId, platformId }: DeepAnalyticsProps
               <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
                 <Users className="w-8 h-8 mx-auto mb-2 text-blue-600" />
                 <div className="text-2xl font-bold text-blue-900">{formatNumber(platformMetrics.followers)}</div>
-                <div className="text-sm text-blue-700">Подписчики</div>
+                <div className="text-sm text-blue-700">Покорные Последователи</div>
                 <div className="flex items-center justify-center mt-1">
                   {platformMetrics.growth_rate > 0 ? (
                     <TrendingUp className="w-4 h-4 text-green-500" />
@@ -145,7 +145,7 @@ export default function DeepAnalytics({ userId, platformId }: DeepAnalyticsProps
               <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg">
                 <Eye className="w-8 h-8 mx-auto mb-2 text-purple-600" />
                 <div className="text-2xl font-bold text-purple-900">{formatNumber(platformMetrics.reach)}</div>
-                <div className="text-sm text-purple-700">Охват</div>
+                <div className="text-sm text-purple-700">Широта Влияния</div>
                 <div className="text-xs text-purple-600 mt-1">
                   {formatNumber(platformMetrics.impressions)} показов
                 </div>
@@ -154,7 +154,7 @@ export default function DeepAnalytics({ userId, platformId }: DeepAnalyticsProps
               <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg">
                 <Target className="w-8 h-8 mx-auto mb-2 text-green-600" />
                 <div className="text-2xl font-bold text-green-900">{platformMetrics.engagement_rate.toFixed(1)}%</div>
-                <div className="text-sm text-green-700">Вовлеченность</div>
+                <div className="text-sm text-green-700">Степень Вовлечения</div>
                 <div className="text-xs text-green-600 mt-1">
                   {formatNumber(platformMetrics.likes + platformMetrics.comments)} взаимодействий
                 </div>

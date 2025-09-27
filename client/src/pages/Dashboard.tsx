@@ -61,7 +61,7 @@ export default function Dashboard() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Загрузка панели управления...</p>
+          <p className="text-muted-foreground">Подготавливается изысканная панель управления...</p>
         </div>
       </div>
     );
@@ -77,10 +77,10 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-foreground" data-testid="text-dashboard-title">
-                Главная панель
+                Великосветский Салон
               </h2>
               <p className="text-muted-foreground">
-                Мониторинг всех ваших социальных платформ в одном месте
+                Изящное наблюдение за всеми Вашими светскими приёмами в едином пространстве
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -111,7 +111,7 @@ export default function Dashboard() {
                       : user?.email || 'Пользователь'
                     }
                   </p>
-                  <p className="text-xs text-muted-foreground">Тариф Pro</p>
+                  <p className="text-xs text-muted-foreground">Благородное Членство</p>
                 </div>
               </div>
             </div>
@@ -127,11 +127,11 @@ export default function Dashboard() {
             <TabsList className="grid w-full grid-cols-2 max-w-md">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" />
-                Обзор
+                Общий Взгляд
               </TabsTrigger>
               <TabsTrigger value="deep-analytics" className="flex items-center gap-2">
                 <Brain className="w-4 h-4" />
-                AI Аналитика
+                Изысканная Аналитика
               </TabsTrigger>
             </TabsList>
 
@@ -168,10 +168,10 @@ export default function Dashboard() {
                 
                 <div className="bg-card rounded-lg border border-border p-6">
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-semibold text-foreground">Безопасность и лимиты</h3>
+                    <h3 className="text-lg font-semibold text-foreground">Благородная Безопасность</h3>
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                      <span className="text-sm text-green-600 font-medium">Все безопасно</span>
+                      <span className="text-sm text-green-600 font-medium">Всё под контролем</span>
                     </div>
                   </div>
                   
@@ -184,7 +184,7 @@ export default function Dashboard() {
                         <div key={platform.id} className="space-y-2">
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-foreground">
-                              {platform.displayName} дневной лимит
+                              {platform.displayName} — дневные дозволения
                             </span>
                             <span className="text-sm text-muted-foreground">
                               {Math.round(usage)}/100
@@ -208,11 +208,11 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2">
                         <i className="fas fa-shield-check text-green-600"></i>
                         <span className="text-sm font-medium text-green-900">
-                          Состояние безопасности: {safetyStatus?.overall === 'safe' ? 'Безопасно' : safetyStatus?.overall === 'warning' ? 'Предупреждение' : safetyStatus?.overall === 'critical' ? 'Критично' : 'Оптимально'}
+                          Статус охраны: {safetyStatus?.overall === 'safe' ? 'Под надёжной защитой' : safetyStatus?.overall === 'warning' ? 'Требует внимания' : safetyStatus?.overall === 'critical' ? 'Критическое положение' : 'Превосходно'}
                         </span>
                       </div>
                       <p className="text-xs text-green-700 mt-1">
-                        Все платформы работают в безопасных параметрах. Следующая проверка безопасности через 2 часа.
+                        Все светские площадки функционируют в благородных рамках. Следующий осмотр через два часа.
                       </p>
                     </div>
                   </div>

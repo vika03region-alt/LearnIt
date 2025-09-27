@@ -186,18 +186,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserAnalytics(userId: string, platformId?: number): Promise<Analytics[]> {
-    let query = db
+    const baseQuery = db
       .select({
         analytics: analytics,
         post: posts,
       })
       .from(analytics)
-      .innerJoin(posts, eq(analytics.postId, posts.id))
-      .where(eq(posts.userId, userId));
+      .innerJoin(posts, eq(analytics.postId, posts.id));
 
-    if (platformId) {
-      query = query.where(eq(posts.platformId, platformId));
-    }
+    const query = platformId
+      ? baseQuery.where(and(eq(posts.userId, userId), eq(posts.platformId, platformId)))
+      : baseQuery.where(eq(posts.userId, userId));
 
     const results = await query.orderBy(desc(analytics.recordedAt));
     return results.map(r => r.analytics);
@@ -230,24 +229,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserSafetyLogs(userId: string, platformId?: number): Promise<SafetyLog[]> {
-    let query = db
-      .select()
-      .from(safetyLogs)
-      .where(eq(safetyLogs.userId, userId));
-
-    if (platformId) {
-      query = query.where(eq(safetyLogs.platformId, platformId));
-    }
+    const baseQuery = db.select().from(safetyLogs);
+    const query = platformId
+      ? baseQuery.where(and(eq(safetyLogs.userId, userId), eq(safetyLogs.platformId, platformId)))
+      : baseQuery.where(eq(safetyLogs.userId, userId));
 
     return await query.orderBy(desc(safetyLogs.checkTime));
   }
 
   async getRateLimits(platformId?: number): Promise<RateLimit[]> {
-    let query = db.select().from(rateLimits);
-    
-    if (platformId) {
-      query = query.where(eq(rateLimits.platformId, platformId));
-    }
+    const query = platformId
+      ? db.select().from(rateLimits).where(eq(rateLimits.platformId, platformId))
+      : db.select().from(rateLimits);
 
     return await query;
   }
@@ -490,7 +483,7 @@ export class DatabaseStorage implements IStorage {
           demographics: { '25-34': 40, '35-44': 30, '18-24': 20, '45+': 10 },
           sentiment: { 'positive': 70, 'neutral': 25, 'negative': 5 },
         },
-        confidence: 78,
+        confidence: '78',
         region: 'Russia',
         date: new Date().toISOString().split('T')[0],
         createdAt: new Date(),
@@ -508,7 +501,7 @@ export class DatabaseStorage implements IStorage {
           demographics: { '18-24': 35, '25-34': 35, '35-44': 20, '45+': 10 },
           sentiment: { 'positive': 60, 'neutral': 30, 'negative': 10 },
         },
-        confidence: 85,
+        confidence: '85',
         region: 'global',
         date: new Date().toISOString().split('T')[0],
         createdAt: new Date(),
