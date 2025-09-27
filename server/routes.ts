@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { aiContentService } from "./services/aiContent";
 import { socialMediaService } from "./services/socialMedia";
+import { socialMediaManager } from "./services/socialMediaIntegration";
 import { safetyService } from "./services/safety";
 import { analyticsService } from "./services/analytics";
 import { aiAnalyticsService } from "./services/aiAnalytics";
@@ -387,6 +388,217 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Ошибка оптимизации хештегов:', error);
       res.status(500).json({ error: 'Не удалось оптимизировать хештеги' });
+    }
+  });
+
+  // Social Media OAuth Integration Routes
+  app.get('/api/social/auth/:platformId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const platformId = parseInt(req.params.platformId);
+      const state = require('crypto').randomUUID();
+
+      const service = socialMediaManager.getService(platformId);
+      if (!service) {
+        return res.status(400).json({ error: 'Platform not supported' });
+      }
+
+      const authUrl = await service.getAuthUrl(userId, state);
+      
+      // Store state for CSRF protection
+      req.session.oauthState = { state, userId, platformId };
+      
+      res.json({ authUrl });
+    } catch (error) {
+      console.error('OAuth initialization error:', error);
+      res.status(500).json({ error: 'Failed to initialize OAuth' });
+    }
+  });
+
+  app.get('/api/social/callback', isAuthenticated, async (req: any, res) => {
+    try {
+      const { code, state, error } = req.query;
+      
+      if (error) {
+        return res.status(400).json({ error: `OAuth error: ${error}` });
+      }
+
+      if (!code || !state) {
+        return res.status(400).json({ error: 'Missing authorization code or state' });
+      }
+
+      const sessionState = req.session.oauthState;
+      if (!sessionState || sessionState.state !== state) {
+        return res.status(400).json({ error: 'Invalid state parameter' });
+      }
+
+      const { userId, platformId } = sessionState;
+
+      const service = socialMediaManager.getService(platformId);
+      if (!service) {
+        return res.status(400).json({ error: 'Platform not supported' });
+      }
+
+      // Exchange code for tokens
+      const tokens = await service.exchangeCodeForToken(code, state);
+      
+      // Create or update user account
+      const existingAccount = await storage.getUserAccount(userId, platformId);
+      if (existingAccount) {
+        await storage.updateUserAccount(existingAccount.id, {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          tokenExpiry: tokens.expiresAt,
+          authStatus: 'connected',
+        });
+      } else {
+        await storage.createUserAccount({
+          userId,
+          platformId,
+          accountHandle: 'New Account', // Will be updated with actual data
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          tokenExpiry: tokens.expiresAt,
+          authStatus: 'connected',
+        });
+      }
+
+      // Clean up session
+      delete req.session.oauthState;
+
+      // Log successful connection
+      const platform = await storage.getPlatform(platformId);
+      await storage.createActivityLog({
+        userId,
+        platformId,
+        action: 'Platform Connected',
+        description: `Successfully connected ${platform?.displayName} account`,
+        status: 'success',
+        metadata: {},
+      });
+
+      res.json({ success: true, message: 'Platform connected successfully' });
+    } catch (error) {
+      console.error('OAuth callback error:', error);
+      res.status(500).json({ error: 'Failed to complete OAuth flow' });
+    }
+  });
+
+  app.post('/api/social/disconnect/:accountId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const accountId = parseInt(req.params.accountId);
+
+      const account = await storage.getUserAccount(userId, accountId);
+      if (!account) {
+        return res.status(404).json({ error: 'Account not found' });
+      }
+
+      await storage.updateUserAccount(accountId, {
+        isActive: false,
+        authStatus: 'disconnected',
+        accessToken: null,
+        refreshToken: null,
+        tokenExpiry: null,
+      });
+
+      // Log disconnection
+      const platform = await storage.getPlatform(account.platformId);
+      await storage.createActivityLog({
+        userId,
+        platformId: account.platformId,
+        action: 'Platform Disconnected',
+        description: `Disconnected ${platform?.displayName} account`,
+        status: 'success',
+        metadata: {},
+      });
+
+      res.json({ success: true, message: 'Account disconnected successfully' });
+    } catch (error) {
+      console.error('Disconnect account error:', error);
+      res.status(500).json({ error: 'Failed to disconnect account' });
+    }
+  });
+
+  app.post('/api/social/post', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, mediaUrls, platformIds } = req.body;
+
+      if (!content) {
+        return res.status(400).json({ error: 'Content is required' });
+      }
+
+      const postData = { content, mediaUrls };
+      let results;
+
+      if (platformIds && platformIds.length > 0) {
+        // Post to specific platforms
+        results = {} as { [platformId: number]: any };
+        const userAccounts = await storage.getUserAccounts(userId);
+        
+        for (const platformId of platformIds) {
+          const account = userAccounts.find(acc => 
+            acc.platformId === platformId && 
+            acc.isActive && 
+            acc.authStatus === 'connected'
+          );
+          
+          if (account) {
+            const service = socialMediaManager.getService(platformId);
+            if (service) {
+              (results as any)[platformId] = await service.post(account, postData);
+            }
+          } else {
+            (results as any)[platformId] = {
+              success: false,
+              error: 'Account not connected for this platform',
+            };
+          }
+        }
+      } else {
+        // Post to all connected platforms
+        results = await socialMediaManager.postToAllPlatforms(userId, postData);
+      }
+
+      // Log posting activity
+      const successfulPosts = Object.values(results).filter((r: any) => r.success).length;
+      const totalPosts = Object.keys(results).length;
+      
+      await storage.createActivityLog({
+        userId,
+        platformId: null,
+        action: 'Multi-Platform Post',
+        description: `Posted to ${successfulPosts}/${totalPosts} platforms`,
+        status: successfulPosts > 0 ? 'success' : 'error',
+        metadata: { results },
+      });
+
+      res.json({ results, summary: { successful: successfulPosts, total: totalPosts } });
+    } catch (error) {
+      console.error('Social media posting error:', error);
+      res.status(500).json({ error: 'Failed to post content' });
+    }
+  });
+
+  app.post('/api/social/validate-tokens', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await socialMediaManager.validateAllTokens(userId);
+      
+      const updatedAccounts = await storage.getUserAccounts(userId);
+      res.json({ 
+        success: true, 
+        accounts: updatedAccounts.map(acc => ({
+          id: acc.id,
+          platformId: acc.platformId,
+          authStatus: acc.authStatus,
+          isActive: acc.isActive,
+        }))
+      });
+    } catch (error) {
+      console.error('Token validation error:', error);
+      res.status(500).json({ error: 'Failed to validate tokens' });
     }
   });
 

@@ -59,6 +59,21 @@ export const userAccounts = pgTable("user_accounts", {
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
   tokenExpiry: timestamp("token_expiry"),
+  // Platform-specific configurations
+  platformConfig: json('platform_config').$type<{
+    // Instagram: business account, facebook page info
+    facebookPageId?: string;
+    businessAccountId?: string;
+    // TikTok: direct post configuration
+    directPostEnabled?: boolean;
+    // YouTube: channel info
+    channelId?: string;
+    uploadPermissions?: string[];
+    // Telegram: bot info
+    botToken?: string;
+    channelUsername?: string;
+  }>(),
+  authStatus: varchar('auth_status').default('pending'), // 'pending', 'connected', 'expired', 'error'
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
