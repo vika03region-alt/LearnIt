@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { seedPlatforms } from "./seedDatabase";
 import { aiContentService } from "./services/aiContent";
 import { socialMediaService } from "./services/socialMedia";
 import { socialMediaManager } from "./services/socialMediaIntegration";
@@ -13,6 +14,9 @@ import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize database with platforms
+  await seedPlatforms();
+
   // Auth middleware
   await setupAuth(app);
 
