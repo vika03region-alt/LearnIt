@@ -88,7 +88,7 @@ export default function SafetyStatus({ status }: SafetyStatusProps) {
     };
 
     const descriptions = Object.entries(status.platforms).map(([platformId, data]) => {
-      const name = platformNames[parseInt(platformId)] || `Platform ${platformId}`;
+      const name = platformNames[parseInt(platformId)] || `Платформа ${platformId}`;
       return `${Math.round(data.percentage)}% ${name}`;
     });
 
@@ -119,7 +119,7 @@ export default function SafetyStatus({ status }: SafetyStatusProps) {
               className={`text-white text-sm font-medium ${config.buttonClass}`}
               data-testid="button-view-safety-details"
             >
-              View Details
+              Подробнее
             </Button>
           </div>
         </div>

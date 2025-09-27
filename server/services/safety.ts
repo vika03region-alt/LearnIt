@@ -214,19 +214,19 @@ class SafetyService {
     
     for (const [platformId, data] of Object.entries(platforms)) {
       if (data.status === 'critical') {
-        recommendations.push(`Stop all activity on platform ${platformId} until tomorrow`);
+        recommendations.push(`Остановить всю активность на платформе ${platformId} до завтра`);
       } else if (data.status === 'warning') {
-        recommendations.push(`Reduce activity on platform ${platformId} for today`);
+        recommendations.push(`Снизить активность на платформе ${platformId} на сегодня`);
       }
       
       if (data.percentage > 50) {
-        recommendations.push(`Monitor platform ${platformId} closely for the rest of the day`);
+        recommendations.push(`Внимательно отслеживать платформу ${platformId} до конца дня`);
       }
     }
 
     if (recommendations.length === 0) {
-      recommendations.push('All platforms operating within safe parameters');
-      recommendations.push('Continue normal automation schedule');
+      recommendations.push('Все платформы работают в безопасных параметрах');
+      recommendations.push('Продолжить нормальное расписание автоматизации');
     }
 
     return recommendations;

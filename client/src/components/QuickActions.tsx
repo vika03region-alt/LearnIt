@@ -185,9 +185,9 @@ export default function QuickActions() {
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
             <div className="text-sm">
-              <p className="text-yellow-900 font-medium">Important Notice</p>
+              <p className="text-yellow-900 font-medium">Важное уведомление</p>
               <p className="text-yellow-700 text-xs mt-1">
-                Emergency stop will immediately halt all automation and scheduled posts. Use this only when necessary to prevent account restrictions.
+                Экстренная остановка немедленно остановит всю автоматизацию и запланированные посты. Используйте только при необходимости для предотвращения ограничений аккаунта.
               </p>
             </div>
           </div>
