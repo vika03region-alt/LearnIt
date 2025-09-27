@@ -34,6 +34,52 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
+import * as crypto from 'crypto';
+
+// Encryption utilities for sensitive data
+class TokenEncryption {
+  private readonly key: Buffer;
+  private readonly algorithm = 'aes-256-gcm';
+
+  constructor() {
+    const secretKey = process.env.SESSION_SECRET || 'fallback-secret-key-please-change';
+    this.key = crypto.scryptSync(secretKey, 'salt', 32);
+  }
+
+  encrypt(text: string): string {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipher(this.algorithm, this.key);
+    cipher.setAAD(Buffer.from('token-data'));
+    
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    
+    const authTag = cipher.getAuthTag();
+    return iv.toString('hex') + ':' + encrypted + ':' + authTag.toString('hex');
+  }
+
+  decrypt(encryptedText: string): string {
+    const parts = encryptedText.split(':');
+    if (parts.length !== 3) {
+      throw new Error('Invalid encrypted token format');
+    }
+    
+    const iv = Buffer.from(parts[0], 'hex');
+    const encrypted = parts[1];
+    const authTag = Buffer.from(parts[2], 'hex');
+    
+    const decipher = crypto.createDecipher(this.algorithm, this.key);
+    decipher.setAAD(Buffer.from('token-data'));
+    decipher.setAuthTag(authTag);
+    
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return decrypted;
+  }
+}
+
+const tokenEncryption = new TokenEncryption();
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -119,7 +165,26 @@ export class DatabaseStorage implements IStorage {
 
   // User account operations
   async getUserAccounts(userId: string): Promise<UserAccount[]> {
-    return await db.select().from(userAccounts).where(eq(userAccounts.userId, userId));
+    const accounts = await db.select().from(userAccounts).where(eq(userAccounts.userId, userId));
+    
+    // Decrypt sensitive tokens when retrieving
+    return accounts.map(account => ({
+      ...account,
+      accessToken: account.accessToken ? (() => {
+        try {
+          return tokenEncryption.decrypt(account.accessToken!);
+        } catch {
+          return account.accessToken; // Return as-is if not encrypted (legacy data)
+        }
+      })() : null,
+      refreshToken: account.refreshToken ? (() => {
+        try {
+          return tokenEncryption.decrypt(account.refreshToken!);
+        } catch {
+          return account.refreshToken; // Return as-is if not encrypted (legacy data)
+        }
+      })() : null,
+    }));
   }
 
   async getUserAccount(userId: string, platformId: number): Promise<UserAccount | undefined> {
@@ -131,14 +196,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUserAccount(account: InsertUserAccount): Promise<UserAccount> {
-    const [newAccount] = await db.insert(userAccounts).values(account).returning();
+    // Encrypt sensitive tokens before storing
+    const encryptedAccount = { ...account };
+    if (account.accessToken) {
+      encryptedAccount.accessToken = tokenEncryption.encrypt(account.accessToken);
+    }
+    if (account.refreshToken) {
+      encryptedAccount.refreshToken = tokenEncryption.encrypt(account.refreshToken);
+    }
+
+    const [newAccount] = await db.insert(userAccounts).values(encryptedAccount).returning();
     return newAccount;
   }
 
   async updateUserAccount(id: number, updates: Partial<InsertUserAccount>): Promise<UserAccount> {
+    // Encrypt sensitive tokens before updating
+    const encryptedUpdates = { ...updates };
+    if (updates.accessToken) {
+      encryptedUpdates.accessToken = tokenEncryption.encrypt(updates.accessToken);
+    }
+    if (updates.refreshToken) {
+      encryptedUpdates.refreshToken = tokenEncryption.encrypt(updates.refreshToken);
+    }
+
     const [updatedAccount] = await db
       .update(userAccounts)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...encryptedUpdates, updatedAt: new Date() })
       .where(eq(userAccounts.id, id))
       .returning();
     return updatedAccount;
