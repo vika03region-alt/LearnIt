@@ -352,12 +352,128 @@ export class TikTokService extends BaseSocialMediaService {
         throw new Error(initResult.error.message || 'Failed to initialize TikTok upload');
       }
 
-      return {
-        success: true,
-        externalPostId: initResult.data?.publish_id || 'tiktok_upload_initiated',
-      };
+      const publishId = initResult.data?.publish_id;
+      if (!publishId) {
+        throw new Error('No publish ID received from TikTok');
+      }
+
+      // Poll upload status with timeout and retry logic
+      const uploadResult = await this.pollUploadStatus(accessToken, publishId);
+      
+      return uploadResult;
     } catch (error) {
       return this.handleApiError(error, 'post to TikTok');
+    }
+  }
+
+  // Poll TikTok upload status with timeout and retry
+  private async pollUploadStatus(
+    accessToken: string, 
+    publishId: string, 
+    maxAttempts = 30,
+    intervalMs = 2000
+  ): Promise<PostResult> {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const statusResponse = await fetch('https://open.tiktokapis.com/v2/post/publish/status/fetch/', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+          body: JSON.stringify({
+            publish_id: publishId,
+          }),
+        });
+
+        const statusResult = await statusResponse.json();
+        
+        if (statusResult.error) {
+          console.error('TikTok status check error:', statusResult.error);
+          continue; // Retry on API errors
+        }
+
+        const status = statusResult.data?.status;
+        const failReason = statusResult.data?.fail_reason;
+
+        switch (status) {
+          case 'PUBLISHED':
+            return {
+              success: true,
+              externalPostId: publishId,
+            };
+
+          case 'FAILED':
+            return {
+              success: false,
+              error: `TikTok upload failed: ${failReason || 'Unknown error'}`,
+            };
+
+          case 'PROCESSING':
+          case 'UPLOADING':
+            // Continue polling
+            console.log(`TikTok upload ${publishId} status: ${status}, attempt ${attempt + 1}/${maxAttempts}`);
+            break;
+
+          default:
+            console.warn(`Unknown TikTok status: ${status}`);
+            break;
+        }
+
+        // Wait before next attempt
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+
+      } catch (error) {
+        console.error(`TikTok polling attempt ${attempt + 1} failed:`, error);
+        
+        // If this is the last attempt, return error
+        if (attempt === maxAttempts - 1) {
+          return {
+            success: false,
+            error: `Upload polling failed after ${maxAttempts} attempts: ${error instanceof Error ? error.message : String(error)}`,
+          };
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+      }
+    }
+
+    return {
+      success: false,
+      error: `Upload timeout: Status polling exceeded ${maxAttempts} attempts (${(maxAttempts * intervalMs) / 1000}s)`,
+    };
+  }
+
+  // Check upload status (can be called separately)
+  async checkUploadStatus(accessToken: string, publishId: string): Promise<{
+    status: 'UPLOADING' | 'PROCESSING' | 'PUBLISHED' | 'FAILED';
+    failReason?: string;
+  }> {
+    try {
+      const response = await fetch('https://open.tiktokapis.com/v2/post/publish/status/fetch/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: JSON.stringify({
+          publish_id: publishId,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.error) {
+        throw new Error(result.error.message || 'Failed to check upload status');
+      }
+
+      return {
+        status: result.data?.status || 'FAILED',
+        failReason: result.data?.fail_reason,
+      };
+    } catch (error) {
+      throw new Error(`Status check failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
