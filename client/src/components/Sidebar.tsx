@@ -1,0 +1,211 @@
+import { useState } from "react";
+import { Link, useLocation } from "wouter";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { 
+  TrendingUp, 
+  Gauge, 
+  Brain, 
+  Shield, 
+  Calendar, 
+  Settings, 
+  ChevronLeft,
+  Instagram,
+  Youtube
+} from "lucide-react";
+import { SiTiktok, SiTelegram } from "react-icons/si";
+
+export default function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false);
+  const [location] = useLocation();
+
+  const { data: platforms } = useQuery({
+    queryKey: ['/api/platforms'],
+    retry: false,
+  });
+
+  const { data: safetyStatus } = useQuery({
+    queryKey: ['/api/safety/status'],
+    retry: false,
+  });
+
+  const getPlatformIcon = (platformName: string) => {
+    switch (platformName) {
+      case 'instagram':
+        return <Instagram className="w-5 h-5" />;
+      case 'tiktok':
+        return <SiTiktok className="w-5 h-5" />;
+      case 'youtube':
+        return <Youtube className="w-5 h-5" />;
+      case 'telegram':
+        return <SiTelegram className="w-5 h-5" />;
+      default:
+        return <div className="w-5 h-5 bg-muted rounded" />;
+    }
+  };
+
+  const getPlatformStatus = (platformName: string) => {
+    const platformData = safetyStatus?.platforms?.[platformName];
+    if (!platformData) return 'inactive';
+    
+    if (platformData.percentage > 90) return 'critical';
+    if (platformData.percentage > 80) return 'warning';
+    return 'active';
+  };
+
+  const getStatusIndicator = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <span className="w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>;
+      case 'warning':
+        return <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>;
+      case 'critical':
+        return <span className="w-2 h-2 bg-red-500 rounded-full pulse-dot"></span>;
+      default:
+        return <span className="w-2 h-2 bg-gray-400 rounded-full"></span>;
+    }
+  };
+
+  return (
+    <aside 
+      className={cn(
+        "fixed left-0 top-0 h-full bg-card border-r border-border transition-all duration-300 z-50",
+        collapsed ? "w-20" : "w-64"
+      )}
+      data-testid="sidebar"
+    >
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+            <TrendingUp className="text-primary-foreground text-lg" />
+          </div>
+          {!collapsed && (
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Lucifer Trading</h1>
+              <p className="text-sm text-muted-foreground">Automation Hub</p>
+            </div>
+          )}
+        </div>
+        
+        <nav className="space-y-2">
+          <Link href="/">
+            <a 
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                location === "/" 
+                  ? "bg-primary text-primary-foreground" 
+                  : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+              )}
+              data-testid="link-dashboard"
+            >
+              <Gauge className="w-5 h-5" />
+              {!collapsed && <span>Dashboard</span>}
+            </a>
+          </Link>
+
+          {platforms?.map((platform: any) => (
+            <Link key={platform.id} href={`/platform/${platform.id}`}>
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === `/platform/${platform.id}`
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                )}
+                data-testid={`link-platform-${platform.name}`}
+              >
+                {getPlatformIcon(platform.name)}
+                {!collapsed && <span>{platform.displayName}</span>}
+                {!collapsed && (
+                  <span className="ml-auto">
+                    {getStatusIndicator(getPlatformStatus(platform.name))}
+                  </span>
+                )}
+              </a>
+            </Link>
+          ))}
+          
+          <div className="pt-4 border-t border-border">
+            <Link href="/ai-content">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/ai-content"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                )}
+                data-testid="link-ai-content"
+              >
+                <Brain className="w-5 h-5" />
+                {!collapsed && <span>AI Content</span>}
+              </a>
+            </Link>
+
+            <Link href="/safety">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/safety"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                )}
+                data-testid="link-safety"
+              >
+                <Shield className="w-5 h-5" />
+                {!collapsed && <span>Safety Center</span>}
+              </a>
+            </Link>
+
+            <Link href="/scheduler">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/scheduler"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                )}
+                data-testid="link-scheduler"
+              >
+                <Calendar className="w-5 h-5" />
+                {!collapsed && <span>Scheduler</span>}
+              </a>
+            </Link>
+
+            <Link href="/settings">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/settings"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                )}
+                data-testid="link-settings"
+              >
+                <Settings className="w-5 h-5" />
+                {!collapsed && <span>Settings</span>}
+              </a>
+            </Link>
+          </div>
+        </nav>
+      </div>
+      
+      <div className="absolute bottom-6 left-6 right-6">
+        <Button
+          variant="secondary"
+          className="w-full flex items-center justify-center gap-2"
+          onClick={() => setCollapsed(!collapsed)}
+          data-testid="button-toggle-sidebar"
+        >
+          <ChevronLeft 
+            className={cn(
+              "w-4 h-4 transition-transform",
+              collapsed && "rotate-180"
+            )} 
+          />
+          {!collapsed && <span className="text-sm">Collapse</span>}
+        </Button>
+      </div>
+    </aside>
+  );
+}
