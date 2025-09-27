@@ -48,7 +48,8 @@ class TokenEncryption {
 
   encrypt(text: string): string {
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipherGCM(this.algorithm, this.key, iv);
+    const cipher = crypto.createCipher(this.algorithm, this.key);
+    cipher.setAAD(Buffer.from('token-data'));
     
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
@@ -67,7 +68,8 @@ class TokenEncryption {
     const encrypted = parts[1];
     const authTag = Buffer.from(parts[2], 'hex');
     
-    const decipher = crypto.createDecipherGCM(this.algorithm, this.key, iv);
+    const decipher = crypto.createDecipher(this.algorithm, this.key);
+    decipher.setAAD(Buffer.from('token-data'));
     decipher.setAuthTag(authTag);
     
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');

@@ -11,73 +11,36 @@ export interface AIContentResult {
   cost: number;
 }
 
-export class AIError extends Error {
-  public readonly code: string;
-  public readonly httpStatus: number;
-  public readonly userMessageRu: string;
-
-  constructor(code: string, httpStatus: number, userMessageRu: string, originalMessage?: string) {
-    super(originalMessage || userMessageRu);
-    this.name = 'AIError';
-    this.code = code;
-    this.httpStatus = httpStatus;
-    this.userMessageRu = userMessageRu;
-  }
-}
-
 class AIContentService {
-  private async makeOpenAIRequest(messages: any[], responseFormat?: any): Promise<any> {
-    try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-5",
-        messages,
-        response_format: responseFormat || { type: "json_object" },
-      });
-      return response;
-    } catch (error: any) {
-      console.error("OpenAI API Error:", error);
-      
-      // Handle specific OpenAI errors with Russian messages
-      if (error.status === 429 || error.code === 'rate_limit_exceeded') {
-        throw new AIError('rate_limit', 429, 'Превышен лимит запросов к OpenAI. Попробуйте позже.', error.message);
-      } else if (error.status === 401 || error.code === 'invalid_api_key') {
-        throw new AIError('invalid_key', 401, 'Ошибка авторизации OpenAI. Проверьте API ключ.', error.message);
-      } else if (error.status === 403 || error.code === 'insufficient_quota') {
-        throw new AIError('quota_exceeded', 429, 'Превышен лимит OpenAI. Проверьте баланс.', error.message);
-      } else if (error.status === 500) {
-        throw new AIError('service_unavailable', 500, 'Сервис OpenAI временно недоступен. Попробуйте позже.', error.message);
-      } else if (error.message?.includes('timeout')) {
-        throw new AIError('timeout', 500, 'Превышено время ожидания. Попробуйте еще раз.', error.message);
-      } else if (error.code === 'context_length_exceeded') {
-        throw new AIError('context_too_long', 400, 'Текст слишком длинный. Сократите размер входных данных.', error.message);
-      } else if (error.code === 'invalid_request_error') {
-        throw new AIError('invalid_request', 400, 'Неверный формат запроса. Проверьте входные данные.', error.message);
-      }
-      
-      throw new AIError('unknown_error', 500, 'Ошибка генерации контента. Попробуйте позже.', error.message);
-    }
-  }
   async generateContent(
     prompt: string,
     contentType: string,
     targetPlatforms: string[]
   ): Promise<AIContentResult> {
-    const systemPrompt = this.buildSystemPrompt(contentType, targetPlatforms);
-    
-    const response = await this.makeOpenAIRequest([
-      { role: "system", content: systemPrompt },
-      { role: "user", content: prompt }
-    ]);
+    try {
+      const systemPrompt = this.buildSystemPrompt(contentType, targetPlatforms);
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+      });
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    const tokensUsed = response.usage?.total_tokens || 0;
-    const cost = this.calculateCost(tokensUsed);
+      const result = JSON.parse(response.choices[0].message.content || '{}');
+      const tokensUsed = response.usage?.total_tokens || 0;
+      const cost = this.calculateCost(tokensUsed);
 
-    return {
-      content: result.content || '',
-      tokensUsed,
-      cost,
-    };
+      return {
+        content: result.content || '',
+        tokensUsed,
+        cost,
+      };
+    } catch (error) {
+      throw new Error(`Failed to generate AI content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   async generateTradingSignal(
