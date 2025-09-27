@@ -360,6 +360,99 @@ export const trendAnalysis = pgTable('trend_analysis', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// AI Content Generation Tables
+export const aiGeneratedContent = pgTable('ai_generated_content', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').references(() => users.id).notNull(),
+  contentType: varchar('content_type').notNull(), // 'viral_tiktok', 'youtube_analysis', 'live_signal', etc.
+  title: varchar('title').notNull(),
+  content: text('content').notNull(),
+  platforms: json('platforms').$type<string[]>().notNull(),
+  hashtags: json('hashtags').$type<string[]>(),
+  aiPrompt: text('ai_prompt').notNull(),
+  tokensUsed: integer('tokens_used').notNull(),
+  cost: decimal('cost', { precision: 8, scale: 6 }).notNull(),
+  metadata: json('metadata').$type<{
+    style?: string;
+    target_audience?: string;
+    confidence_rating?: number;
+    engagement_prediction?: number;
+    trending_topics?: string[];
+    competitor_references?: string[];
+  }>(),
+  status: varchar('status').default('draft'), // 'draft', 'published', 'scheduled', 'archived'
+  publishedAt: timestamp('published_at'),
+  scheduledFor: timestamp('scheduled_for'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const contentTemplates = pgTable('content_templates', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').references(() => users.id).notNull(),
+  name: varchar('name').notNull(),
+  category: varchar('category').notNull(), // 'signal', 'education', 'analysis', 'viral'
+  template: text('template').notNull(),
+  variables: json('variables').$type<Record<string, string>>(),
+  platforms: json('platforms').$type<string[]>().notNull(),
+  usageCount: integer('usage_count').default(0),
+  isPublic: boolean('is_public').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const hashtagAnalysis = pgTable('hashtag_analysis', {
+  id: serial('id').primaryKey(),
+  hashtag: varchar('hashtag').notNull(),
+  platform: varchar('platform').notNull(),
+  metrics: json('metrics').$type<{
+    total_posts: number;
+    total_views: number;
+    avg_engagement: number;
+    trending_score: number;
+    competition_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME';
+    best_posting_times: string[];
+  }>().notNull(),
+  niche: varchar('niche').notNull(), // 'crypto', 'forex', 'stocks', 'trading'
+  lastUpdated: timestamp('last_updated').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const aiUsageMetrics = pgTable('ai_usage_metrics', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').references(() => users.id).notNull(),
+  date: date('date').notNull(),
+  totalTokens: integer('total_tokens').default(0),
+  totalCost: decimal('total_cost', { precision: 10, scale: 6 }).default('0'),
+  contentCount: integer('content_count').default(0),
+  contentTypes: json('content_types').$type<Record<string, number>>(),
+  platforms: json('platforms').$type<Record<string, number>>(),
+  successfulGenerations: integer('successful_generations').default(0),
+  failedGenerations: integer('failed_generations').default(0),
+});
+
+// AI Content Generation Insert/Select Schemas
+export const insertAIGeneratedContent = createInsertSchema(aiGeneratedContent).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertContentTemplate = createInsertSchema(contentTemplates).omit({
+  id: true,
+  createdAt: true,
+  usageCount: true,
+});
+
+export const insertHashtagAnalysis = createInsertSchema(hashtagAnalysis).omit({
+  id: true,
+  createdAt: true,
+  lastUpdated: true,
+});
+
+export const insertAIUsageMetrics = createInsertSchema(aiUsageMetrics).omit({
+  id: true,
+});
+
 // Advanced AI Analytics Types
 export type PlatformAnalytics = typeof platformAnalytics.$inferSelect;
 export type ContentPerformance = typeof contentPerformance.$inferSelect;
@@ -368,3 +461,14 @@ export type AudienceAnalytics = typeof audienceAnalytics.$inferSelect;
 export type CompetitorAnalysis = typeof competitorAnalysis.$inferSelect;
 export type ABTest = typeof abTests.$inferSelect;
 export type TrendAnalysis = typeof trendAnalysis.$inferSelect;
+
+// AI Content Types
+export type AIGeneratedContent = typeof aiGeneratedContent.$inferSelect;
+export type ContentTemplate = typeof contentTemplates.$inferSelect;
+export type HashtagAnalysis = typeof hashtagAnalysis.$inferSelect;
+export type AIUsageMetrics = typeof aiUsageMetrics.$inferSelect;
+
+export type InsertAIGeneratedContent = z.infer<typeof insertAIGeneratedContent>;
+export type InsertContentTemplate = z.infer<typeof insertContentTemplate>;
+export type InsertHashtagAnalysis = z.infer<typeof insertHashtagAnalysis>;
+export type InsertAIUsageMetrics = z.infer<typeof insertAIUsageMetrics>;

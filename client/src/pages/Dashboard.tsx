@@ -13,7 +13,8 @@ import AnalyticsChart from "@/components/AnalyticsChart";
 import QuickActions from "@/components/QuickActions";
 import DeepAnalytics from "@/components/DeepAnalytics";
 import SocialAccountManager from "@/components/SocialAccountManager";
-import { Bell, User, BarChart3, Brain, Settings } from "lucide-react";
+import AIContentGenerator from "@/components/AIContentGenerator";
+import { Bell, User, BarChart3, Brain, Settings, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -125,7 +126,7 @@ export default function Dashboard() {
 
           {/* Main Dashboard Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+            <TabsList className="grid w-full grid-cols-4 max-w-4xl">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" />
                 Общий Взгляд
@@ -137,6 +138,10 @@ export default function Dashboard() {
               <TabsTrigger value="deep-analytics" className="flex items-center gap-2">
                 <Brain className="w-4 h-4" />
                 Изысканная Аналитика
+              </TabsTrigger>
+              <TabsTrigger value="ai-tools" className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                AI Инструменты
               </TabsTrigger>
             </TabsList>
 
@@ -234,6 +239,10 @@ export default function Dashboard() {
                 userId={user?.id || 'demo-user'} 
                 platformId={platforms?.[0]?.id || 1} 
               />
+            </TabsContent>
+
+            <TabsContent value="ai-tools">
+              <AIContentGenerator />
             </TabsContent>
           </Tabs>
 

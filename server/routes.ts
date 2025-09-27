@@ -159,6 +159,292 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === ПРОФЕССИОНАЛЬНЫЕ AI ТРЕЙДИНГ МАРШРУТЫ ===
+
+  // Генерация viral TikTok контента
+  app.post('/api/ai/viral-tiktok', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { trend, hooks } = req.body;
+      
+      if (!trend || !hooks || !Array.isArray(hooks)) {
+        return res.status(400).json({ message: "Trend and hooks array are required" });
+      }
+
+      const result = await aiContentService.generateViralTikTokContent(trend, hooks);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Viral TikTok Generated',
+        description: `Generated viral TikTok content for trend: ${trend}`,
+        platformId: null,
+        status: 'success',
+        metadata: { trend, hooks },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating viral TikTok content:", error);
+      res.status(500).json({ message: "Failed to generate viral TikTok content" });
+    }
+  });
+
+  // Генерация YouTube анализа в стиле топ-каналов
+  app.post('/api/ai/youtube-analysis', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { markets, style } = req.body;
+      
+      if (!markets || !Array.isArray(markets) || !style) {
+        return res.status(400).json({ message: "Markets array and style are required" });
+      }
+
+      const result = await aiContentService.generateYouTubeAnalysis(markets, style);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'AI YouTube Analysis Generated',
+        description: `Generated YouTube analysis in ${style} style for ${markets.join(', ')}`,
+        platformId: null,
+        status: 'success',
+        metadata: { markets, style },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating YouTube analysis:", error);
+      res.status(500).json({ message: "Failed to generate YouTube analysis" });
+    }
+  });
+
+  // Генерация live торговых сигналов
+  app.post('/api/ai/live-signal', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { symbol, action, entry, targets, stopLoss, leverage, confidence } = req.body;
+      
+      if (!symbol || !action || !entry || !targets || !stopLoss) {
+        return res.status(400).json({ message: "Symbol, action, entry, targets, and stopLoss are required" });
+      }
+
+      const result = await aiContentService.generateLiveSignalPost(
+        symbol, action, entry, targets, stopLoss, leverage, confidence
+      );
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Live Signal Generated',
+        description: `Generated live signal for ${symbol} (${action})`,
+        platformId: null,
+        status: 'success',
+        metadata: { symbol, action, entry, targets, stopLoss, leverage },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating live signal:", error);
+      res.status(500).json({ message: "Failed to generate live signal" });
+    }
+  });
+
+  // Генерация crypto прогнозов
+  app.post('/api/ai/crypto-predictions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { timeframe, coins, reasoning } = req.body;
+      
+      if (!timeframe || !coins || !reasoning || !Array.isArray(coins) || !Array.isArray(reasoning)) {
+        return res.status(400).json({ message: "Timeframe, coins array, and reasoning array are required" });
+      }
+
+      const result = await aiContentService.generateCryptoPredictions(timeframe, coins, reasoning);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Crypto Predictions Generated',
+        description: `Generated crypto predictions for ${timeframe}: ${coins.join(', ')}`,
+        platformId: null,
+        status: 'success',
+        metadata: { timeframe, coins, reasoning },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating crypto predictions:", error);
+      res.status(500).json({ message: "Failed to generate crypto predictions" });
+    }
+  });
+
+  // Анализ мемкоинов
+  app.post('/api/ai/memecoin-analysis', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { coin, metrics } = req.body;
+      
+      if (!coin || !metrics) {
+        return res.status(400).json({ message: "Coin and metrics are required" });
+      }
+
+      const result = await aiContentService.generateMemeCoinAnalysis(coin, metrics);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Memecoin Analysis Generated',
+        description: `Generated memecoin analysis for ${coin}`,
+        platformId: null,
+        status: 'success',
+        metadata: { coin, metrics },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating memecoin analysis:", error);
+      res.status(500).json({ message: "Failed to generate memecoin analysis" });
+    }
+  });
+
+  // Генерация forex обучения
+  app.post('/api/ai/forex-education', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { topic, experience, focus } = req.body;
+      
+      if (!topic || !experience || !focus) {
+        return res.status(400).json({ message: "Topic, experience, and focus are required" });
+      }
+
+      const result = await aiContentService.generateForexEducation(topic, experience, focus);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Forex Education Generated',
+        description: `Generated forex education on ${topic} for ${experience} traders`,
+        platformId: null,
+        status: 'success',
+        metadata: { topic, experience, focus },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating forex education:", error);
+      res.status(500).json({ message: "Failed to generate forex education" });
+    }
+  });
+
+  // === АНАЛИЗ ТРЕНДОВ И ОПТИМИЗАЦИЯ ===
+
+  // Анализ трендовых тем
+  app.post('/api/ai/analyze-trends', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { platform, niche } = req.body;
+      
+      if (!platform || !niche) {
+        return res.status(400).json({ message: "Platform and niche are required" });
+      }
+
+      const result = await aiContentService.analyzeTrendingTopics(platform, niche);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Trends Analyzed',
+        description: `Analyzed trending topics for ${platform} ${niche}`,
+        platformId: null,
+        status: 'success',
+        metadata: { platform, niche },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error analyzing trends:", error);
+      res.status(500).json({ message: "Failed to analyze trends" });
+    }
+  });
+
+  // Профессиональная оптимизация хештегов для трейдинга
+  app.post('/api/ai/optimize-hashtags-pro', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, platform, targetAudience } = req.body;
+      
+      if (!content || !platform) {
+        return res.status(400).json({ message: "Content and platform are required" });
+      }
+
+      const result = await aiContentService.optimizeHashtags(content, platform, targetAudience);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Hashtags Optimized',
+        description: `Optimized hashtags for ${platform}`,
+        platformId: null,
+        status: 'success',
+        metadata: { platform, targetAudience },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error optimizing hashtags:", error);
+      res.status(500).json({ message: "Failed to optimize hashtags" });
+    }
+  });
+
+  // Конкурентный анализ
+  app.post('/api/ai/competitor-analysis', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { competitors, analysisType } = req.body;
+      
+      if (!competitors || !Array.isArray(competitors) || !analysisType) {
+        return res.status(400).json({ message: "Competitors array and analysis type are required" });
+      }
+
+      const result = await aiContentService.generateCompetitorAnalysis(competitors, analysisType);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Competitor Analysis',
+        description: `Analyzed competitors for ${analysisType}: ${competitors.join(', ')}`,
+        platformId: null,
+        status: 'success',
+        metadata: { competitors, analysisType },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error analyzing competitors:", error);
+      res.status(500).json({ message: "Failed to analyze competitors" });
+    }
+  });
+
+  // Генерация hook-библиотеки
+  app.post('/api/ai/generate-hooks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { contentType, emotion } = req.body;
+      
+      if (!contentType || !emotion) {
+        return res.status(400).json({ message: "Content type and emotion are required" });
+      }
+
+      const result = await aiContentService.generateHookLibrary(contentType, emotion);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Hooks Generated',
+        description: `Generated ${contentType} hooks with ${emotion} emotion`,
+        platformId: null,
+        status: 'success',
+        metadata: { contentType, emotion },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating hooks:", error);
+      res.status(500).json({ message: "Failed to generate hooks" });
+    }
+  });
+
   // Analytics routes
   app.get('/api/analytics', isAuthenticated, async (req: any, res) => {
     try {
