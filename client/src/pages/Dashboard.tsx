@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,12 +11,15 @@ import AIContentPanel from "@/components/AIContentPanel";
 import ActivityFeed from "@/components/ActivityFeed";
 import AnalyticsChart from "@/components/AnalyticsChart";
 import QuickActions from "@/components/QuickActions";
-import { Bell, User } from "lucide-react";
+import DeepAnalytics from "@/components/DeepAnalytics";
+import { Bell, User, BarChart3, Brain } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Dashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
+  const [activeTab, setActiveTab] = useState("overview");
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -119,88 +122,111 @@ export default function Dashboard() {
           {/* Safety Status Banner */}
           {safetyStatus && <SafetyStatus status={safetyStatus} />}
 
-          {/* Platform Statistics Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {platforms?.map((platform: any) => {
-              const platformData = dashboardData?.platforms?.[platform.name];
-              return (
-                <PlatformCard 
-                  key={platform.id}
-                  platform={platform}
-                  data={platformData}
-                />
-              );
-            })}
-          </div>
+          {/* Main Dashboard Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 max-w-md">
+              <TabsTrigger value="overview" className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Обзор
+              </TabsTrigger>
+              <TabsTrigger value="deep-analytics" className="flex items-center gap-2">
+                <Brain className="w-4 h-4" />
+                AI Аналитика
+              </TabsTrigger>
+            </TabsList>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* AI Content Generation Panel */}
-            <div className="lg:col-span-2">
-              <AIContentPanel />
-            </div>
-
-            {/* Recent Activity Feed */}
-            <div className="lg:col-span-1">
-              <ActivityFeed activities={activities} />
-            </div>
-          </div>
-
-          {/* Analytics and Performance Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <AnalyticsChart data={dashboardData} />
-            
-            <div className="bg-card rounded-lg border border-border p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-foreground">Безопасность и лимиты</h3>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                  <span className="text-sm text-green-600 font-medium">Все безопасно</span>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
+            <TabsContent value="overview" className="space-y-6">
+              {/* Platform Statistics Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {platforms?.map((platform: any) => {
                   const platformData = dashboardData?.platforms?.[platform.name];
-                  const usage = platformData?.rateLimitUsage || 0;
-                  
                   return (
-                    <div key={platform.id} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-foreground">
-                          {platform.displayName} дневной лимит
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          {Math.round(usage)}/100
-                        </span>
-                      </div>
-                      <div className="w-full bg-secondary rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full progress-bar ${
-                            usage > 90 ? 'bg-red-500' : 
-                            usage > 80 ? 'bg-gradient-to-r from-green-500 to-yellow-500' : 
-                            'bg-green-500'
-                          }`}
-                          style={{ width: `${Math.min(usage, 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
+                    <PlatformCard 
+                      key={platform.id}
+                      platform={platform}
+                      data={platformData}
+                    />
                   );
                 })}
+              </div>
 
-                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <i className="fas fa-shield-check text-green-600"></i>
-                    <span className="text-sm font-medium text-green-900">
-                      Состояние безопасности: {safetyStatus?.overall === 'safe' ? 'Безопасно' : safetyStatus?.overall === 'warning' ? 'Предупреждение' : safetyStatus?.overall === 'critical' ? 'Критично' : 'Оптимально'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-green-700 mt-1">
-                    Все платформы работают в безопасных параметрах. Следующая проверка безопасности через 2 часа.
-                  </p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* AI Content Generation Panel */}
+                <div className="lg:col-span-2">
+                  <AIContentPanel />
+                </div>
+
+                {/* Recent Activity Feed */}
+                <div className="lg:col-span-1">
+                  <ActivityFeed activities={activities} />
                 </div>
               </div>
-            </div>
-          </div>
+
+              {/* Analytics and Performance Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <AnalyticsChart data={dashboardData} />
+                
+                <div className="bg-card rounded-lg border border-border p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-semibold text-foreground">Безопасность и лимиты</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span className="text-sm text-green-600 font-medium">Все безопасно</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {platforms?.map((platform: any) => {
+                      const platformData = dashboardData?.platforms?.[platform.name];
+                      const usage = platformData?.rateLimitUsage || 0;
+                      
+                      return (
+                        <div key={platform.id} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-foreground">
+                              {platform.displayName} дневной лимит
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              {Math.round(usage)}/100
+                            </span>
+                          </div>
+                          <div className="w-full bg-secondary rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full progress-bar ${
+                                usage > 90 ? 'bg-red-500' : 
+                                usage > 80 ? 'bg-gradient-to-r from-green-500 to-yellow-500' : 
+                                'bg-green-500'
+                              }`}
+                              style={{ width: `${Math.min(usage, 100)}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <i className="fas fa-shield-check text-green-600"></i>
+                        <span className="text-sm font-medium text-green-900">
+                          Состояние безопасности: {safetyStatus?.overall === 'safe' ? 'Безопасно' : safetyStatus?.overall === 'warning' ? 'Предупреждение' : safetyStatus?.overall === 'critical' ? 'Критично' : 'Оптимально'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-green-700 mt-1">
+                        Все платформы работают в безопасных параметрах. Следующая проверка безопасности через 2 часа.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="deep-analytics">
+              <DeepAnalytics 
+                userId={user?.id || 'demo-user'} 
+                platformId={platforms?.[0]?.id || 1} 
+              />
+            </TabsContent>
+          </Tabs>
 
           {/* Quick Actions Panel */}
           <QuickActions />

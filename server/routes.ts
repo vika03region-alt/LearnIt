@@ -6,6 +6,7 @@ import { aiContentService } from "./services/aiContent";
 import { socialMediaService } from "./services/socialMedia";
 import { safetyService } from "./services/safety";
 import { analyticsService } from "./services/analytics";
+import { aiAnalyticsService } from "./services/aiAnalytics";
 import { schedulerService } from "./services/scheduler";
 import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
 import { z } from "zod";
@@ -62,6 +63,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: `Connected ${req.body.accountHandle} account`,
         platformId: req.body.platformId,
         status: 'success',
+        metadata: null,
       });
 
       res.json(account);
@@ -98,6 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: `Created new post for platform ${postData.platformId}`,
         platformId: postData.platformId,
         status: 'success',
+        metadata: null,
       });
 
       res.json(post);
@@ -113,7 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { prompt, contentType, targetPlatforms } = insertAIContentLogSchema.parse(req.body);
       
-      const result = await aiContentService.generateContent(prompt, contentType, targetPlatforms);
+      const result = await aiContentService.generateContent(prompt, contentType, targetPlatforms || []);
       
       // Log the generation
       await storage.createAIContentLog({
@@ -131,6 +134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         action: 'AI Content Generated',
         description: `Generated ${contentType} content`,
+        platformId: null,
         status: 'success',
         metadata: { contentType, targetPlatforms },
       });
@@ -223,7 +227,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         action: 'Emergency Stop',
         description: 'All automation stopped by user',
+        platformId: null,
         status: 'warning',
+        metadata: null,
       });
 
       res.json({ message: 'Emergency stop activated' });
@@ -243,6 +249,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching activity logs:", error);
       res.status(500).json({ message: "Failed to fetch activity logs" });
+    }
+  });
+
+  // Deep Analytics Routes
+  app.get('/api/analytics/platform/:platformId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { platformId } = req.params;
+      const userId = req.user.claims.sub;
+      const days = parseInt(req.query.days as string) || 30;
+      const analytics = await storage.getPlatformAnalytics(userId, parseInt(platformId), days);
+      
+      const latestMetrics = analytics[0]?.metrics || {
+        followers: 0,
+        following: 0,
+        posts: 0,
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        views: 0,
+        impressions: 0,
+        reach: 0,
+        engagement_rate: 0,
+        growth_rate: 0,
+      };
+
+      res.json(latestMetrics);
+    } catch (error) {
+      console.error('Ошибка получения метрик платформы:', error);
+      res.status(500).json({ error: 'Не удалось получить метрики платформы' });
+    }
+  });
+
+  app.get('/api/analytics/insights', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const type = req.query.type as string;
+      const insights = await storage.getAIInsights(userId, type);
+      res.json(insights);
+    } catch (error) {
+      console.error('Ошибка получения AI инсайтов:', error);
+      res.status(500).json({ error: 'Не удалось получить AI инсайты' });
+    }
+  });
+
+  app.get('/api/analytics/competitors/:platformId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { platformId } = req.params;
+      const userId = req.user.claims.sub;
+      const competitors = await storage.getCompetitorAnalyses(userId, parseInt(platformId));
+      
+      const competitorData = competitors.map(comp => ({
+        handle: comp.competitorHandle,
+        name: comp.competitorName || comp.competitorHandle,
+        metrics: {
+          followers: comp.metrics.followers,
+          engagement_rate: comp.metrics.engagement_rate,
+          posting_frequency: comp.metrics.posting_frequency,
+        },
+        insights: [
+          `Средняя вовлеченность: ${comp.metrics.engagement_rate.toFixed(1)}%`,
+          `Частота публикаций: ${comp.metrics.posting_frequency.toFixed(1)} постов в день`,
+          `${comp.metrics.followers.toLocaleString()} подписчиков`,
+        ],
+      }));
+
+      res.json(competitorData);
+    } catch (error) {
+      console.error('Ошибка получения анализа конкурентов:', error);
+      res.status(500).json({ error: 'Не удалось получить анализ конкурентов' });
+    }
+  });
+
+  app.get('/api/analytics/trends/:platformId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { platformId } = req.params;
+      const category = req.query.category as string;
+      const days = parseInt(req.query.days as string) || 7;
+      const trends = await storage.getTrendAnalysis(parseInt(platformId), category, days);
+      
+      const trendData = trends.map(trend => ({
+        name: trend.trend_name,
+        volume: trend.data.volume,
+        growth_rate: trend.data.growth_rate,
+        confidence: parseFloat(trend.confidence),
+        category: trend.category,
+      }));
+
+      res.json(trendData);
+    } catch (error) {
+      console.error('Ошибка получения трендов:', error);
+      res.status(500).json({ error: 'Не удалось получить тренды' });
+    }
+  });
+
+  app.post('/api/analytics/analyze-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, platform } = req.body;
+
+      if (!content || !platform) {
+        return res.status(400).json({ error: 'Контент и платформа обязательны' });
+      }
+
+      const platformData = await storage.getUserAccounts(userId);
+      const targetPlatform = platformData.find(p => p.platformId.toString() === platform);
+      
+      let historicalData: any[] = [];
+      if (targetPlatform) {
+        historicalData = await storage.getContentPerformance(userId, targetPlatform.platformId, 30);
+      }
+
+      const analysis = await aiAnalyticsService.analyzeContent(content, platform, historicalData);
+      res.json(analysis);
+    } catch (error) {
+      console.error('Ошибка AI анализа контента:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать контент' });
+    }
+  });
+
+  app.post('/api/analytics/optimize-hashtags', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, platform, targetAudience } = req.body;
+
+      if (!content || !platform) {
+        return res.status(400).json({ error: 'Контент и платформа обязательны' });
+      }
+
+      const hashtagOptimization = await aiAnalyticsService.optimizeHashtags(
+        content,
+        platform,
+        targetAudience
+      );
+
+      res.json(hashtagOptimization);
+    } catch (error) {
+      console.error('Ошибка оптимизации хештегов:', error);
+      res.status(500).json({ error: 'Не удалось оптимизировать хештеги' });
     }
   });
 

@@ -10,6 +10,9 @@ import {
   boolean,
   real,
   serial,
+  json,
+  date,
+  decimal,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -174,3 +177,179 @@ export type InsertAIContentLog = z.infer<typeof insertAIContentLogSchema>;
 export type SafetyLog = typeof safetyLogs.$inferSelect;
 export type RateLimit = typeof rateLimits.$inferSelect;
 export type ActivityLog = typeof activityLogs.$inferSelect;
+
+// Deep Analytics Tables for Advanced AI Platform
+export const platformAnalytics = pgTable('platform_analytics', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').notNull(),
+  platformId: integer('platform_id').notNull().references(() => platforms.id),
+  date: date('date').notNull(),
+  metrics: json('metrics').$type<{
+    followers: number;
+    following: number;
+    posts: number;
+    likes: number;
+    comments: number;
+    shares: number;
+    views: number;
+    impressions: number;
+    reach: number;
+    engagement_rate: number;
+    growth_rate: number;
+  }>().notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const contentPerformance = pgTable('content_performance', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').notNull(),
+  platformId: integer('platform_id').notNull().references(() => platforms.id),
+  postId: varchar('post_id').notNull(),
+  title: text('title'),
+  content: text('content'),
+  hashtags: json('hashtags').$type<string[]>(),
+  postType: varchar('post_type'), // 'image', 'video', 'carousel', 'story'
+  publishedAt: timestamp('published_at'),
+  metrics: json('metrics').$type<{
+    likes: number;
+    comments: number;
+    shares: number;
+    views: number;
+    saves: number;
+    clicks: number;
+    engagement_rate: number;
+    reach: number;
+    impressions: number;
+  }>().notNull(),
+  aiAnalysis: json('ai_analysis').$type<{
+    sentiment: 'positive' | 'negative' | 'neutral';
+    topics: string[];
+    trends: string[];
+    optimization_suggestions: string[];
+    predicted_performance: number;
+  }>(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const aiInsights = pgTable('ai_insights', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').notNull(),
+  type: varchar('type').notNull(), // 'trend_analysis', 'audience_analysis', 'content_optimization'
+  platformId: integer('platform_id').references(() => platforms.id),
+  title: varchar('title').notNull(),
+  description: text('description').notNull(),
+  data: json('data').$type<{
+    insights: string[];
+    recommendations: string[];
+    confidence: number;
+    impact: 'low' | 'medium' | 'high';
+  }>().notNull(),
+  status: varchar('status').default('active'), // 'active', 'dismissed', 'applied'
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const audienceAnalytics = pgTable('audience_analytics', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').notNull(),
+  platformId: integer('platform_id').notNull().references(() => platforms.id),
+  date: date('date').notNull(),
+  demographics: json('demographics').$type<{
+    age_groups: Record<string, number>;
+    gender: Record<string, number>;
+    locations: Record<string, number>;
+    interests: Record<string, number>;
+    devices: Record<string, number>;
+    peak_hours: Record<string, number>;
+  }>().notNull(),
+  engagement_patterns: json('engagement_patterns').$type<{
+    best_posting_times: string[];
+    content_preferences: Record<string, number>;
+    interaction_types: Record<string, number>;
+  }>().notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const competitorAnalysis = pgTable('competitor_analysis', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').notNull(),
+  platformId: integer('platform_id').notNull().references(() => platforms.id),
+  competitorHandle: varchar('competitor_handle').notNull(),
+  competitorName: varchar('competitor_name'),
+  metrics: json('metrics').$type<{
+    followers: number;
+    following: number;
+    posts: number;
+    avg_likes: number;
+    avg_comments: number;
+    engagement_rate: number;
+    posting_frequency: number;
+  }>().notNull(),
+  content_analysis: json('content_analysis').$type<{
+    common_hashtags: Record<string, number>;
+    content_types: Record<string, number>;
+    posting_times: Record<string, number>;
+    top_performing_posts: Array<{
+      id: string;
+      type: string;
+      likes: number;
+      comments: number;
+      content: string;
+    }>;
+  }>(),
+  lastAnalyzed: timestamp('last_analyzed').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const abTests = pgTable('ab_tests', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').notNull(),
+  name: varchar('name').notNull(),
+  description: text('description'),
+  platformIds: json('platform_ids').$type<number[]>().notNull(),
+  variants: json('variants').$type<Array<{
+    id: string;
+    name: string;
+    content: string;
+    hashtags?: string[];
+    media_type?: string;
+  }>>().notNull(),
+  status: varchar('status').default('draft'), // 'draft', 'running', 'completed', 'paused'
+  metrics: json('metrics').$type<{
+    total_impressions: number;
+    total_engagement: number;
+    conversion_rate: number;
+    winner?: string;
+    statistical_significance?: number;
+  }>(),
+  startDate: timestamp('start_date'),
+  endDate: timestamp('end_date'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const trendAnalysis = pgTable('trend_analysis', {
+  id: serial('id').primaryKey(),
+  platformId: integer('platform_id').notNull().references(() => platforms.id),
+  category: varchar('category').notNull(), // 'hashtags', 'topics', 'content_types'
+  trend_name: varchar('trend_name').notNull(),
+  data: json('data').$type<{
+    volume: number;
+    growth_rate: number;
+    related_keywords: string[];
+    peak_times: string[];
+    demographics: Record<string, number>;
+    sentiment: Record<string, number>;
+  }>().notNull(),
+  confidence: decimal('confidence', { precision: 5, scale: 2 }).notNull(),
+  region: varchar('region').default('global'),
+  date: date('date').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Advanced AI Analytics Types
+export type PlatformAnalytics = typeof platformAnalytics.$inferSelect;
+export type ContentPerformance = typeof contentPerformance.$inferSelect;
+export type AIInsight = typeof aiInsights.$inferSelect;
+export type AudienceAnalytics = typeof audienceAnalytics.$inferSelect;
+export type CompetitorAnalysis = typeof competitorAnalysis.$inferSelect;
+export type ABTest = typeof abTests.$inferSelect;
+export type TrendAnalysis = typeof trendAnalysis.$inferSelect;
