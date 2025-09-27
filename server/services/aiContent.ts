@@ -38,8 +38,27 @@ class AIContentService {
         tokensUsed,
         cost,
       };
-    } catch (error) {
-      throw new Error(`Failed to generate AI content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (error: any) {
+      console.error("OpenAI API Error:", error);
+      
+      // Handle specific OpenAI errors with detailed messages
+      if (error.status === 429 || error.code === 'rate_limit_exceeded') {
+        throw new Error('OpenAI rate limit exceeded. Please try again in a few minutes.');
+      } else if (error.status === 401 || error.code === 'invalid_api_key') {
+        throw new Error('OpenAI API key is invalid or expired.');
+      } else if (error.status === 403 || error.code === 'insufficient_quota') {
+        throw new Error('OpenAI quota exceeded. Please check your billing.');
+      } else if (error.status === 500) {
+        throw new Error('OpenAI service is temporarily unavailable. Please try again later.');
+      } else if (error.message?.includes('timeout')) {
+        throw new Error('Request timed out. Please try again.');
+      } else if (error.code === 'context_length_exceeded') {
+        throw new Error('Content too long. Please reduce the input size.');
+      } else if (error.code === 'invalid_request_error') {
+        throw new Error('Invalid request format. Please check your input.');
+      }
+      
+      throw new Error(`Failed to generate AI content: ${error?.message || 'Unknown error'}`);
     }
   }
 
