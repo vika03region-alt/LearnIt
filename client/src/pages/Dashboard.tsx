@@ -12,7 +12,8 @@ import ActivityFeed from "@/components/ActivityFeed";
 import AnalyticsChart from "@/components/AnalyticsChart";
 import QuickActions from "@/components/QuickActions";
 import DeepAnalytics from "@/components/DeepAnalytics";
-import { Bell, User, BarChart3, Brain } from "lucide-react";
+import SocialAccountManager from "@/components/SocialAccountManager";
+import { Bell, User, BarChart3, Brain, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -124,10 +125,14 @@ export default function Dashboard() {
 
           {/* Main Dashboard Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsList className="grid w-full grid-cols-3 max-w-2xl">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" />
                 Общий Взгляд
+              </TabsTrigger>
+              <TabsTrigger value="accounts" className="flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                Аккаунты
               </TabsTrigger>
               <TabsTrigger value="deep-analytics" className="flex items-center gap-2">
                 <Brain className="w-4 h-4" />
@@ -218,6 +223,10 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="accounts">
+              <SocialAccountManager platforms={platforms} />
             </TabsContent>
 
             <TabsContent value="deep-analytics">
