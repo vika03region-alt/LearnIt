@@ -14,9 +14,12 @@ import QuickActions from "@/components/QuickActions";
 import DeepAnalytics from "@/components/DeepAnalytics";
 import SocialAccountManager from "@/components/SocialAccountManager";
 import AIContentGenerator from "@/components/AIContentGenerator";
-import { Bell, User, BarChart3, Brain, Settings, Sparkles } from "lucide-react";
+import { Bell, User, BarChart3, Brain, Settings, Sparkles, TrendingUp, Users, Activity as ActivityIcon, Clock, Calendar, Target, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -146,6 +149,73 @@ export default function Dashboard() {
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
+              {/* Key Metrics Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">Общий охват</CardTitle>
+                    <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                      {dashboardData?.totalReach?.toLocaleString('ru-RU') || '0'}
+                    </div>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center mt-1">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      +12% за неделю
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Вовлечённость</CardTitle>
+                    <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
+                      {dashboardData?.totalEngagement?.toFixed(1) || '0.0'}%
+                    </div>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center mt-1">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      +3.2% за месяц
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-300">AI Контента</CardTitle>
+                    <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-amber-900 dark:text-amber-100">
+                      {dashboardData?.aiGeneratedCount || '0'}
+                    </div>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center mt-1">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Сегодня: {dashboardData?.todayAiCount || '0'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300">Активность</CardTitle>
+                    <Zap className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                      {activities?.length || '0'}
+                    </div>
+                    <p className="text-xs text-purple-600 dark:text-purple-400 flex items-center mt-1">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      За 24 часа
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+              
               {/* Platform Statistics Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {platforms?.map((platform: any) => {
@@ -163,18 +233,85 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* AI Content Generation Panel */}
                 <div className="lg:col-span-2">
-                  <AIContentPanel />
+                  <Card className="border-amber-200 dark:border-amber-800">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                        <Sparkles className="w-5 h-5" />
+                        AI Генератор Контента
+                        <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                          GPT-5 Активен
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <AIContentPanel />
+                      <div className="mt-4 flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Target className="w-4 h-4 text-amber-600" />
+                          <span className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                            API кредиты: 847/1000
+                          </span>
+                        </div>
+                        <Progress value={84.7} className="w-24" />
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
                 {/* Recent Activity Feed */}
                 <div className="lg:col-span-1">
-                  <ActivityFeed activities={activities} />
+                  <Card className="border-blue-200 dark:border-blue-800">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                        <Activity className="w-5 h-5" />
+                        Последняя активность
+                        {activities && activities.length > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            {activities.length}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ActivityFeed activities={activities} />
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
 
               {/* Analytics and Performance Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <AnalyticsChart data={dashboardData} />
+                <Card className="border-green-200 dark:border-green-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                      <BarChart3 className="w-5 h-5" />
+                      Аналитика производительности
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <AnalyticsChart data={dashboardData} />
+                    <div className="mt-4 grid grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-green-700 dark:text-green-300">
+                          {dashboardData?.weeklyGrowth || '0'}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">Рост за неделю</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                          {dashboardData?.monthlyPosts || '0'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Постов в месяц</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-purple-700 dark:text-purple-300">
+                          {dashboardData?.avgEngagement || '0'}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">Средняя вовлечённость</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
                 
                 <div className="bg-card rounded-lg border border-border p-6">
                   <div className="flex items-center justify-between mb-6">
