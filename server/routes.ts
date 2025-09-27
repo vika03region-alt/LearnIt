@@ -444,6 +444,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create or update user account
       const existingAccount = await storage.getUserAccount(userId, platformId);
+      
+      let accountId: number;
       if (existingAccount) {
         await storage.updateUserAccount(existingAccount.id, {
           accessToken: tokens.accessToken,
@@ -451,8 +453,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tokenExpiry: tokens.expiresAt,
           authStatus: 'connected',
         });
+        accountId = existingAccount.id;
       } else {
-        await storage.createUserAccount({
+        const newAccount = await storage.createUserAccount({
           userId,
           platformId,
           accountHandle: 'New Account', // Will be updated with actual data
@@ -461,6 +464,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tokenExpiry: tokens.expiresAt,
           authStatus: 'connected',
         });
+        accountId = newAccount.id;
+      }
+
+      // For Instagram, get Business Account ID automatically
+      if (platformId === 1) { // Instagram
+        try {
+          const instagramService = service as any; // Cast to access Instagram-specific methods
+          if (instagramService.getInstagramBusinessAccountId) {
+            const businessAccountId = await instagramService.getInstagramBusinessAccountId(tokens.accessToken);
+            
+            if (businessAccountId) {
+              // Get existing platform config and merge with business account ID
+              const currentAccount = await storage.getUserAccount(userId, platformId);
+              const existingConfig = (currentAccount && currentAccount.platformConfig) || {};
+              
+              await storage.updateUserAccount(accountId, {
+                platformConfig: {
+                  ...existingConfig,
+                  businessAccountId,
+                },
+                accountHandle: `Instagram Business Account`,
+              });
+              console.log(`Instagram Business Account ID obtained: ${businessAccountId}`);
+            } else {
+              console.warn('Instagram Business Account ID not found. User may need to connect Instagram to Facebook page.');
+            }
+          }
+        } catch (error) {
+          console.error('Failed to get Instagram Business Account ID:', error);
+          // Don't fail the entire OAuth flow for this
+        }
       }
 
       // Clean up session
