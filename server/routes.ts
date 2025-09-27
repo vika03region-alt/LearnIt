@@ -183,9 +183,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(result);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating viral TikTok content:", error);
-      res.status(500).json({ message: "Failed to generate viral TikTok content" });
+      
+      // Handle AIError with Russian messages and proper status codes
+      if (error.name === 'AIError') {
+        return res.status(error.httpStatus).json({ message: error.userMessageRu, code: error.code });
+      }
+      
+      // Fallback for other errors
+      res.status(500).json({ message: error.message || "Не удалось создать viral TikTok контент" });
     }
   });
 
