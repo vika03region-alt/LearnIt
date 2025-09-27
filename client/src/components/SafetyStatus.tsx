@@ -31,9 +31,9 @@ export default function SafetyStatus({ status }: SafetyStatusProps) {
           titleClass: 'text-green-900',
           descClass: 'text-green-700',
           badgeClass: 'bg-green-100 text-green-800',
-          badgeText: 'SAFE',
+          badgeText: 'БЕЗОПАСНО',
           buttonClass: 'bg-green-600 hover:bg-green-700',
-          title: 'All Systems Secure',
+          title: 'Все системы защищены',
         };
       case 'warning':
         return {
@@ -44,9 +44,9 @@ export default function SafetyStatus({ status }: SafetyStatusProps) {
           titleClass: 'text-yellow-900',
           descClass: 'text-yellow-700',
           badgeClass: 'bg-yellow-100 text-yellow-800',
-          badgeText: 'WARNING',
+          badgeText: 'ПРЕДУПРЕЖДЕНИЕ',
           buttonClass: 'bg-yellow-600 hover:bg-yellow-700',
-          title: 'Rate Limits Approaching',
+          title: 'Лимиты близки к превышению',
         };
       case 'critical':
         return {
@@ -57,9 +57,9 @@ export default function SafetyStatus({ status }: SafetyStatusProps) {
           titleClass: 'text-red-900',
           descClass: 'text-red-700',
           badgeClass: 'bg-red-100 text-red-800',
-          badgeText: 'CRITICAL',
+          badgeText: 'КРИТИЧНО',
           buttonClass: 'bg-red-600 hover:bg-red-700',
-          title: 'Critical Rate Limits Reached',
+          title: 'Критические лимиты достигнуты',
         };
       default:
         return {
@@ -70,9 +70,9 @@ export default function SafetyStatus({ status }: SafetyStatusProps) {
           titleClass: 'text-gray-900',
           descClass: 'text-gray-700',
           badgeClass: 'bg-gray-100 text-gray-800',
-          badgeText: 'UNKNOWN',
+          badgeText: 'НЕИЗВЕСТНО',
           buttonClass: 'bg-gray-600 hover:bg-gray-700',
-          title: 'Safety Status Unknown',
+          title: 'Статус безопасности неизвестен',
         };
     }
   };
@@ -92,7 +92,7 @@ export default function SafetyStatus({ status }: SafetyStatusProps) {
       return `${Math.round(data.percentage)}% ${name}`;
     });
 
-    return `Rate limits: ${descriptions.join(', ')}`;
+    return `Лимиты: ${descriptions.join(', ')}`;
   };
 
   return (

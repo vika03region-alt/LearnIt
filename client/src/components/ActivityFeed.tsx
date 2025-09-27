@@ -103,24 +103,24 @@ export default function ActivityFeed({ activities = [] }: ActivityFeedProps) {
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
-    if (diffInMinutes < 1) return 'Just now';
-    if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+    if (diffInMinutes < 1) return 'Только что';
+    if (diffInMinutes < 60) return `${diffInMinutes} мин. назад`;
     
     const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    if (diffInHours < 24) return `${diffInHours} ч. назад`;
     
     const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays} days ago`;
+    return `${diffInDays} д. назад`;
   };
 
   return (
     <Card className="bg-card border border-border" data-testid="activity-feed">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-foreground">Recent Activity</CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground">Последняя активность</CardTitle>
           <Link href="/activity">
             <Button variant="ghost" size="sm" data-testid="button-view-all-activity">
-              View All
+              Посмотреть все
             </Button>
           </Link>
         </div>
@@ -154,9 +154,9 @@ export default function ActivityFeed({ activities = [] }: ActivityFeedProps) {
             <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
               <div className="w-6 h-6 bg-muted-foreground rounded-full opacity-50"></div>
             </div>
-            <p className="text-muted-foreground text-sm">No recent activity</p>
+            <p className="text-muted-foreground text-sm">Нет недавней активности</p>
             <p className="text-muted-foreground text-xs mt-1">
-              Activity will appear here when actions are performed
+              Активность будет отображаться здесь при выполнении действий
             </p>
           </div>
         )}

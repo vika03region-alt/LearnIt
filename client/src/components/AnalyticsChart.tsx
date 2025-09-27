@@ -58,16 +58,16 @@ export default function AnalyticsChart({ data }: AnalyticsChartProps) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-foreground">
-            Engagement Analytics
+            Аналитика вовлечения
           </CardTitle>
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7days">Last 7 days</SelectItem>
-              <SelectItem value="30days">Last 30 days</SelectItem>
-              <SelectItem value="3months">Last 3 months</SelectItem>
+              <SelectItem value="7days">Последние 7 дней</SelectItem>
+              <SelectItem value="30days">Последние 30 дней</SelectItem>
+              <SelectItem value="3months">Последние 3 месяца</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -100,7 +100,7 @@ export default function AnalyticsChart({ data }: AnalyticsChartProps) {
         {/* Simple chart visualization */}
         <div className="mt-6 pt-6 border-t border-border">
           <div className="space-y-3">
-            <div className="text-sm font-medium text-foreground mb-4">Engagement Trend</div>
+            <div className="text-sm font-medium text-foreground mb-4">Тренд вовлечения</div>
             {platformData.map((platform) => {
               const maxEngagement = Math.max(...platformData.map(p => p.engagement));
               const widthPercentage = (platform.engagement / maxEngagement) * 100;

@@ -46,7 +46,7 @@ export default function PlatformCard({ platform, data }: PlatformCardProps) {
       return (
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-          <span className="text-xs text-gray-600 font-medium">Inactive</span>
+          <span className="text-xs text-gray-600 font-medium">Неактивна</span>
         </div>
       );
     }
@@ -56,21 +56,21 @@ export default function PlatformCard({ platform, data }: PlatformCardProps) {
         return (
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>
-            <span className="text-xs text-green-600 font-medium">Active</span>
+            <span className="text-xs text-green-600 font-medium">Активна</span>
           </div>
         );
       case 'warning':
         return (
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-            <span className="text-xs text-yellow-600 font-medium">Limited</span>
+            <span className="text-xs text-yellow-600 font-medium">Ограничена</span>
           </div>
         );
       default:
         return (
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-            <span className="text-xs text-gray-600 font-medium">Inactive</span>
+            <span className="text-xs text-gray-600 font-medium">Неактивна</span>
           </div>
         );
     }
@@ -123,9 +123,9 @@ export default function PlatformCard({ platform, data }: PlatformCardProps) {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">
-                {platform.name === 'youtube' ? 'Uploads Today' : 
-                 platform.name === 'telegram' ? 'Messages Today' :
-                 platform.name === 'tiktok' ? 'Videos Today' : 'Posts Today'}
+                {platform.name === 'youtube' ? 'Загрузок сегодня' : 
+                 platform.name === 'telegram' ? 'Сообщений сегодня' :
+                 platform.name === 'tiktok' ? 'Видео сегодня' : 'Постов сегодня'}
               </span>
               <span className="font-medium" data-testid={`text-${platform.name}-posts`}>
                 {data ? `${data.todayStats.posts}/${data.todayStats.maxPosts}` : '0/0'}
@@ -133,9 +133,9 @@ export default function PlatformCard({ platform, data }: PlatformCardProps) {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">
-                {platform.name === 'youtube' ? 'Subscribers' : 
-                 platform.name === 'telegram' ? 'Channel Growth' :
-                 platform.name === 'tiktok' ? 'Views' : 'Engagement'}
+                {platform.name === 'youtube' ? 'Подписчики' : 
+                 platform.name === 'telegram' ? 'Рост канала' :
+                 platform.name === 'tiktok' ? 'Просмотры' : 'Вовлечение'}
               </span>
               <span className="font-medium text-green-600">
                 {data ? `+${data.todayStats.engagementChange.toFixed(1)}%` : '+0.0%'}

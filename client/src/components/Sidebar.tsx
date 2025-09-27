@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
+import { Platform, SafetyStatus as SafetyStatusType } from "@/types/api";
 import { 
   TrendingUp, 
   Gauge, 
@@ -20,12 +21,12 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [location] = useLocation();
 
-  const { data: platforms } = useQuery({
+  const { data: platforms } = useQuery<Platform[]>({
     queryKey: ['/api/platforms'],
     retry: false,
   });
 
-  const { data: safetyStatus } = useQuery({
+  const { data: safetyStatus } = useQuery<SafetyStatusType>({
     queryKey: ['/api/safety/status'],
     retry: false,
   });
@@ -46,7 +47,12 @@ export default function Sidebar() {
   };
 
   const getPlatformStatus = (platformName: string) => {
-    const platformData = safetyStatus?.platforms?.[platformName];
+    if (!safetyStatus?.platforms) return 'inactive';
+    
+    // Find platform data by matching platform name to ID
+    const platformData = Object.values(safetyStatus.platforms).find(
+      (platform: any, index: number) => index.toString() === platformName || platform.name === platformName
+    );
     if (!platformData) return 'inactive';
     
     if (platformData.percentage > 90) return 'critical';
@@ -83,7 +89,7 @@ export default function Sidebar() {
           {!collapsed && (
             <div>
               <h1 className="text-xl font-bold text-foreground">Lucifer Trading</h1>
-              <p className="text-sm text-muted-foreground">Automation Hub</p>
+              <p className="text-sm text-muted-foreground">Панель управления</p>
             </div>
           )}
         </div>
@@ -100,7 +106,7 @@ export default function Sidebar() {
               data-testid="link-dashboard"
             >
               <Gauge className="w-5 h-5" />
-              {!collapsed && <span>Dashboard</span>}
+              {!collapsed && <span>Главная</span>}
             </a>
           </Link>
 
@@ -138,7 +144,7 @@ export default function Sidebar() {
                 data-testid="link-ai-content"
               >
                 <Brain className="w-5 h-5" />
-                {!collapsed && <span>AI Content</span>}
+                {!collapsed && <span>AI контент</span>}
               </a>
             </Link>
 
@@ -153,7 +159,7 @@ export default function Sidebar() {
                 data-testid="link-safety"
               >
                 <Shield className="w-5 h-5" />
-                {!collapsed && <span>Safety Center</span>}
+                {!collapsed && <span>Безопасность</span>}
               </a>
             </Link>
 
@@ -168,7 +174,7 @@ export default function Sidebar() {
                 data-testid="link-scheduler"
               >
                 <Calendar className="w-5 h-5" />
-                {!collapsed && <span>Scheduler</span>}
+                {!collapsed && <span>Планировщик</span>}
               </a>
             </Link>
 
@@ -183,7 +189,7 @@ export default function Sidebar() {
                 data-testid="link-settings"
               >
                 <Settings className="w-5 h-5" />
-                {!collapsed && <span>Settings</span>}
+                {!collapsed && <span>Настройки</span>}
               </a>
             </Link>
           </div>
@@ -203,7 +209,7 @@ export default function Sidebar() {
               collapsed && "rotate-180"
             )} 
           />
-          {!collapsed && <span className="text-sm">Collapse</span>}
+          {!collapsed && <span className="text-sm">Свернуть</span>}
         </Button>
       </div>
     </aside>

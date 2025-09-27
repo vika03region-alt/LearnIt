@@ -25,16 +25,16 @@ export default function QuickActions() {
       queryClient.invalidateQueries({ queryKey: ['/api/activity'] });
       queryClient.invalidateQueries({ queryKey: ['/api/scheduler/jobs'] });
       toast({
-        title: "Emergency Stop Activated",
-        description: "All automation has been stopped immediately.",
+        title: "Экстренная остановка активирована",
+        description: "Вся автоматизация немедленно остановлена.",
         variant: "destructive",
       });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Нет доступа",
+          description: "Вы не авторизованы. Выполняется вход...",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -43,8 +43,8 @@ export default function QuickActions() {
         return;
       }
       toast({
-        title: "Emergency Stop Failed",
-        description: error.message || "Failed to activate emergency stop",
+        title: "Ошибка экстренной остановки",
+        description: error.message || "Не удалось активировать экстренную остановку",
         variant: "destructive",
       });
     },
@@ -60,15 +60,15 @@ export default function QuickActions() {
       queryClient.invalidateQueries({ queryKey: ['/api/activity'] });
       queryClient.invalidateQueries({ queryKey: ['/api/scheduler/jobs'] });
       toast({
-        title: "Automation Paused",
-        description: "All scheduled posts have been delayed by 1 hour.",
+        title: "Автоматизация приостановлена",
+        description: "Все запланированные посты отложены на 1 час.",
       });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Нет доступа",
+          description: "Вы не авторизованы. Выполняется вход...",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -78,8 +78,8 @@ export default function QuickActions() {
       }
       // Handle non-critical error for pause (feature might not be implemented yet)
       toast({
-        title: "Pause Function",
-        description: "Pause feature is coming soon. Use emergency stop for immediate halt.",
+        title: "Функция паузы",
+        description: "Функция паузы скоро появится. Используйте экстренную остановку для немедленной остановки.",
       });
     },
   });
@@ -92,14 +92,14 @@ export default function QuickActions() {
     },
     onSuccess: () => {
       toast({
-        title: "Report Generated",
-        description: "Your weekly automation report has been generated.",
+        title: "Отчет создан",
+        description: "Ваш еженедельный отчет по автоматизации создан.",
       });
     },
     onError: () => {
       toast({
-        title: "Report Generation Failed",
-        description: "Failed to generate the weekly report. Please try again.",
+        title: "Ошибка создания отчета",
+        description: "Не удалось создать еженедельный отчет. Попробуйте еще раз.",
         variant: "destructive",
       });
     },
@@ -108,8 +108,8 @@ export default function QuickActions() {
   const actions = [
     {
       id: 'emergency-stop',
-      title: 'Emergency Stop',
-      description: 'Stop all automation',
+      title: 'Экстренная остановка',
+      description: 'Остановить всю автоматизацию',
       icon: <StopCircle className="text-red-600 text-xl" />,
       bgClass: 'bg-red-100 group-hover:bg-red-200',
       action: () => emergencyStopMutation.mutate(),
@@ -118,8 +118,8 @@ export default function QuickActions() {
     },
     {
       id: 'pause-all',
-      title: 'Pause All',
-      description: 'Temporary pause',
+      title: 'Пауза',
+      description: 'Временная остановка',
       icon: <Pause className="text-yellow-600 text-xl" />,
       bgClass: 'bg-yellow-100 group-hover:bg-yellow-200',
       action: () => pauseAllMutation.mutate(),
@@ -128,8 +128,8 @@ export default function QuickActions() {
     },
     {
       id: 'generate-report',
-      title: 'Generate Report',
-      description: 'Weekly summary',
+      title: 'Создать отчет',
+      description: 'Еженедельная сводка',
       icon: <BarChart3 className="text-blue-600 text-xl" />,
       bgClass: 'bg-blue-100 group-hover:bg-blue-200',
       action: () => generateReportMutation.mutate(),
@@ -138,8 +138,8 @@ export default function QuickActions() {
     },
     {
       id: 'settings',
-      title: 'Settings',
-      description: 'Configure platform',
+      title: 'Настройки',
+      description: 'Настроить платформу',
       icon: <Settings className="text-purple-600 text-xl" />,
       bgClass: 'bg-purple-100 group-hover:bg-purple-200',
       action: () => window.location.href = '/settings',
@@ -151,7 +151,7 @@ export default function QuickActions() {
   return (
     <Card className="bg-card border border-border" data-testid="quick-actions">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold text-foreground">Quick Actions</CardTitle>
+        <CardTitle className="text-lg font-semibold text-foreground">Быстрые действия</CardTitle>
       </CardHeader>
       
       <CardContent>

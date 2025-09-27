@@ -33,15 +33,15 @@ export default function AIContentPanel() {
       queryClient.invalidateQueries({ queryKey: ['/api/ai/content-logs'] });
       queryClient.invalidateQueries({ queryKey: ['/api/activity'] });
       toast({
-        title: "Content Generated",
-        description: "AI content has been successfully generated.",
+        title: "Контент создан",
+        description: "AI контент успешно сгенерирован.",
       });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Нет доступа",
+          description: "Вы не авторизованы. Выполняется вход...",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -50,8 +50,8 @@ export default function AIContentPanel() {
         return;
       }
       toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate AI content",
+        title: "Ошибка генерации",
+        description: error.message || "Не удалось создать AI контент",
         variant: "destructive",
       });
     },
@@ -60,8 +60,8 @@ export default function AIContentPanel() {
   const handleGenerate = () => {
     if (!prompt.trim()) {
       toast({
-        title: "Missing Prompt",
-        description: "Please enter a prompt for content generation.",
+        title: "Отсутствует запрос",
+        description: "Пожалуйста, введите запрос для генерации контента.",
         variant: "destructive",
       });
       return;
@@ -69,8 +69,8 @@ export default function AIContentPanel() {
 
     if (!contentType) {
       toast({
-        title: "Missing Content Type",
-        description: "Please select a content type.",
+        title: "Не выбран тип контента",
+        description: "Пожалуйста, выберите тип контента.",
         variant: "destructive",
       });
       return;
@@ -109,15 +109,15 @@ export default function AIContentPanel() {
             </div>
             <div>
               <CardTitle className="text-lg font-semibold text-foreground">
-                AI Content Generator
+                AI генератор контента
               </CardTitle>
-              <p className="text-sm text-muted-foreground">Powered by OpenAI GPT-5</p>
+              <p className="text-sm text-muted-foreground">На базе OpenAI GPT-5</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Badge className="bg-green-100 text-green-800 text-xs font-medium">
               <Circle className="w-2 h-2 text-green-500 mr-1 fill-current" />
-              Online
+              Онлайн
             </Badge>
           </div>
         </div>
@@ -127,27 +127,27 @@ export default function AIContentPanel() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="content-type" className="block text-sm font-medium text-foreground mb-2">
-              Content Type
+              Тип контента
             </Label>
             <Select value={contentType} onValueChange={setContentType}>
               <SelectTrigger id="content-type" data-testid="select-content-type">
-                <SelectValue placeholder="Select content type" />
+                <SelectValue placeholder="Выберите тип контента" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="trading_signal">Trading Signal Post</SelectItem>
-                <SelectItem value="market_analysis">Market Analysis</SelectItem>
-                <SelectItem value="educational">Educational Content</SelectItem>
-                <SelectItem value="motivational">Motivational Quote</SelectItem>
+                <SelectItem value="trading_signal">Торговый сигнал</SelectItem>
+                <SelectItem value="market_analysis">Рыночная аналитика</SelectItem>
+                <SelectItem value="educational">Обучающий контент</SelectItem>
+                <SelectItem value="motivational">Мотивационная цитата</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
             <Label className="block text-sm font-medium text-foreground mb-2">
-              Target Platform
+              Целевая платформа
             </Label>
             <div className="flex flex-wrap gap-2">
               {[
-                { value: 'all', label: 'All Platforms' },
+                { value: 'all', label: 'Все платформы' },
                 { value: 'instagram', label: 'Instagram' },
                 { value: 'tiktok', label: 'TikTok' },
                 { value: 'youtube', label: 'YouTube' },
@@ -169,13 +169,13 @@ export default function AIContentPanel() {
 
         <div>
           <Label htmlFor="prompt" className="block text-sm font-medium text-foreground mb-2">
-            Additional Context
+            Дополнительный контекст
           </Label>
           <Textarea
             id="prompt"
             className="resize-none"
             rows={3}
-            placeholder="EUR/USD breakout above 1.1250 resistance, targeting 1.1300..."
+            placeholder="Опишите тему для генерации контента..."
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             data-testid="textarea-prompt"
@@ -185,7 +185,7 @@ export default function AIContentPanel() {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
             <div className="text-sm">
-              <span className="text-muted-foreground">API Credits:</span>
+              <span className="text-muted-foreground">API кредиты:</span>
               <span className="font-medium text-foreground" data-testid="text-api-credits">
                 847/1000
               </span>
@@ -203,12 +203,12 @@ export default function AIContentPanel() {
             {generateContentMutation.isPending ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                Generating...
+                Генерирую...
               </>
             ) : (
               <>
                 <Wand2 className="w-4 h-4 mr-2" />
-                Generate Content
+                Создать контент
               </>
             )}
           </Button>
@@ -216,7 +216,7 @@ export default function AIContentPanel() {
 
         {generatedContent && (
           <div className="mt-4 p-4 bg-muted rounded-lg border-l-4 border-primary">
-            <h4 className="font-medium text-foreground mb-2">Generated Content Preview:</h4>
+            <h4 className="font-medium text-foreground mb-2">Предпросмотр сгенерированного контента:</h4>
             <p className="text-sm text-muted-foreground mb-3" data-testid="text-generated-content">
               {generatedContent}
             </p>
@@ -226,21 +226,21 @@ export default function AIContentPanel() {
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
                 data-testid="button-post-instagram"
               >
-                Post to Instagram
+                Опубликовать в Instagram
               </Button>
               <Button 
                 size="sm" 
                 variant="secondary"
                 data-testid="button-schedule"
               >
-                Schedule
+                Запланировать
               </Button>
               <Button 
                 size="sm" 
                 variant="secondary"
                 data-testid="button-edit"
               >
-                Edit
+                Редактировать
               </Button>
             </div>
           </div>
