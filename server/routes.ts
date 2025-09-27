@@ -11,10 +11,14 @@ import { aiAnalyticsService } from "./services/aiAnalytics";
 import { schedulerService } from "./services/scheduler";
 import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
 import { z } from "zod";
+import { seedPlatforms } from "./seedDatabase";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Initialize platforms if they don't exist
+  await seedPlatforms();
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -56,7 +60,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const accountData = { ...req.body, userId };
       const account = await storage.createUserAccount(accountData);
-      
+
       // Log activity
       await storage.createActivityLog({
         userId,
@@ -91,9 +95,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const postData = insertPostSchema.parse(req.body);
-      
+
       const post = await storage.createPost({ ...postData, userId });
-      
+
       // Log activity
       await storage.createActivityLog({
         userId,
@@ -116,9 +120,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { prompt, contentType, targetPlatforms } = insertAIContentLogSchema.parse(req.body);
-      
+
       const result = await aiContentService.generateContent(prompt, contentType, targetPlatforms || []);
-      
+
       // Log the generation
       await storage.createAIContentLog({
         userId,
@@ -166,13 +170,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { trend, hooks } = req.body;
-      
+
       if (!trend || !hooks || !Array.isArray(hooks)) {
         return res.status(400).json({ message: "Trend and hooks array are required" });
       }
 
       const result = await aiContentService.generateViralTikTokContent(trend, hooks);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'AI Viral TikTok Generated',
@@ -185,12 +189,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error: any) {
       console.error("Error generating viral TikTok content:", error);
-      
+
       // Handle AIError with Russian messages and proper status codes
       if (error.name === 'AIError') {
         return res.status(error.httpStatus).json({ message: error.userMessageRu, code: error.code });
       }
-      
+
       // Fallback for other errors
       res.status(500).json({ message: error.message || "Не удалось создать viral TikTok контент" });
     }
@@ -201,13 +205,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { markets, style } = req.body;
-      
+
       if (!markets || !Array.isArray(markets) || !style) {
         return res.status(400).json({ message: "Markets array and style are required" });
       }
 
       const result = await aiContentService.generateYouTubeAnalysis(markets, style);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'AI YouTube Analysis Generated',
@@ -229,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { symbol, action, entry, targets, stopLoss, leverage, confidence } = req.body;
-      
+
       if (!symbol || !action || !entry || !targets || !stopLoss) {
         return res.status(400).json({ message: "Symbol, action, entry, targets, and stopLoss are required" });
       }
@@ -237,7 +241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await aiContentService.generateLiveSignalPost(
         symbol, action, entry, targets, stopLoss, leverage, confidence
       );
-      
+
       await storage.createActivityLog({
         userId,
         action: 'AI Live Signal Generated',
@@ -259,13 +263,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { timeframe, coins, reasoning } = req.body;
-      
+
       if (!timeframe || !coins || !reasoning || !Array.isArray(coins) || !Array.isArray(reasoning)) {
         return res.status(400).json({ message: "Timeframe, coins array, and reasoning array are required" });
       }
 
       const result = await aiContentService.generateCryptoPredictions(timeframe, coins, reasoning);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'AI Crypto Predictions Generated',
@@ -287,13 +291,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { coin, metrics } = req.body;
-      
+
       if (!coin || !metrics) {
         return res.status(400).json({ message: "Coin and metrics are required" });
       }
 
       const result = await aiContentService.generateMemeCoinAnalysis(coin, metrics);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'AI Memecoin Analysis Generated',
@@ -315,13 +319,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { topic, experience, focus } = req.body;
-      
+
       if (!topic || !experience || !focus) {
         return res.status(400).json({ message: "Topic, experience, and focus are required" });
       }
 
       const result = await aiContentService.generateForexEducation(topic, experience, focus);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'AI Forex Education Generated',
@@ -345,13 +349,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { platform, niche } = req.body;
-      
+
       if (!platform || !niche) {
         return res.status(400).json({ message: "Platform and niche are required" });
       }
 
       const result = await aiContentService.analyzeTrendingTopics(platform, niche);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'AI Trends Analyzed',
@@ -373,13 +377,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { content, platform, targetAudience } = req.body;
-      
+
       if (!content || !platform) {
         return res.status(400).json({ message: "Content and platform are required" });
       }
 
       const result = await aiContentService.optimizeHashtags(content, platform, targetAudience);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'AI Hashtags Optimized',
@@ -401,13 +405,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { competitors, analysisType } = req.body;
-      
+
       if (!competitors || !Array.isArray(competitors) || !analysisType) {
         return res.status(400).json({ message: "Competitors array and analysis type are required" });
       }
 
       const result = await aiContentService.generateCompetitorAnalysis(competitors, analysisType);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'AI Competitor Analysis',
@@ -429,13 +433,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { contentType, emotion } = req.body;
-      
+
       if (!contentType || !emotion) {
         return res.status(400).json({ message: "Content type and emotion are required" });
       }
 
       const result = await aiContentService.generateHookLibrary(contentType, emotion);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'AI Hooks Generated',
@@ -515,7 +519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       await schedulerService.emergencyStop(userId);
-      
+
       // Log activity
       await storage.createActivityLog({
         userId,
@@ -553,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const days = parseInt(req.query.days as string) || 30;
       const analytics = await storage.getPlatformAnalytics(userId, parseInt(platformId), days);
-      
+
       const latestMetrics = analytics[0]?.metrics || {
         followers: 0,
         following: 0,
@@ -592,7 +596,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { platformId } = req.params;
       const userId = req.user.claims.sub;
       const competitors = await storage.getCompetitorAnalyses(userId, parseInt(platformId));
-      
+
       const competitorData = competitors.map(comp => ({
         handle: comp.competitorHandle,
         name: comp.competitorName || comp.competitorHandle,
@@ -621,7 +625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const category = req.query.category as string;
       const days = parseInt(req.query.days as string) || 7;
       const trends = await storage.getTrendAnalysis(parseInt(platformId), category, days);
-      
+
       const trendData = trends.map(trend => ({
         name: trend.trend_name,
         volume: trend.data.volume,
@@ -648,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const platformData = await storage.getUserAccounts(userId);
       const targetPlatform = platformData.find(p => p.platformId.toString() === platform);
-      
+
       let historicalData: any[] = [];
       if (targetPlatform) {
         historicalData = await storage.getContentPerformance(userId, targetPlatform.platformId, 30);
@@ -697,10 +701,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const authUrl = await service.getAuthUrl(userId, state);
-      
+
       // Store state for CSRF protection
       req.session.oauthState = { state, userId, platformId };
-      
+
       res.json({ authUrl });
     } catch (error) {
       console.error('OAuth initialization error:', error);
@@ -711,7 +715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/social/callback', isAuthenticated, async (req: any, res) => {
     try {
       const { code, state, error } = req.query;
-      
+
       if (error) {
         return res.status(400).json({ error: `OAuth error: ${error}` });
       }
@@ -734,10 +738,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Exchange code for tokens
       const tokens = await service.exchangeCodeForToken(code, state);
-      
+
       // Create or update user account
       const existingAccount = await storage.getUserAccount(userId, platformId);
-      
+
       let accountId: number;
       if (existingAccount) {
         await storage.updateUserAccount(existingAccount.id, {
@@ -766,12 +770,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const instagramService = service as any; // Cast to access Instagram-specific methods
           if (instagramService.getInstagramBusinessAccountId) {
             const businessAccountId = await instagramService.getInstagramBusinessAccountId(tokens.accessToken);
-            
+
             if (businessAccountId) {
               // Get existing platform config and merge with business account ID
               const currentAccount = await storage.getUserAccount(userId, platformId);
               const existingConfig = (currentAccount && currentAccount.platformConfig) || {};
-              
+
               await storage.updateUserAccount(accountId, {
                 platformConfig: {
                   ...existingConfig,
@@ -863,14 +867,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Post to specific platforms
         results = {} as { [platformId: number]: any };
         const userAccounts = await storage.getUserAccounts(userId);
-        
+
         for (const platformId of platformIds) {
           const account = userAccounts.find(acc => 
             acc.platformId === platformId && 
             acc.isActive && 
             acc.authStatus === 'connected'
           );
-          
+
           if (account) {
             const service = socialMediaManager.getService(platformId);
             if (service) {
@@ -891,7 +895,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log posting activity
       const successfulPosts = Object.values(results).filter((r: any) => r.success).length;
       const totalPosts = Object.keys(results).length;
-      
+
       await storage.createActivityLog({
         userId,
         platformId: null,
@@ -912,7 +916,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       await socialMediaManager.validateAllTokens(userId);
-      
+
       const updatedAccounts = await storage.getUserAccounts(userId);
       res.json({ 
         success: true, 

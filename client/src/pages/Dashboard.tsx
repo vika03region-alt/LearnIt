@@ -156,7 +156,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      
+
       <main className="ml-64 transition-all duration-300">
         {/* Верхняя панель */}
         <header className="bg-card border-b border-border px-6 py-4">
@@ -170,7 +170,7 @@ export default function Dashboard() {
                   Полный контроль над вашими социальными медиа и торговой активностью
                 </p>
               </div>
-              
+
               {/* Поиск */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -183,7 +183,7 @@ export default function Dashboard() {
                 />
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               {/* Кнопки действий */}
               <Button 
@@ -195,7 +195,7 @@ export default function Dashboard() {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Обновить
               </Button>
-              
+
               <Button 
                 onClick={handleExportData} 
                 variant="outline" 
@@ -414,7 +414,7 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </div>
-              
+
               {/* Карточки платформ */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {platforms?.map((platform: Platform) => {
@@ -557,7 +557,7 @@ export default function Dashboard() {
                     </div>
                   </CardContent>
                 </Card>
-                
+
                 <Card className="border-gray-200 dark:border-gray-800">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -570,7 +570,7 @@ export default function Dashboard() {
                       {platforms?.map((platform: Platform) => {
                         const platformData = dashboardData?.platforms?.[platform.name];
                         const usage = platformData?.rateLimitUsage || 0;
-                        
+
                         return (
                           <div key={platform.id} className="space-y-2">
                             <div className="flex justify-between items-center">

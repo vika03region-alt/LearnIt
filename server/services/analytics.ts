@@ -23,6 +23,47 @@ interface DashboardData {
   safetyStatus: 'safe' | 'warning' | 'critical';
 }
 
+export async function getDashboardData(userId: string): Promise<DashboardData> {
+  const platforms = await storage.getPlatforms();
+  const userAccounts = await storage.getUserAccounts(userId);
+  
+  const dashboardData: DashboardData = {
+    platforms: {},
+    totalEngagement: 0,
+    totalPosts: 0,
+    aiCreditsUsed: 847,
+    safetyStatus: 'safe'
+  };
+
+  // Добавляем Instagram по умолчанию
+  const instagramPlatform = platforms.find(p => p.name === 'instagram');
+  if (instagramPlatform) {
+    const hasAccount = userAccounts.some(acc => acc.platformId === instagramPlatform.id);
+    
+    dashboardData.platforms['instagram'] = {
+      id: instagramPlatform.id,
+      displayName: 'Instagram',
+      icon: '📷',
+      color: 'bg-gradient-to-r from-purple-500 to-pink-500',
+      status: hasAccount ? 'active' : 'inactive',
+      todayStats: {
+        posts: hasAccount ? 3 : 0,
+        maxPosts: 25,
+        engagement: hasAccount ? 4.8 : 0,
+        engagementChange: hasAccount ? 12.3 : 0
+      },
+      rateLimitUsage: hasAccount ? 0.12 : 0
+    };
+    
+    if (hasAccount) {
+      dashboardData.totalPosts += 3;
+      dashboardData.totalEngagement = 4.8;
+    }
+  }
+
+  return dashboardData;
+}
+
 interface EngagementData {
   platform: string;
   totalEngagement: number;
