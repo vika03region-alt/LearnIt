@@ -21,8 +21,6 @@ import type { Platform, UserAccount } from "@shared/schema";
 import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
 import { z } from "zod";
 
-export async function registerRoutes(app: Express): Promise<Server> {</old_str>
-
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize database with platforms
   await seedPlatforms();
@@ -716,7 +714,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Ошибка запуска продвижения:', error);
       res.status(500).json({ error: 'Не удалось запустить продвижение' });
     }
-  });</old_str>
+  });
 
   // Получение метрик продвижения
   app.get('/api/promotion/metrics/:clientId', isAuthenticated, async (req: any, res) => {
@@ -1746,5 +1744,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupPromotionStrategyRoutes(app);
 
   const httpServer = createServer(app);
-  return httpServer;</old_str>
+  return httpServer;
 }
