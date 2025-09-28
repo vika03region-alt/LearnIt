@@ -235,3 +235,7 @@ class AILearningEngine {
 }
 
 export const aiLearningEngine = new AILearningEngine();
+
+// Экспорт интерфейсов для использования в других модулях
+export type { LearningData };
+export { AILearningEngine };

@@ -37,6 +37,94 @@ export function setupPromotionStrategyRoutes(app: Express) {
   app.post('/api/promotion/generate-strategies', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const { clientPersona, currentMetrics, budget } = req.body;
+
+      if (!clientPersona) {
+        return res.status(400).json({ error: 'Персона клиента обязательна' });
+      }
+
+      const strategies = await advancedPromotionStrategy.generatePromotionStrategies(
+        clientPersona,
+        currentMetrics || {},
+        budget || 1000
+      );
+
+      // Группируем стратегии по типам
+      const groupedStrategies = {
+        free: strategies.filter(s => s.type === 'free'),
+        paid: strategies.filter(s => s.type === 'paid'),
+        premium: strategies.filter(s => s.type === 'premium'),
+      };
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Promotion Strategies Generated',
+        description: `Создано ${strategies.length} стратегий продвижения`,
+        status: 'success',
+        metadata: { strategiesCount: strategies.length, budget },
+      });
+
+      res.json({ strategies: groupedStrategies });
+    } catch (error) {
+      console.error('Ошибка генерации стратегий:', error);
+      res.status(500).json({ error: 'Не удалось создать стратегии продвижения' });
+    }
+  });
+
+  // Выполнение выбранных стратегий
+  app.post('/api/promotion/execute-strategies', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { strategies, clientPersona } = req.body;
+
+      if (!strategies || !Array.isArray(strategies)) {
+        return res.status(400).json({ error: 'Требуется массив стратегий' });
+      }
+
+      if (!clientPersona) {
+        return res.status(400).json({ error: 'Персона клиента обязательна' });
+      }
+
+      const results = {
+        executed: [] as string[],
+        scheduled: [] as string[],
+        failed: [] as string[],
+      };
+
+      // Выполняем каждую стратегию
+      for (const strategy of strategies) {
+        try {
+          const strategyResult = await advancedPromotionStrategy.executeStrategy(
+            userId,
+            strategy,
+            clientPersona
+          );
+
+          results.executed.push(...strategyResult.executed);
+          results.scheduled.push(...strategyResult.scheduled);
+          results.failed.push(...strategyResult.failed);
+        } catch (error) {
+          results.failed.push(`Ошибка выполнения стратегии: ${strategy.name}`);
+        }
+      }
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Promotion Strategies Executed',
+        description: `Выполнено ${results.executed.length} действий из ${strategies.length} стратегий`,
+        status: results.failed.length === 0 ? 'success' : 'warning',
+        metadata: { results, strategiesCount: strategies.length },
+      });
+
+      res.json(results);
+    } catch (error) {
+      console.error('Ошибка выполнения стратегий:', error);
+      res.status(500).json({ error: 'Не удалось выполнить стратегии' });
+    }
+  });
+  app.post('/api/promotion/generate-strategies', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
       const { clientPersona, currentMetrics, budget = 1000 } = req.body;
 
       if (!clientPersona) {

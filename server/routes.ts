@@ -512,7 +512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/client/init-lucifer', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      
+
       const luciferProfile = {
         name: 'Lucifer Tradera',
         platforms: {
@@ -526,10 +526,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Запускаем глубокий анализ
       const analysis = await clientAnalysisService.analyzeClientProfile(luciferProfile);
-      
+
       // Создаем стратегию продвижения
       const strategy = await promotionEngine.createPromotionStrategy(luciferProfile);
-      
+
       // Логируем инициализацию
       await storage.createActivityLog({
         userId,
@@ -577,9 +577,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { clientId } = req.params;
-      
+
       const metrics = await promotionEngine.getPromotionMetrics(userId, clientId);
-      
+
       res.json(metrics);
     } catch (error) {
       console.error('Ошибка получения метрик:', error);
@@ -592,9 +592,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { strategyId, performanceData } = req.body;
-      
+
       const adaptedStrategy = await promotionEngine.adaptStrategy(strategyId, performanceData);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'Strategy Adapted',
@@ -610,8 +610,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Ошибка адаптации стратегии:', error);
       res.status(500).json({ error: 'Не удалось адаптировать стратегию' });
-    }ния:', error);
-      res.status(500).json({ error: 'Не удалось запустить продвижение' });
     }
   });
 
