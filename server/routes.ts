@@ -13,9 +13,14 @@ import { safetyService } from "./services/safety";
 import { schedulerService } from "./services/scheduler";
 import { setupPromotionStrategyRoutes } from "./routes/promotionStrategy";
 import { aiLearningEngine } from "./services/aiLearningEngine";
+import { viralGrowthEngine } from "./services/viralGrowthEngine";
+import { competitorSurveillance } from "./services/competitorSurveillance";
+import { brandDominationEngine } from "./services/brandDominationEngine";
 import type { Platform, UserAccount } from "@shared/schema";
 import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
-import { z } from "zod";</old_str>
+import { z } from "zod";
+
+export async function registerRoutes(app: Express): Promise<Server> {</old_str>
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize database with platforms
@@ -1302,6 +1307,298 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Ошибка активации автоматического обучения:', error);
       res.status(500).json({ error: 'Не удалось активировать автоматическое обучение' });
+    }
+  });
+
+  // === РЕВОЛЮЦИОННЫЕ ФУНКЦИИ ВИРУСНОГО РОСТА ===
+
+  // Анализ вирусного потенциала
+  app.post('/api/viral/analyze-potential', isAuthenticated, async (req: any, res) => {
+    try {
+      const { content, platform } = req.body;
+      const viralMetrics = await viralGrowthEngine.analyzeViralPotential(content, platform);
+      res.json({ metrics: viralMetrics, message: 'Анализ вирусного потенциала завершен' });
+    } catch (error) {
+      console.error('Ошибка анализа вирусного потенциала:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать вирусный потенциал' });
+    }
+  });
+
+  // Генерация вирусного контента
+  app.post('/api/viral/generate-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const { niche, platform, targetEmotion } = req.body;
+      const viralContent = await viralGrowthEngine.generateViralContent(niche, platform, targetEmotion);
+      
+      res.json({
+        content: viralContent,
+        message: 'Вирусный контент создан с высоким потенциалом',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации вирусного контента:', error);
+      res.status(500).json({ error: 'Не удалось создать вирусный контент' });
+    }
+  });
+
+  // Запуск вирусной кампании
+  app.post('/api/viral/launch-campaign', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { campaignType, niche } = req.body;
+      
+      const campaign = await viralGrowthEngine.launchViralCampaign(userId, campaignType, niche);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'Viral Campaign Launched',
+        description: `Запущена вирусная кампания: ${campaignType}`,
+        status: 'success',
+        metadata: campaign,
+      });
+
+      res.json({
+        campaign,
+        message: 'Вирусная кампания успешно запущена!',
+      });
+    } catch (error) {
+      console.error('Ошибка запуска вирусной кампании:', error);
+      res.status(500).json({ error: 'Не удалось запустить вирусную кампанию' });
+    }
+  });
+
+  // Генерация психологических триггеров
+  app.post('/api/viral/psychological-triggers', isAuthenticated, async (req: any, res) => {
+    try {
+      const { audience, goal } = req.body;
+      const triggers = await viralGrowthEngine.generatePsychologicalTriggers(audience, goal);
+      
+      res.json({
+        triggers,
+        message: 'Психологические триггеры сгенерированы',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации психологических триггеров:', error);
+      res.status(500).json({ error: 'Не удалось создать психологические триггеры' });
+    }
+  });
+
+  // Создание эмоционального контента
+  app.post('/api/viral/emotional-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const { emotion, niche, platform } = req.body;
+      const emotionalContent = await viralGrowthEngine.createEmotionalContent(emotion, niche, platform);
+      
+      res.json({
+        content: emotionalContent,
+        emotion,
+        message: `Эмоциональный контент (${emotion}) создан`,
+      });
+    } catch (error) {
+      console.error('Ошибка создания эмоционального контента:', error);
+      res.status(500).json({ error: 'Не удалось создать эмоциональный контент' });
+    }
+  });
+
+  // Применение нейромаркетинга
+  app.post('/api/viral/neuromarketing', isAuthenticated, async (req: any, res) => {
+    try {
+      const { content } = req.body;
+      const enhancedContent = await viralGrowthEngine.applyNeuroMarketingPrinciples(content);
+      
+      res.json({
+        original: content,
+        enhanced: enhancedContent,
+        message: 'Нейромаркетинговые принципы применены',
+      });
+    } catch (error) {
+      console.error('Ошибка применения нейромаркетинга:', error);
+      res.status(500).json({ error: 'Не удалось применить нейромаркетинг' });
+    }
+  });
+
+  // === СИСТЕМА СЛЕЖЕНИЯ ЗА КОНКУРЕНТАМИ ===
+
+  // Мониторинг конкурентов
+  app.post('/api/competitors/monitor', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { niche } = req.body;
+      
+      const intelligence = await competitorSurveillance.monitorCompetitors(niche);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'Competitor Intelligence',
+        description: `Собрана разведка по конкурентам в нише: ${niche}`,
+        status: 'success',
+        metadata: intelligence,
+      });
+
+      res.json({
+        intelligence,
+        message: 'Разведданные по конкурентам получены',
+      });
+    } catch (error) {
+      console.error('Ошибка мониторинга конкурентов:', error);
+      res.status(500).json({ error: 'Не удалось провести мониторинг конкурентов' });
+    }
+  });
+
+  // Анализ стратегий конкурентов
+  app.post('/api/competitors/analyze-strategies', isAuthenticated, async (req: any, res) => {
+    try {
+      const { competitors } = req.body;
+      const strategies = await competitorSurveillance.analyzeCompetitorStrategies(competitors);
+      
+      res.json({
+        strategies,
+        message: 'Стратегии конкурентов проанализированы',
+      });
+    } catch (error) {
+      console.error('Ошибка анализа стратегий конкурентов:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать стратегии конкурентов' });
+    }
+  });
+
+  // Создание контр-стратегии
+  app.post('/api/competitors/counter-strategy', isAuthenticated, async (req: any, res) => {
+    try {
+      const { competitorHandle, theirStrategy } = req.body;
+      const counterStrategy = await competitorSurveillance.createCounterStrategy(competitorHandle, theirStrategy);
+      
+      res.json({
+        counterStrategy,
+        message: 'Контр-стратегия создана',
+      });
+    } catch (error) {
+      console.error('Ошибка создания контр-стратегии:', error);
+      res.status(500).json({ error: 'Не удалось создать контр-стратегию' });
+    }
+  });
+
+  // Предсказание действий конкурентов
+  app.post('/api/competitors/predict-moves', isAuthenticated, async (req: any, res) => {
+    try {
+      const { competitorData, marketTrends } = req.body;
+      const predictions = await competitorSurveillance.predictCompetitorMoves(competitorData, marketTrends);
+      
+      res.json({
+        predictions,
+        message: 'Действия конкурентов спрогнозированы',
+      });
+    } catch (error) {
+      console.error('Ошибка предсказания действий конкурентов:', error);
+      res.status(500).json({ error: 'Не удалось спрогнозировать действия конкурентов' });
+    }
+  });
+
+  // Настройка автоматического мониторинга
+  app.post('/api/competitors/setup-monitoring', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { competitors } = req.body;
+      
+      await competitorSurveillance.setupAutomaticMonitoring(userId, competitors);
+      
+      res.json({
+        message: 'Автоматический мониторинг конкурентов настроен',
+        competitors: competitors.length,
+      });
+    } catch (error) {
+      console.error('Ошибка настройки мониторинга:', error);
+      res.status(500).json({ error: 'Не удалось настроить мониторинг' });
+    }
+  });
+
+  // === СИСТЕМА ДОМИНИРОВАНИЯ БРЕНДА ===
+
+  // Создание плана доминирования
+  app.post('/api/domination/create-plan', isAuthenticated, async (req: any, res) => {
+    try {
+      const { clientProfile, targetMarketShare } = req.body;
+      const dominationPlan = await brandDominationEngine.createDominationPlan(clientProfile, targetMarketShare);
+      
+      res.json({
+        plan: dominationPlan,
+        message: 'План доминирования создан',
+      });
+    } catch (error) {
+      console.error('Ошибка создания плана доминирования:', error);
+      res.status(500).json({ error: 'Не удалось создать план доминирования' });
+    }
+  });
+
+  // Создание брендовой империи
+  app.post('/api/domination/build-empire', isAuthenticated, async (req: any, res) => {
+    try {
+      const { clientProfile } = req.body;
+      const empire = await brandDominationEngine.buildBrandEmpire(clientProfile);
+      
+      res.json({
+        empire,
+        message: 'Брендовая империя создана',
+      });
+    } catch (error) {
+      console.error('Ошибка создания брендовой империи:', error);
+      res.status(500).json({ error: 'Не удалось создать брендовую империю' });
+    }
+  });
+
+  // Запуск агрессивного роста
+  app.post('/api/domination/aggressive-growth', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientProfile } = req.body;
+      
+      const results = await brandDominationEngine.executeAggressiveGrowth(userId, clientProfile);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'Aggressive Growth Launched',
+        description: 'Запущена агрессивная стратегия роста и доминирования',
+        status: 'success',
+        metadata: results,
+      });
+
+      res.json({
+        results,
+        message: 'Агрессивная стратегия роста запущена!',
+      });
+    } catch (error) {
+      console.error('Ошибка запуска агрессивного роста:', error);
+      res.status(500).json({ error: 'Не удалось запустить агрессивный рост' });
+    }
+  });
+
+  // Психологическая кампания
+  app.post('/api/domination/psychological-campaign', isAuthenticated, async (req: any, res) => {
+    try {
+      const { targetAudience, competitorWeaknesses } = req.body;
+      const campaign = await brandDominationEngine.launchPsychologicalCampaign(targetAudience, competitorWeaknesses);
+      
+      res.json({
+        campaign,
+        message: 'Психологическая кампания запущена',
+      });
+    } catch (error) {
+      console.error('Ошибка запуска психологической кампании:', error);
+      res.status(500).json({ error: 'Не удалось запустить психологическую кампанию' });
+    }
+  });
+
+  // План монополизации
+  app.post('/api/domination/monopolization-plan', isAuthenticated, async (req: any, res) => {
+    try {
+      const { niche } = req.body;
+      const monopolizationPlan = await brandDominationEngine.createMonopolizationPlan(niche);
+      
+      res.json({
+        plan: monopolizationPlan,
+        message: 'План монополизации рынка создан',
+      });
+    } catch (error) {
+      console.error('Ошибка создания плана монополизации:', error);
+      res.status(500).json({ error: 'Не удалось создать план монополизации' });
     }
   });
 

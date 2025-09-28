@@ -17,6 +17,8 @@ import AIContentGenerator from "@/components/AIContentGenerator";
 import PromotionDashboard from "@/components/PromotionDashboard";
 import PromotionStrategyManager from "@/components/PromotionStrategyManager";
 import { AILearningDashboard } from '../components/AILearningDashboard';
+import { ViralGrowthDashboard } from '../components/ViralGrowthDashboard';
+import { DominationControlCenter } from '../components/DominationControlCenter';
 import { 
   Bell, 
   User, 
@@ -212,44 +214,63 @@ export default function Dashboard() {
 
           {/* Главные табы управления */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-7 h-12 p-1 bg-white/60 backdrop-blur-sm">
+            <TabsList className="grid w-full grid-cols-9 h-12 p-1 bg-white/60 backdrop-blur-sm">
               <TabsTrigger value="control" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Rocket className="w-4 h-4" />
-                <span className="hidden sm:inline">Пульт Управления</span>
-                <span className="sm:hidden">Управление</span>
+                <span className="hidden sm:inline">Пульт</span>
+                <span className="sm:hidden">🚀</span>
+              </TabsTrigger>
+              <TabsTrigger value="viral-growth" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">Вирусный Рост</span>
+                <span className="sm:hidden">🔥</span>
+              </TabsTrigger>
+              <TabsTrigger value="domination" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Crown className="w-4 h-4" />
+                <span className="hidden sm:inline">Доминирование</span>
+                <span className="sm:hidden">👑</span>
               </TabsTrigger>
               <TabsTrigger value="lucifer-promotion" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <Crown className="w-4 h-4" />
-                <span className="hidden sm:inline">Lucifer Продвижение</span>
-                <span className="sm:hidden">Lucifer</span>
+                <Star className="w-4 h-4" />
+                <span className="hidden sm:inline">Lucifer</span>
+                <span className="sm:hidden">⭐</span>
               </TabsTrigger>
               <TabsTrigger value="ai-strategies" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Gem className="w-4 h-4" />
                 <span className="hidden sm:inline">AI Стратегии</span>
-                <span className="sm:hidden">Стратегии</span>
+                <span className="sm:hidden">💎</span>
               </TabsTrigger>
               <TabsTrigger value="ai-tools" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Brain className="w-4 h-4" />
-                <span className="hidden sm:inline">AI Инструменты</span>
-                <span className="sm:hidden">AI</span>
+                <span className="hidden sm:inline">AI</span>
+                <span className="sm:hidden">🧠</span>
               </TabsTrigger>
               <TabsTrigger value="analytics" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <BarChart3 className="w-4 h-4" />
                 <span className="hidden sm:inline">Аналитика</span>
+                <span className="sm:hidden">📊</span>
               </TabsTrigger>
               <TabsTrigger value="accounts" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Settings className="w-4 h-4" />
                 <span className="hidden sm:inline">Аккаунты</span>
-              </TabsTrigger>
-              <TabsTrigger value="promotion" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <Target className="w-4 h-4" />
-                <span className="hidden sm:inline">Продвижение</span>
+                <span className="sm:hidden">⚙️</span>
               </TabsTrigger>
               <TabsTrigger value="ai-learning" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <Brain className="w-4 h-4" />
+                <DollarSign className="w-4 h-4" />
                 <span className="hidden sm:inline">AI Обучение</span>
+                <span className="sm:hidden">🎓</span>
               </TabsTrigger>
             </TabsList>
+
+            {/* Вирусный рост */}
+            <TabsContent value="viral-growth" className="mt-6">
+              <ViralGrowthDashboard />
+            </TabsContent>
+
+            {/* Доминирование */}
+            <TabsContent value="domination" className="mt-6">
+              <DominationControlCenter />
+            </TabsContent>
 
             {/* Пульт управления - главная вкладка */}
             <TabsContent value="control" className="space-y-6 mt-6">
