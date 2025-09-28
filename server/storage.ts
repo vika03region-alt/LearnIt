@@ -13,6 +13,8 @@ import {
   aiInsights,
   competitorAnalysis,
   trendAnalysis,
+  aiConversations,
+  aiMessages,
   type User,
   type UpsertUser,
   type Platform,
@@ -31,6 +33,10 @@ import {
   type AIInsight,
   type CompetitorAnalysis,
   type TrendAnalysis,
+  type AIConversation,
+  type AIMessage,
+  type InsertAIConversation,
+  type InsertAIMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -129,6 +135,16 @@ export interface IStorage {
   getCompetitorAnalyses(userId: string, platformId: number): Promise<CompetitorAnalysis[]>;
   createTrendAnalysis(trend: Omit<TrendAnalysis, 'id' | 'createdAt'>): Promise<TrendAnalysis>;
   getTrendAnalysis(platformId: number, category?: string, days?: number): Promise<TrendAnalysis[]>;
+
+  // AI Assistant operations
+  createAIConversation(conversation: InsertAIConversation): Promise<AIConversation>;
+  getUserAIConversations(userId: string): Promise<AIConversation[]>;
+  getAIConversation(conversationId: number): Promise<AIConversation>;
+  updateAIConversation(conversationId: number, userId: string, updates: Partial<InsertAIConversation>): Promise<AIConversation>;
+  deleteAIConversation(conversationId: number, userId: string): Promise<boolean>;
+  createAIMessage(message: InsertAIMessage): Promise<AIMessage>;
+  getAIConversationMessages(conversationId: number): Promise<AIMessage[]>;
+  updateAIConversationMetrics(conversationId: number, tokensUsed: number, cost: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -599,6 +615,80 @@ export class DatabaseStorage implements IStorage {
     ];
 
     return category ? mockTrends.filter(trend => trend.category === category) : mockTrends;
+  }
+
+  // AI Assistant operations
+  async createAIConversation(conversation: InsertAIConversation): Promise<AIConversation> {
+    const [created] = await db
+      .insert(aiConversations)
+      .values(conversation)
+      .returning();
+    return created;
+  }
+
+  async getUserAIConversations(userId: string): Promise<AIConversation[]> {
+    return await db
+      .select()
+      .from(aiConversations)
+      .where(and(eq(aiConversations.userId, userId), eq(aiConversations.status, 'active')))
+      .orderBy(desc(aiConversations.updatedAt));
+  }
+
+  async getAIConversation(conversationId: number): Promise<AIConversation> {
+    const [conversation] = await db
+      .select()
+      .from(aiConversations)
+      .where(eq(aiConversations.id, conversationId));
+    return conversation;
+  }
+
+  async updateAIConversation(conversationId: number, userId: string, updates: Partial<InsertAIConversation>): Promise<AIConversation> {
+    const [updated] = await db
+      .update(aiConversations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteAIConversation(conversationId: number, userId: string): Promise<boolean> {
+    const result = await db
+      .update(aiConversations)
+      .set({ status: 'deleted', updatedAt: new Date() })
+      .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.userId, userId)));
+    return result.rowCount > 0;
+  }
+
+  async createAIMessage(message: InsertAIMessage): Promise<AIMessage> {
+    const [created] = await db
+      .insert(aiMessages)
+      .values(message)
+      .returning();
+    return created;
+  }
+
+  async getAIConversationMessages(conversationId: number): Promise<AIMessage[]> {
+    return await db
+      .select()
+      .from(aiMessages)
+      .where(eq(aiMessages.conversationId, conversationId))
+      .orderBy(aiMessages.createdAt);
+  }
+
+  async updateAIConversationMetrics(conversationId: number, tokensUsed: number, cost: number): Promise<void> {
+    await db
+      .update(aiConversations)
+      .set({
+        metadata: sql`
+          COALESCE(metadata, '{}'::jsonb) || 
+          jsonb_build_object(
+            'tokens_used', COALESCE((metadata->>'tokens_used')::int, 0) + ${tokensUsed},
+            'cost', COALESCE((metadata->>'cost')::numeric, 0) + ${cost}
+          )
+        `,
+        updatedAt: new Date()
+      })
+      .where(eq(aiConversations.id, conversationId));
   }
 }
 

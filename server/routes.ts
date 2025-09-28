@@ -5,6 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { seedPlatforms } from "./seedDatabase";
 import { aiContentService } from "./services/aiContent";
 import { aiAnalyticsService } from "./services/aiAnalytics";
+import { aiAssistantService } from "./services/aiAssistant";
 import { clientAnalysisService } from "./services/clientAnalysis";
 import { promotionEngine } from "./services/promotionEngine";
 import { socialMediaManager } from "./services/socialMediaIntegration";
@@ -223,6 +224,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching AI content logs:", error);
       res.status(500).json({ message: "Failed to fetch AI content logs" });
+    }
+  });
+
+  // === AI АССИСТЕНТ ===
+
+  // Получить все разговоры пользователя
+  app.get('/api/ai/conversations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const conversations = await aiAssistantService.getUserConversations(userId);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ message: "Failed to fetch conversations" });
+    }
+  });
+
+  // Создать новый разговор
+  app.post('/api/ai/conversations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title } = req.body;
+      const conversation = await aiAssistantService.createConversation(userId, title);
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      res.status(500).json({ message: "Failed to create conversation" });
+    }
+  });
+
+  // Получить сообщения разговора
+  app.get('/api/ai/conversations/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const messages = await aiAssistantService.getConversationMessages(conversationId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  // Отправить сообщение в разговор
+  app.post('/api/ai/conversations/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const { message } = req.body;
+
+      if (!message || message.trim().length === 0) {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+
+      const result = await aiAssistantService.sendMessage(conversationId, message.trim());
+      
+      // Логируем активность
+      const userId = req.user.claims.sub;
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Assistant Message',
+        description: 'Отправлено сообщение AI-ассистенту',
+        platformId: null,
+        status: result.error ? 'error' : 'success',
+        metadata: { conversationId, tokensUsed: result.tokensUsed, cost: result.cost },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Обновить заголовок разговора
+  app.put('/api/ai/conversations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { title } = req.body;
+
+      if (!title || title.trim().length === 0) {
+        return res.status(400).json({ message: "Title is required" });
+      }
+
+      const conversation = await aiAssistantService.updateConversationTitle(
+        conversationId, 
+        userId, 
+        title.trim()
+      );
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error updating conversation:", error);
+      res.status(500).json({ message: "Failed to update conversation" });
+    }
+  });
+
+  // Удалить разговор
+  app.delete('/api/ai/conversations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      
+      const success = await aiAssistantService.deleteConversation(conversationId, userId);
+      
+      if (success) {
+        await storage.createActivityLog({
+          userId,
+          action: 'AI Conversation Deleted',
+          description: `Удален разговор с AI-ассистентом #${conversationId}`,
+          platformId: null,
+          status: 'success',
+          metadata: { conversationId },
+        });
+        res.json({ message: "Conversation deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Conversation not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ message: "Failed to delete conversation" });
+    }
+  });
+
+  // Сгенерировать заголовок для разговора автоматически
+  app.post('/api/ai/conversations/:id/generate-title', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const title = await aiAssistantService.generateConversationTitle(conversationId);
+      
+      const userId = req.user.claims.sub;
+      const updatedConversation = await aiAssistantService.updateConversationTitle(
+        conversationId, 
+        userId, 
+        title
+      );
+      
+      res.json({ title, conversation: updatedConversation });
+    } catch (error) {
+      console.error("Error generating title:", error);
+      res.status(500).json({ message: "Failed to generate title" });
     }
   });
 
