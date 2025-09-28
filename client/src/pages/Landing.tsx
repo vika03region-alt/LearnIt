@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -9,8 +9,7 @@ import {
   BarChart3, 
   Clock,
   Instagram,
-  Youtube,
-  LogIn
+  Youtube
 } from "lucide-react";
 import { SiTiktok, SiTelegram } from "react-icons/si";
 
@@ -29,12 +28,12 @@ export default function Landing() {
               <p className="text-muted-foreground">Social Media Automation Hub</p>
             </div>
           </div>
-
+          
           <h2 className="text-5xl font-bold text-foreground mb-6">
             Automate Your Trading Content
             <span className="block text-primary">Across All Platforms</span>
           </h2>
-
+          
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             AI-powered social media automation platform designed for trading professionals. 
             Generate engaging content, schedule posts, and monitor performance with advanced safety controls.
@@ -44,7 +43,7 @@ export default function Landing() {
             <Button 
               size="lg"
               className="text-lg px-8 py-6"
-              onClick={() => window.location.href = '/api/auth/login'} // Changed to correct login endpoint
+              onClick={() => window.location.href = '/api/login'}
               data-testid="button-login"
             >
               Get Started Free
@@ -216,7 +215,7 @@ export default function Landing() {
               <Button 
                 size="lg" 
                 className="text-lg px-12 py-6"
-                onClick={() => window.location.href = '/api/auth/login'} // Changed to correct login endpoint
+                onClick={() => window.location.href = '/api/login'}
                 data-testid="button-get-started"
               >
                 Start Your Free Trial

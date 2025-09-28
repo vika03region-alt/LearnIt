@@ -35,44 +35,12 @@ function Router() {
   );
 }
 
-function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Landing />;
-  }
-
-  return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/platform/:platformId" component={PlatformDetails} />
-      <Route path="/ai-content" component={AIContent} />
-      <Route path="/safety" component={SafetyCenter} />
-      <Route path="/scheduler" component={Scheduler} />
-      <Route path="/settings" component={Settings} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
-
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <AppContent />
+        <Router />
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -13,23 +13,3 @@ if (!process.env.DATABASE_URL) {
 
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle({ client: pool, schema });
-
-export { storage } from "./storage";
-
-// Initialize sessions table
-import { readFileSync } from 'fs';
-import { join } from 'path';
-
-async function initializeSessions() {
-  try {
-    const migrationPath = join(process.cwd(), 'server', 'migrations', '001_create_sessions.sql');
-    const migration = readFileSync(migrationPath, 'utf8');
-    await db.run(migration);
-    console.log('✅ Sessions table initialized');
-  } catch (error) {
-    console.error('❌ Failed to initialize sessions table:', error);
-  }
-}
-
-// Run initialization
-initializeSessions();
