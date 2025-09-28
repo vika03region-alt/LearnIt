@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
@@ -13,7 +14,11 @@ import {
   Settings, 
   ChevronLeft,
   Instagram,
-  Youtube
+  Youtube,
+  Rocket,
+  BarChart3,
+  Target,
+  Users
 } from "lucide-react";
 import { SiTiktok, SiTelegram } from "react-icons/si";
 
@@ -49,7 +54,6 @@ export default function Sidebar() {
   const getPlatformStatus = (platformName: string) => {
     if (!safetyStatus?.platforms) return 'inactive';
     
-    // Find platform data by matching platform name to ID
     const platformData = Object.values(safetyStatus.platforms).find(
       (platform: any, index: number) => index.toString() === platformName || platform.name === platformName
     );
@@ -63,11 +67,11 @@ export default function Sidebar() {
   const getStatusIndicator = (status: string) => {
     switch (status) {
       case 'active':
-        return <span className="w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>;
+        return <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>;
       case 'warning':
         return <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>;
       case 'critical':
-        return <span className="w-2 h-2 bg-red-500 rounded-full pulse-dot"></span>;
+        return <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>;
       default:
         return <span className="w-2 h-2 bg-gray-400 rounded-full"></span>;
     }
@@ -76,20 +80,22 @@ export default function Sidebar() {
   return (
     <aside 
       className={cn(
-        "fixed left-0 top-0 h-full bg-card border-r border-border transition-all duration-300 z-50",
+        "fixed left-0 top-0 h-full bg-white border-r border-slate-200 transition-all duration-300 z-50 shadow-lg",
         collapsed ? "w-20" : "w-64"
       )}
       data-testid="sidebar"
     >
       <div className="p-6">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <TrendingUp className="text-primary-foreground text-lg" />
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
+            <Rocket className="text-white text-lg" />
           </div>
           {!collapsed && (
             <div>
-              <h1 className="text-xl font-bold text-foreground">Lucifer Trading</h1>
-              <p className="text-sm text-muted-foreground">Панель управления</p>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-800 to-purple-600 bg-clip-text text-transparent">
+                Продвижение PRO
+              </h1>
+              <p className="text-sm text-slate-600">Пульт управления</p>
             </div>
           )}
         </div>
@@ -98,17 +104,26 @@ export default function Sidebar() {
           <Link href="/">
             <a 
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                "flex items-center gap-3 px-3 py-3 rounded-lg transition-colors",
                 location === "/" 
-                  ? "bg-primary text-primary-foreground" 
-                  : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                  ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm" 
+                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
               )}
               data-testid="link-dashboard"
             >
               <Gauge className="w-5 h-5" />
-              {!collapsed && <span>Главная</span>}
+              {!collapsed && <span className="font-medium">Главная Панель</span>}
             </a>
           </Link>
+
+          {/* Раздел платформы */}
+          {!collapsed && (
+            <div className="px-3 py-2">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Социальные Сети
+              </h3>
+            </div>
+          )}
 
           {platforms?.map((platform: any) => (
             <Link key={platform.id} href={`/platform/${platform.id}`}>
@@ -116,8 +131,8 @@ export default function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
                   location === `/platform/${platform.id}`
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
                 )}
                 data-testid={`link-platform-${platform.name}`}
               >
@@ -132,19 +147,27 @@ export default function Sidebar() {
             </Link>
           ))}
           
-          <div className="pt-4 border-t border-border">
+          <div className="pt-4 border-t border-slate-200">
+            {!collapsed && (
+              <div className="px-3 py-2 mb-2">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Инструменты
+                </h3>
+              </div>
+            )}
+
             <Link href="/ai-content">
               <a 
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
                   location === "/ai-content"
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
                 )}
                 data-testid="link-ai-content"
               >
                 <Brain className="w-5 h-5" />
-                {!collapsed && <span>AI контент</span>}
+                {!collapsed && <span>AI Контент</span>}
               </a>
             </Link>
 
@@ -153,8 +176,8 @@ export default function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
                   location === "/safety"
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    ? "bg-gradient-to-r from-green-500 to-blue-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
                 )}
                 data-testid="link-safety"
               >
@@ -168,8 +191,8 @@ export default function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
                   location === "/scheduler"
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
                 )}
                 data-testid="link-scheduler"
               >
@@ -183,8 +206,8 @@ export default function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
                   location === "/settings"
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    ? "bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
                 )}
                 data-testid="link-settings"
               >
@@ -198,8 +221,8 @@ export default function Sidebar() {
       
       <div className="absolute bottom-6 left-6 right-6">
         <Button
-          variant="secondary"
-          className="w-full flex items-center justify-center gap-2"
+          variant="outline"
+          className="w-full flex items-center justify-center gap-2 border-slate-200 hover:bg-slate-50"
           onClick={() => setCollapsed(!collapsed)}
           data-testid="button-toggle-sidebar"
         >
