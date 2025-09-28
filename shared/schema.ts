@@ -472,3 +472,53 @@ export type InsertAIGeneratedContent = z.infer<typeof insertAIGeneratedContent>;
 export type InsertContentTemplate = z.infer<typeof insertContentTemplate>;
 export type InsertHashtagAnalysis = z.infer<typeof insertHashtagAnalysis>;
 export type InsertAIUsageMetrics = z.infer<typeof insertAIUsageMetrics>;
+
+// AI Assistant Tables
+export const aiConversations = pgTable('ai_conversations', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').references(() => users.id).notNull(),
+  title: varchar('title').notNull().default('Новый разговор'),
+  status: varchar('status').default('active'), // 'active', 'archived', 'deleted'
+  context: text('context'), // Контекст разговора для AI
+  metadata: json('metadata').$type<{
+    model?: string;
+    temperature?: number;
+    tokens_used?: number;
+    cost?: number;
+  }>(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const aiMessages = pgTable('ai_messages', {
+  id: serial('id').primaryKey(),
+  conversationId: integer('conversation_id').references(() => aiConversations.id).notNull(),
+  role: varchar('role').notNull(), // 'user', 'assistant', 'system'
+  content: text('content').notNull(),
+  tokensUsed: integer('tokens_used').default(0),
+  cost: decimal('cost', { precision: 8, scale: 6 }).default('0'),
+  metadata: json('metadata').$type<{
+    model?: string;
+    response_time?: number;
+    error?: string;
+  }>(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// AI Assistant Insert/Select Schemas
+export const insertAIConversation = createInsertSchema(aiConversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAIMessage = createInsertSchema(aiMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+// AI Assistant Types
+export type AIConversation = typeof aiConversations.$inferSelect;
+export type AIMessage = typeof aiMessages.$inferSelect;
+export type InsertAIConversation = z.infer<typeof insertAIConversation>;
+export type InsertAIMessage = z.infer<typeof insertAIMessage>;
