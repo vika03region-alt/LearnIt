@@ -8,8 +8,17 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
+// Set default domain if not provided
 if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
+  process.env.REPLIT_DOMAINS = "replit.dev,replit.com";
+}
+
+if (!process.env.REPL_ID) {
+  process.env.REPL_ID = "your-repl-id";
+}
+
+if (!process.env.SESSION_SECRET) {
+  process.env.SESSION_SECRET = "default-session-secret-change-in-production";
 }
 
 const getOidcConfig = memoize(
