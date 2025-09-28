@@ -16,6 +16,7 @@ import DeepAnalytics from "@/components/DeepAnalytics";
 import SocialAccountManager from "@/components/SocialAccountManager";
 import AIContentGenerator from "@/components/AIContentGenerator";
 import PromotionDashboard from "@/components/PromotionDashboard";
+import PromotionStrategyManager from "@/components/PromotionStrategyManager";
 import { 
   Bell, 
   User, 
@@ -211,7 +212,7 @@ export default function Dashboard() {
 
           {/* Главные табы управления */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-6 h-12 p-1 bg-white/60 backdrop-blur-sm">
+            <TabsList className="grid w-full grid-cols-7 h-12 p-1 bg-white/60 backdrop-blur-sm">
               <TabsTrigger value="control" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Rocket className="w-4 h-4" />
                 <span className="hidden sm:inline">Пульт Управления</span>
@@ -221,6 +222,11 @@ export default function Dashboard() {
                 <Crown className="w-4 h-4" />
                 <span className="hidden sm:inline">Lucifer Продвижение</span>
                 <span className="sm:hidden">Lucifer</span>
+              </TabsTrigger>
+              <TabsTrigger value="ai-strategies" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Gem className="w-4 h-4" />
+                <span className="hidden sm:inline">AI Стратегии</span>
+                <span className="sm:hidden">Стратегии</span>
               </TabsTrigger>
               <TabsTrigger value="ai-tools" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Brain className="w-4 h-4" />
@@ -389,6 +395,11 @@ export default function Dashboard() {
             {/* Продвижение Lucifer Tradera */}
             <TabsContent value="lucifer-promotion" className="mt-6">
               <PromotionDashboard />
+            </TabsContent>
+
+            {/* AI Стратегии продвижения */}
+            <TabsContent value="ai-strategies" className="mt-6">
+              <PromotionStrategyManager />
             </TabsContent>
 
             {/* AI Инструменты */}

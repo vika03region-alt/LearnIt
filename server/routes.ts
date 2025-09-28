@@ -11,6 +11,7 @@ import { socialMediaManager } from "./services/socialMediaIntegration";
 import { analyticsService } from "./services/analytics";
 import { safetyService } from "./services/safety";
 import { schedulerService } from "./services/scheduler";
+import { setupPromotionStrategyRoutes } from "./routes/promotionStrategy";
 import type { Platform, UserAccount } from "@shared/schema";
 import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
 import { z } from "zod";
@@ -1022,6 +1023,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to validate tokens' });
     }
   });
+
+  // Setup advanced promotion strategy routes
+  setupPromotionStrategyRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;
