@@ -15,6 +15,7 @@ import QuickActions from "@/components/QuickActions";
 import DeepAnalytics from "@/components/DeepAnalytics";
 import SocialAccountManager from "@/components/SocialAccountManager";
 import AIContentGenerator from "@/components/AIContentGenerator";
+import PromotionDashboard from "@/components/PromotionDashboard";
 import { 
   Bell, 
   User, 
@@ -210,11 +211,16 @@ export default function Dashboard() {
 
           {/* Главные табы управления */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 h-12 p-1 bg-white/60 backdrop-blur-sm">
+            <TabsList className="grid w-full grid-cols-6 h-12 p-1 bg-white/60 backdrop-blur-sm">
               <TabsTrigger value="control" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Rocket className="w-4 h-4" />
                 <span className="hidden sm:inline">Пульт Управления</span>
                 <span className="sm:hidden">Управление</span>
+              </TabsTrigger>
+              <TabsTrigger value="lucifer-promotion" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Crown className="w-4 h-4" />
+                <span className="hidden sm:inline">Lucifer Продвижение</span>
+                <span className="sm:hidden">Lucifer</span>
               </TabsTrigger>
               <TabsTrigger value="ai-tools" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Brain className="w-4 h-4" />
@@ -237,6 +243,47 @@ export default function Dashboard() {
 
             {/* Пульт управления - главная вкладка */}
             <TabsContent value="control" className="space-y-6 mt-6">
+              {/* Инициализация клиента Lucifer */}
+              <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center">
+                        <Star className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-amber-900">Клиент: Lucifer Tradera</h3>
+                        <p className="text-sm text-amber-700">
+                          Нажмите для инициализации полного анализа и настройки продвижения
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/client/init-lucifer', { method: 'POST' });
+                          const result = await response.json();
+                          toast({
+                            title: "Клиент инициализирован!",
+                            description: result.message,
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Ошибка",
+                            description: "Не удалось инициализировать клиента",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    >
+                      <Rocket className="w-4 h-4 mr-2" />
+                      Запустить Анализ
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* KPI Карточки */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-all">
@@ -337,6 +384,11 @@ export default function Dashboard() {
 
               {/* Быстрые действия */}
               <QuickActions />
+            </TabsContent>
+
+            {/* Продвижение Lucifer Tradera */}
+            <TabsContent value="lucifer-promotion" className="mt-6">
+              <PromotionDashboard />
             </TabsContent>
 
             {/* AI Инструменты */}
