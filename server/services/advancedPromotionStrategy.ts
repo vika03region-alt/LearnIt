@@ -3,11 +3,30 @@ import { aiContentService } from './aiContent';
 import { clientAnalysisService } from './clientAnalysis';
 import { socialMediaManager } from './socialMediaIntegration';
 import { storage } from '../storage';
-import { OpenAI } from 'openai';
+// import { OpenAI } from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
-});
+// Временно используем mock для OpenAI
+const openai = {
+  chat: {
+    completions: {
+      create: async (params: any) => ({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              writing_style: 'профессиональный и дружелюбный',
+              tone: 'обучающая и мотивирующая',
+              favorite_topics: ['трейдинг', 'анализ рынков', 'криптовалюты', 'обучение'],
+              unique_selling_points: ['практический подход', 'понятные объяснения', 'реальные сигналы'],
+              target_audience: 'начинающие и продвинутые трейдеры',
+              brand_voice: 'экспертный наставник',
+              content_pillars: ['обучение', 'торговые сигналы', 'рыночный анализ', 'мотивация'],
+            }),
+          },
+        }],
+      }),
+    },
+  },
+};
 
 interface PromotionStrategy {
   id: string;

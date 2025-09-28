@@ -508,8 +508,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === АВТОМАТИЧЕСКОЕ ПРОДВИЖЕНИЕ ===
 
+  // Инициализация клиента Lucifer
+  app.post('/api/client/init-lucifer', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const luciferProfile = {
+        name: 'Lucifer Tradera',
+        platforms: {
+          youtube: 'https://www.youtube.com/@Lucifer_tradera',
+          tiktok: 'https://vm.tiktok.com/ZNHnt6CTrMdwp-ckGNa',
+          telegram: ['https://t.me/Lucifer_Izzy_bot', 'https://t.me/Lucifer_tradera']
+        },
+        niche: 'trading',
+        contentType: 'trading_signals',
+      };
+
+      // Запускаем глубокий анализ
+      const analysis = await clientAnalysisService.analyzeClientProfile(luciferProfile);
+      
+      // Создаем стратегию продвижения
+      const strategy = await promotionEngine.createPromotionStrategy(luciferProfile);
+      
+      // Логируем инициализацию
+      await storage.createActivityLog({
+        userId,
+        action: 'Client Initialized',
+        description: 'Lucifer Tradera profile analyzed and promotion strategy created',
+        status: 'success',
+        metadata: { client: 'Lucifer_tradera', analysis, strategy },
+      });
+
+      res.json({
+        message: 'Клиент Lucifer Tradera успешно инициализирован',
+        analysis,
+        strategy,
+        recommendations: analysis.recommendations,
+      });
+    } catch (error) {
+      console.error('Ошибка инициализации клиента:', error);
+      res.status(500).json({ error: 'Не удалось инициализировать клиента' });
+    }
+  });
+
   // Запуск автоматического продвижения
-  app.post('/api/promotion/start', isAuthenticated, async (req, res) => {
+  app.post('/api/promotion/start', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       if (!userId) {
@@ -525,6 +568,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Ошибка запуска продвижения:', error);
+      res.status(500).json({ error: 'Не удалось запустить продвижение' });
+    }
+  });
+
+  // Получение метрик продвижения
+  app.get('/api/promotion/metrics/:clientId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientId } = req.params;
+      
+      const metrics = await promotionEngine.getPromotionMetrics(userId, clientId);
+      
+      res.json(metrics);
+    } catch (error) {
+      console.error('Ошибка получения метрик:', error);
+      res.status(500).json({ error: 'Не удалось получить метрики' });
+    }
+  });
+
+  // Адаптивное обновление стратегии
+  app.post('/api/promotion/adapt-strategy', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { strategyId, performanceData } = req.body;
+      
+      const adaptedStrategy = await promotionEngine.adaptStrategy(strategyId, performanceData);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'Strategy Adapted',
+        description: `Strategy ${strategyId} adapted based on performance`,
+        status: 'success',
+        metadata: { strategyId, adaptedStrategy },
+      });
+
+      res.json({
+        message: 'Стратегия успешно адаптирована',
+        adaptedStrategy,
+      });
+    } catch (error) {
+      console.error('Ошибка адаптации стратегии:', error);
+      res.status(500).json({ error: 'Не удалось адаптировать стратегию' });
+    }ния:', error);
       res.status(500).json({ error: 'Не удалось запустить продвижение' });
     }
   });

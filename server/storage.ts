@@ -50,10 +50,10 @@ class TokenEncryption {
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipher(this.algorithm, this.key);
     cipher.setAAD(Buffer.from('token-data'));
-    
+
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    
+
     const authTag = cipher.getAuthTag();
     return iv.toString('hex') + ':' + encrypted + ':' + authTag.toString('hex');
   }
@@ -63,18 +63,18 @@ class TokenEncryption {
     if (parts.length !== 3) {
       throw new Error('Invalid encrypted token format');
     }
-    
+
     const iv = Buffer.from(parts[0], 'hex');
     const encrypted = parts[1];
     const authTag = Buffer.from(parts[2], 'hex');
-    
+
     const decipher = crypto.createDecipher(this.algorithm, this.key);
     decipher.setAAD(Buffer.from('token-data'));
     decipher.setAuthTag(authTag);
-    
+
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
-    
+
     return decrypted;
   }
 }
@@ -85,41 +85,41 @@ export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  
+
   // Platform operations
   getPlatforms(): Promise<Platform[]>;
   getPlatform(id: number): Promise<Platform | undefined>;
-  
+
   // User account operations
   getUserAccounts(userId: string): Promise<UserAccount[]>;
   getUserAccount(userId: string, platformId: number): Promise<UserAccount | undefined>;
   createUserAccount(account: InsertUserAccount): Promise<UserAccount>;
   updateUserAccount(id: number, updates: Partial<InsertUserAccount>): Promise<UserAccount>;
-  
+
   // Post operations
   createPost(post: InsertPost & { userId: string }): Promise<Post>;
   getUserPosts(userId: string, limit?: number): Promise<Post[]>;
   getScheduledPosts(userId: string): Promise<Post[]>;
   updatePost(id: number, updates: Partial<Post>): Promise<Post>;
-  
+
   // Analytics operations
   getPostAnalytics(postId: number): Promise<Analytics[]>;
   getUserAnalytics(userId: string, platformId?: number): Promise<Analytics[]>;
   createAnalytics(analytics: Omit<Analytics, 'id' | 'recordedAt'>): Promise<Analytics>;
-  
+
   // AI content operations
   createAIContentLog(log: InsertAIContentLog & { userId: string; generatedContent: string; tokensUsed?: number; cost?: number }): Promise<AIContentLog>;
   getUserAIContentLogs(userId: string, limit?: number): Promise<AIContentLog[]>;
-  
+
   // Safety operations
   createSafetyLog(log: Omit<SafetyLog, 'id' | 'checkTime'>): Promise<SafetyLog>;
   getUserSafetyLogs(userId: string, platformId?: number): Promise<SafetyLog[]>;
   getRateLimits(platformId?: number): Promise<RateLimit[]>;
-  
+
   // Activity operations
   createActivityLog(log: Omit<ActivityLog, 'id' | 'createdAt'>): Promise<ActivityLog>;
   getUserActivityLogs(userId: string, limit?: number): Promise<ActivityLog[]>;
-  
+
   // Advanced Analytics Methods
   getPlatformAnalytics(userId: string, platformId: number, days: number): Promise<PlatformAnalytics[]>;
   getContentPerformance(userId: string, platformId: number, days: number): Promise<ContentPerformance[]>;
@@ -166,7 +166,7 @@ export class DatabaseStorage implements IStorage {
   // User account operations
   async getUserAccounts(userId: string): Promise<UserAccount[]> {
     const accounts = await db.select().from(userAccounts).where(eq(userAccounts.userId, userId));
-    
+
     // Decrypt sensitive tokens when retrieving
     return accounts.map(account => ({
       ...account,
@@ -335,12 +335,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserActivityLogs(userId: string, limit = 50): Promise<ActivityLog[]> {
-    return await db
-      .select()
-      .from(activityLogs)
-      .where(eq(activityLogs.userId, userId))
-      .orderBy(desc(activityLogs.createdAt))
-      .limit(limit);
+    try {
+      const result = await db
+        .select()
+        .from(activityLogs)
+        .where(eq(activityLogs.userId, userId))
+        .orderBy(desc(activityLogs.createdAt))
+        .limit(limit);
+
+      return result;
+    } catch (error) {
+      console.error('Error fetching user activity logs:', error);
+      return [];
+    }
   }
 
   // Advanced Analytics Methods Implementation
@@ -474,7 +481,7 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date(),
       },
     ];
-    
+
     return type ? mockInsights.filter(insight => insight.type === type) : mockInsights;
   }
 
@@ -538,7 +545,7 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date(),
       },
     ];
-    
+
     return mockCompetitors;
   }
 
@@ -590,7 +597,7 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date(),
       },
     ];
-    
+
     return category ? mockTrends.filter(trend => trend.category === category) : mockTrends;
   }
 }

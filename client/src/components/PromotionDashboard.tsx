@@ -1,3 +1,4 @@
+replit_final_file>
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,12 +7,12 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  TrendingUp, 
-  Target, 
-  Users, 
-  Eye, 
-  Heart, 
+import {
+  TrendingUp,
+  Target,
+  Users,
+  Eye,
+  Heart,
   MessageCircle,
   Share2,
   BarChart3,
@@ -51,64 +52,217 @@ interface MetricCard {
 
 export default function PromotionDashboard() {
   const { toast } = useToast();
-  const [activeStrategy, setActiveStrategy] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [clientData, setClientData] = useState(null);
+  const [promotionMetrics, setPromotionMetrics] = useState(null);
+  const [strategyStatus, setStrategyStatus] = useState('idle');
+  const [realTimeMetrics, setRealTimeMetrics] = useState({
+    followers: 0,
+    engagement: 0,
+    reach: 0,
+    growth: 0,
+  });
 
-  // Получение результатов продвижения
+  const initializeLuciferClient = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/client/init-lucifer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setClientData({
+          name: 'Lucifer Tradera',
+          platforms: ['YouTube', 'TikTok', 'Telegram'],
+          status: 'active',
+          lastAnalysis: new Date().toISOString(),
+          analysis: result.analysis,
+          strategy: result.strategy,
+        });
+
+        // Загружаем начальные метрики
+        await loadPromotionMetrics();
+
+        toast({
+          title: "Клиент инициализирован!",
+          description: result.message,
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось инициализировать клиента",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPromotionMetrics = async () => {
+    try {
+      const response = await fetch('/api/promotion/metrics/Lucifer_tradera');
+      const metrics = await response.json();
+
+      if (response.ok) {
+        setPromotionMetrics(metrics);
+        setRealTimeMetrics({
+          followers: metrics.currentPeriod.followers,
+          engagement: metrics.currentPeriod.engagement,
+          reach: metrics.currentPeriod.reach,
+          growth: metrics.growthRate.followers,
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки метрик:', error);
+    }
+  };
+
+  const startAutomatedPromotion = async () => {
+    if (!clientData?.strategy) {
+      toast({
+        title: "Ошибка",
+        description: "Сначала инициализируйте клиента",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    setStrategyStatus('running');
+
+    try {
+      const response = await fetch('/api/promotion/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ strategy: clientData.strategy }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Продвижение запущено!",
+          description: result.message,
+        });
+
+        // Запускаем обновление метрик каждые 30 секунд
+        const interval = setInterval(loadPromotionMetrics, 30000);
+
+        // Останавливаем через 5 минут для демо
+        setTimeout(() => {
+          clearInterval(interval);
+          setStrategyStatus('completed');
+        }, 300000);
+
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      setStrategyStatus('failed');
+      toast({
+        title: "Ошибка запуска",
+        description: "Не удалось запустить автоматическое продвижение",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const adaptStrategy = async () => {
+    if (!promotionMetrics) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/promotion/adapt-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          strategyId: 'lucifer_strategy_1',
+          performanceData: promotionMetrics,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Стратегия адаптирована!",
+          description: "AI оптимизировал подход на основе текущей производительности",
+        });
+
+        // Обновляем данные клиента
+        setClientData(prev => ({
+          ...prev,
+          strategy: result.adaptedStrategy,
+        }));
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      toast({
+        title: "Ошибка адаптации",
+        description: "Не удалось адаптировать стратегию",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Загружаем метрики при монтировании компонента
+  useEffect(() => {
+    if (clientData) {
+      loadPromotionMetrics();
+    }
+  }, [clientData]);
+
+
+  // Получение результатов продвижения (устаревшее, используем loadPromotionMetrics)
   const { data: results, isLoading: resultsLoading } = useQuery<PromotionResults>({
     queryKey: ['/api/promotion/results'],
     refetchInterval: 30000, // Обновление каждые 30 секунд
   });
 
-  // Запуск автоматического продвижения
+  // Запуск автоматического продвижения (устаревшее, используем startAutomatedPromotion)
   const startPromotion = async () => {
-    try {
-      const response = await fetch('/api/promotion/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ strategy: activeStrategy }),
-      });
-
-      const result = await response.json();
-
-      toast({
-        title: "Продвижение запущено!",
-        description: `Выполнено: ${result.result.executed}, Запланировано: ${result.result.scheduled}`,
-      });
-    } catch (error) {
-      toast({
-        title: "Ошибка",
-        description: "Не удалось запустить продвижение",
-        variant: "destructive",
-      });
-    }
+    // Эта функция теперь заглушка, так как startAutomatedPromotion уже реализована
+    // и использует более актуальные данные
+    startAutomatedPromotion();
   };
 
   const metricCards: MetricCard[] = [
     {
-      title: 'Общий охват',
-      value: results?.summary.avgEngagement ? Math.round(results.summary.avgEngagement * 4.2) : '2,830',
-      change: results?.summary.reachGrowth ? `+${results.summary.reachGrowth.toFixed(1)}%` : '+12.3%',
-      icon: Eye,
-      color: 'text-blue-600',
-    },
-    {
-      title: 'Вовлеченность',
-      value: results?.summary.avgEngagement ? `${results.summary.avgEngagement.toFixed(1)}%` : '7.8%',
-      change: '+24.5%',
-      icon: Heart,
-      color: 'text-red-600',
-    },
-    {
-      title: 'Новые подписчики',
-      value: '156',
-      change: '+18.2%',
+      title: 'Подписчики',
+      value: realTimeMetrics.followers.toLocaleString(),
+      change: `+${realTimeMetrics.growth.toFixed(1)}%`,
       icon: Users,
       color: 'text-green-600',
     },
     {
+      title: 'Вовлеченность',
+      value: `${realTimeMetrics.engagement.toFixed(1)}%`,
+      change: `+${(realTimeMetrics.engagement * 0.1).toFixed(1)}%`, // Примерный рост
+      icon: Heart,
+      color: 'text-red-600',
+    },
+    {
+      title: 'Охват',
+      value: realTimeMetrics.reach.toLocaleString(),
+      change: `+${(realTimeMetrics.reach * 0.05 / 1000).toFixed(1)}%`, // Примерный рост
+      icon: Eye,
+      color: 'text-blue-600',
+    },
+    {
       title: 'Публикаций',
-      value: results?.summary.totalPosts || 23,
-      change: 'план выполнен',
+      value: promotionMetrics?.totalPosts || 'N/A',
+      change: promotionMetrics?.planCompletion ? `${promotionMetrics.planCompletion}%` : 'N/A',
       icon: Calendar,
       color: 'text-purple-600',
     },
@@ -131,12 +285,13 @@ export default function PromotionDashboard() {
             <CheckCircle className="w-4 h-4 mr-2" />
             Система активна
           </Badge>
-          <Button 
+          <Button
             className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-            onClick={startPromotion}
+            onClick={startAutomatedPromotion}
+            disabled={loading || strategyStatus === 'running'}
           >
             <Rocket className="w-4 h-4 mr-2" />
-            Запустить продвижение
+            {strategyStatus === 'running' ? 'В процессе...' : 'Запустить продвижение'}
           </Button>
         </div>
       </div>
@@ -150,7 +305,7 @@ export default function PromotionDashboard() {
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">{metric.title}</p>
                   <p className="text-2xl font-bold">{metric.value}</p>
-                  <p className="text-sm text-green-600 font-medium mt-1">{metric.change}</p>
+                  <p className={`text-sm font-medium mt-1 ${metric.color.includes('green') ? 'text-green-600' : metric.color.includes('red') ? 'text-red-600' : 'text-blue-600'}`}>{metric.change}</p>
                 </div>
                 <div className={`w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center`}>
                   <metric.icon className={`w-6 h-6 ${metric.color}`} />
@@ -184,25 +339,25 @@ export default function PromotionDashboard() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Подписчики (цель: 5,000)</span>
-                    <span className="font-medium">2,830 / 5,000</span>
+                    <span className="font-medium">{realTimeMetrics.followers} / 5,000</span>
                   </div>
-                  <Progress value={56.6} className="h-2" />
+                  <Progress value={Math.min((realTimeMetrics.followers / 5000) * 100, 100)} className="h-2" />
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Вовлеченность (цель: 10%)</span>
-                    <span className="font-medium">7.8%</span>
+                    <span className="font-medium">{realTimeMetrics.engagement.toFixed(1)}%</span>
                   </div>
-                  <Progress value={78} className="h-2" />
+                  <Progress value={Math.min(realTimeMetrics.engagement, 10)} className="h-2" />
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Охват (цель: 50K)</span>
-                    <span className="font-medium">32.1K</span>
+                    <span className="font-medium">{realTimeMetrics.reach.toLocaleString()}</span>
                   </div>
-                  <Progress value={64.2} className="h-2" />
+                  <Progress value={Math.min((realTimeMetrics.reach / 50000) * 100, 100)} className="h-2" />
                 </div>
               </CardContent>
             </Card>
@@ -273,7 +428,7 @@ export default function PromotionDashboard() {
                 <div>
                   <h4 className="font-medium text-amber-800 mb-3">🎯 Приоритетные действия:</h4>
                   <ul className="space-y-2">
-                    {(results?.recommendations || [
+                    {(clientData?.strategy?.recommendations || results?.recommendations || [
                       'Увеличить частоту постинга в TikTok на 30%',
                       'Сосредоточиться на торговых сигналах в Telegram',
                       'Добавить больше обучающего контента на YouTube',
@@ -289,7 +444,7 @@ export default function PromotionDashboard() {
                 <div>
                   <h4 className="font-medium text-amber-800 mb-3">🚀 Следующие шаги:</h4>
                   <ul className="space-y-2">
-                    {(results?.nextSteps || [
+                    {(clientData?.strategy?.nextSteps || results?.nextSteps || [
                       'Запустить A/B тест для времени публикации',
                       'Создать серию обучающих видео',
                       'Настроить интерактивные опросы в Stories',
@@ -519,3 +674,4 @@ export default function PromotionDashboard() {
     </div>
   );
 }
+</replit_final_file>
