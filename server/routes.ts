@@ -12,9 +12,10 @@ import { analyticsService } from "./services/analytics";
 import { safetyService } from "./services/safety";
 import { schedulerService } from "./services/scheduler";
 import { setupPromotionStrategyRoutes } from "./routes/promotionStrategy";
+import { aiLearningEngine } from "./services/aiLearningEngine";
 import type { Platform, UserAccount } from "@shared/schema";
 import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
-import { z } from "zod";
+import { z } from "zod";</old_str>
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize database with platforms
@@ -570,7 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Ошибка запуска продвижения:', error);
       res.status(500).json({ error: 'Не удалось запустить продвижение' });
     }
-  });
+  });</old_str>
 
   // Получение метрик продвижения
   app.get('/api/promotion/metrics/:clientId', isAuthenticated, async (req: any, res) => {
@@ -1108,9 +1109,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === AI ОБУЧЕНИЕ И РАЗВИТИЕ СИСТЕМЫ ===
+
+  // Инициализация AI обучения для клиента
+  app.post('/api/ai/initialize-learning', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientProfile } = req.body;
+
+      await aiLearningEngine.trainOnClientData(userId, clientProfile);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Learning Initialized',
+        description: 'AI система обучена на данных клиента',
+        status: 'success',
+        metadata: { clientProfile: clientProfile.name },
+      });
+
+      res.json({
+        message: 'AI система успешно обучена на данных клиента',
+        learningStatus: 'initialized',
+      });
+    } catch (error) {
+      console.error('Ошибка инициализации обучения AI:', error);
+      res.status(500).json({ error: 'Не удалось инициализировать обучение AI' });
+    }
+  });
+
+  // Генерация продвинутой стратегии продвижения
+  app.post('/api/ai/generate-advanced-strategy', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientProfile } = req.body;
+
+      const strategy = await aiLearningEngine.generateAdvancedPromotionStrategy(clientProfile);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Advanced Strategy Generated',
+        description: 'Создана продвинутая AI стратегия продвижения',
+        status: 'success',
+        metadata: { strategy: strategy },
+      });
+
+      res.json({
+        strategy,
+        message: 'Продвинутая стратегия продвижения создана',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации продвинутой стратегии:', error);
+      res.status(500).json({ error: 'Не удалось создать продвинутую стратегию' });
+    }
+  });
+
+  // Предсказание успешности контента
+  app.post('/api/ai/predict-content-success', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, platform, timing, clientProfile } = req.body;
+
+      const prediction = await aiLearningEngine.predictContentSuccess(
+        content,
+        platform,
+        new Date(timing),
+        clientProfile
+      );
+
+      res.json({
+        prediction,
+        message: 'Прогноз успешности контента готов',
+      });
+    } catch (error) {
+      console.error('Ошибка предсказания успешности:', error);
+      res.status(500).json({ error: 'Не удалось спрогнозировать успешность контента' });
+    }
+  });
+
+  // Генерация уникального контента
+  app.post('/api/ai/generate-unique-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientProfile, contentType, platform } = req.body;
+
+      const uniqueContent = await aiLearningEngine.generateUniqueContent(
+        clientProfile,
+        contentType,
+        platform
+      );
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Unique Content Generated',
+        description: `Создан уникальный ${contentType} контент для ${platform}`,
+        status: 'success',
+        metadata: { contentType, platform, uniqueness_score: uniqueContent.uniqueness_score },
+      });
+
+      res.json({
+        content: uniqueContent,
+        message: 'Уникальный контент создан',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации уникального контента:', error);
+      res.status(500).json({ error: 'Не удалось создать уникальный контент' });
+    }
+  });
+
+  // Генерация вирусных триггеров
+  app.post('/api/ai/generate-viral-triggers', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { contentType, platform, audience } = req.body;
+
+      const viralTriggers = await aiLearningEngine.generateViralTriggers(
+        contentType,
+        platform,
+        audience
+      );
+
+      res.json({
+        triggers: viralTriggers,
+        message: 'Вирусные триггеры созданы',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации вирусных триггеров:', error);
+      res.status(500).json({ error: 'Не удалось создать вирусные триггеры' });
+    }
+  });
+
+  // Запуск непрерывного обучения
+  app.post('/api/ai/continuous-learning', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      await aiLearningEngine.continuousLearning();
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Continuous Learning Cycle',
+        description: 'Запущен цикл непрерывного обучения AI',
+        status: 'success',
+        metadata: { timestamp: new Date() },
+      });
+
+      res.json({
+        message: 'Цикл непрерывного обучения завершен',
+        status: 'learning_updated',
+      });
+    } catch (error) {
+      console.error('Ошибка непрерывного обучения:', error);
+      res.status(500).json({ error: 'Не удалось выполнить обучение' });
+    }
+  });
+
+  // Отчет об обучении AI
+  app.get('/api/ai/learning-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const report = await aiLearningEngine.generateLearningReport(userId);
+
+      res.json({
+        report,
+        message: 'Отчет об обучении AI готов',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации отчета об обучении:', error);
+      res.status(500).json({ error: 'Не удалось создать отчет' });
+    }
+  });
+
+  // Автоматическое обучение системы (запускается периодически)
+  app.post('/api/ai/auto-learning', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Запускаем автоматическое обучение в фоне
+      setInterval(async () => {
+        try {
+          await aiLearningEngine.continuousLearning();
+          console.log('🔄 Автоматическое обучение AI выполнено');
+        } catch (error) {
+          console.error('Ошибка автоматического обучения:', error);
+        }
+      }, 60 * 60 * 1000); // Каждый час
+
+      res.json({
+        message: 'Автоматическое обучение AI активировано',
+        frequency: 'каждый час',
+      });
+    } catch (error) {
+      console.error('Ошибка активации автоматического обучения:', error);
+      res.status(500).json({ error: 'Не удалось активировать автоматическое обучение' });
+    }
+  });
+
   // Setup advanced promotion strategy routes
   setupPromotionStrategyRoutes(app);
 
   const httpServer = createServer(app);
-  return httpServer;
+  return httpServer;</old_str>
 }

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +16,7 @@ import SocialAccountManager from "@/components/SocialAccountManager";
 import AIContentGenerator from "@/components/AIContentGenerator";
 import PromotionDashboard from "@/components/PromotionDashboard";
 import PromotionStrategyManager from "@/components/PromotionStrategyManager";
+import { AILearningDashboard } from '../components/AILearningDashboard';
 import { 
   Bell, 
   User, 
@@ -108,7 +108,7 @@ export default function Dashboard() {
       sum + (platform.todayStats?.posts || 0), 0
     );
     const avgEngagement = totalFollowers > 0 ? (totalPosts / Object.keys(dashboardData?.platforms || {}).length) : 0;
-    
+
     return { totalFollowers, totalPosts, avgEngagement };
   };
 
@@ -117,7 +117,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
       <Sidebar />
-      
+
       <main className="ml-64 transition-all duration-300">
         {/* Продвинутый хедер */}
         <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200 px-6 py-4 sticky top-0 z-40">
@@ -136,7 +136,7 @@ export default function Dashboard() {
                   </p>
                 </div>
               </div>
-              
+
               {/* Индикаторы статуса */}
               <div className="hidden lg:flex items-center gap-3 ml-6">
                 <div className="flex items-center gap-2 px-3 py-1 bg-green-100 rounded-full">
@@ -152,7 +152,7 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4">
               {/* Быстрая статистика */}
               <div className="hidden md:flex items-center gap-6 text-sm">
@@ -182,7 +182,7 @@ export default function Dashboard() {
                     </Badge>
                   )}
                 </button>
-                
+
                 {/* Профиль пользователя */}
                 <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
@@ -244,6 +244,10 @@ export default function Dashboard() {
               <TabsTrigger value="promotion" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Target className="w-4 h-4" />
                 <span className="hidden sm:inline">Продвижение</span>
+              </TabsTrigger>
+              <TabsTrigger value="ai-learning" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Brain className="w-4 h-4" />
+                <span className="hidden sm:inline">AI Обучение</span>
               </TabsTrigger>
             </TabsList>
 
@@ -458,7 +462,7 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </div>
-              
+
               <AIContentGenerator />
             </TabsContent>
 
@@ -466,7 +470,7 @@ export default function Dashboard() {
             <TabsContent value="analytics" className="space-y-6 mt-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <AnalyticsChart data={dashboardData} />
-                
+
                 {/* Детальная аналитика */}
                 <Card>
                   <CardHeader>
@@ -481,7 +485,7 @@ export default function Dashboard() {
                         const platformData = dashboardData?.platforms?.[platform.name];
                         const usage = platformData?.rateLimitUsage || 0;
                         const engagement = platformData?.todayStats?.engagement || 0;
-                        
+
                         return (
                           <div key={platform.id} className="space-y-2">
                             <div className="flex justify-between items-center">
@@ -518,7 +522,7 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </div>
-              
+
               <DeepAnalytics 
                 userId={user?.id || 'demo-user'} 
                 platformId={platforms?.[0]?.id || 1} 
@@ -726,6 +730,12 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            {/* AI Обучение */}
+            <TabsContent value="ai-learning" className="mt-6">
+              <AILearningDashboard />
+            </TabsContent>
+
           </Tabs>
         </div>
       </main>
