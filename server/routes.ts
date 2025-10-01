@@ -656,6 +656,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === ТЕСТИРОВАНИЕ TELEGRAM ПРОДВИЖЕНИЯ ===
 
+  // Проверка статуса секретов Telegram
+  app.get('/api/telegram/check-secrets', isAuthenticated, async (req: any, res) => {
+    try {
+      const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
+      const telegramChannelId = process.env.TELEGRAM_CHANNEL_ID;
+
+      const status = {
+        telegram: !!(telegramBotToken && telegramBotToken !== 'your_telegram_bot_token_here'),
+        channel: !!(telegramChannelId && telegramChannelId !== '@IIPRB' && telegramChannelId.length > 5),
+        channelId: telegramChannelId || '@IIPRB',
+        botConfigured: !!telegramBotToken,
+      };
+
+      res.json(status);
+    } catch (error) {
+      console.error('Ошибка проверки секретов:', error);
+      res.status(500).json({ error: 'Не удалось проверить секреты' });
+    }
+  });
+
   // Анализ Telegram канала IIPRB
   app.post('/api/telegram/analyze-channel', isAuthenticated, async (req: any, res) => {
     try {

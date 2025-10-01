@@ -50,7 +50,23 @@ export function TelegramTestDashboard() {
   const [testResults, setTestResults] = useState<TestResults | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [generatedContent, setGeneratedContent] = useState<string[]>([]);
+  const [secretsStatus, setSecretsStatus] = useState<{telegram: boolean, channel: boolean}>({ telegram: false, channel: false });
   const { toast } = useToast();
+
+  // Проверка секретов при загрузке
+  useEffect(() => {
+    checkSecretsStatus();
+  }, []);
+
+  const checkSecretsStatus = async () => {
+    try {
+      const response = await fetch('/api/telegram/check-secrets');
+      const status = await response.json();
+      setSecretsStatus(status);
+    } catch (error) {
+      console.error('Ошибка проверки секретов:', error);
+    }
+  };
 
   const analyzeChannel = async () => {
     setLoading('analyzing');
@@ -209,10 +225,18 @@ export function TelegramTestDashboard() {
           </h2>
           <p className="text-gray-600">Тест автоматического продвижения для канала IIPRB</p>
         </div>
-        <Badge className="bg-blue-100 text-blue-800">
-          <MessageCircle className="w-4 h-4 mr-1" />
-          Telegram Test
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge className={secretsStatus.telegram ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+            Bot: {secretsStatus.telegram ? "✓" : "✗"}
+          </Badge>
+          <Badge className={secretsStatus.channel ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+            Channel: {secretsStatus.channel ? "✓" : "✗"}
+          </Badge>
+          <Badge className="bg-blue-100 text-blue-800">
+            <MessageCircle className="w-4 h-4 mr-1" />
+            Telegram Test
+          </Badge>
+        </div>
       </div>
 
       {/* Ввод канала и анализ */}
@@ -461,7 +485,20 @@ export function TelegramTestDashboard() {
         </Card>
       )}
 
-      {/* Предупреждение */}
+      {/* Предупреждения */}
+      {(!secretsStatus.telegram || !secretsStatus.channel) && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800">
+            <strong>Требуется настройка:</strong>
+            {!secretsStatus.telegram && " Telegram Bot Token"}
+            {!secretsStatus.telegram && !secretsStatus.channel && " и"}
+            {!secretsStatus.channel && " Channel ID"}
+            . Проверьте файл .env или настройки секретов.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <Alert>
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
