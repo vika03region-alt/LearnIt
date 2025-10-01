@@ -7,11 +7,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "../hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageCircle, Send, Plus, Trash2, Edit2, Sparkles, Bot, User } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import Layout from "@/components/Layout";
+import Layout from "../components/Layout";
 
 interface Conversation {
   id: number;
@@ -124,9 +124,9 @@ export default function AIAssistant() {
       apiRequest(`/api/ai/conversations/${conversationId}`, {
         method: "DELETE",
       }),
-    onSuccess: () => {
+    onSuccess: (_, conversationId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/ai/conversations"] });
-      if (selectedConversationId === selectedConversationId) {
+      if (selectedConversationId === conversationId) {
         setSelectedConversationId(null);
       }
       toast({
