@@ -12,8 +12,6 @@ import SafetyCenter from "@/pages/SafetyCenter";
 import Scheduler from "@/pages/Scheduler";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
-import GrokTestDashboard from "./components/GrokTestDashboard";
-import AIIntegrationTest from "./components/AIIntegrationTest";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -30,8 +28,6 @@ function Router() {
           <Route path="/safety" component={SafetyCenter} />
           <Route path="/scheduler" component={Scheduler} />
           <Route path="/settings" component={Settings} />
-          <Route path="/grok-test" element={<GrokTestDashboard />} />
-            <Route path="/ai-integration-test" element={<AIIntegrationTest />} />
         </>
       )}
       <Route component={NotFound} />

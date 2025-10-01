@@ -20,7 +20,6 @@ import { brandDominationEngine } from "./services/brandDominationEngine";
 import type { Platform, UserAccount } from "@shared/schema";
 import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
 import { z } from "zod";
-import { grokService } from "./services/grokService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize database with platforms
@@ -276,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const result = await aiAssistantService.sendMessage(conversationId, message.trim());
-
+      
       // Логируем активность
       const userId = req.user.claims.sub;
       await storage.createActivityLog({
@@ -323,9 +322,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
-
+      
       const success = await aiAssistantService.deleteConversation(conversationId, userId);
-
+      
       if (success) {
         await storage.createActivityLog({
           userId,
@@ -350,14 +349,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = parseInt(req.params.id);
       const title = await aiAssistantService.generateConversationTitle(conversationId);
-
+      
       const userId = req.user.claims.sub;
       const updatedConversation = await aiAssistantService.updateConversationTitle(
         conversationId, 
         userId, 
         title
       );
-
+      
       res.json({ title, conversation: updatedConversation });
     } catch (error) {
       console.error("Error generating title:", error);
@@ -1468,7 +1467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { niche, platform, targetEmotion } = req.body;
       const viralContent = await viralGrowthEngine.generateViralContent(niche, platform, targetEmotion);
-
+      
       res.json({
         content: viralContent,
         message: 'Вирусный контент создан с высоким потенциалом',
@@ -1484,9 +1483,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { campaignType, niche } = req.body;
-
+      
       const campaign = await viralGrowthEngine.launchViralCampaign(userId, campaignType, niche);
-
+      
       await storage.createActivityLog({
         userId,
         action: 'Viral Campaign Launched',
@@ -1510,7 +1509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { audience, goal } = req.body;
       const triggers = await viralGrowthEngine.generatePsychologicalTriggers(audience, goal);
-
+      
       res.json({
         triggers,
         message: 'Психологические триггеры сгенерированы',
@@ -1526,7 +1525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { emotion, niche, platform } = req.body;
       const emotionalContent = await viralGrowthEngine.createEmotionalContent(emotion, niche, platform);
-
+      
       res.json({
         content: emotionalContent,
         emotion,
@@ -1543,7 +1542,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { content } = req.body;
       const enhancedContent = await viralGrowthEngine.applyNeuroMarketingPrinciples(content);
-
+      
       res.json({
         original: content,
         enhanced: enhancedContent,
@@ -1562,9 +1561,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { niche } = req.body;
-
+      
       const intelligence = await competitorSurveillance.monitorCompetitors(niche);
-
+      
       await storage.createActivityLog({
         userId,
         action: 'Competitor Intelligence',
@@ -1588,7 +1587,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitors } = req.body;
       const strategies = await competitorSurveillance.analyzeCompetitorStrategies(competitors);
-
+      
       res.json({
         strategies,
         message: 'Стратегии конкурентов проанализированы',
@@ -1604,7 +1603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitorHandle, theirStrategy } = req.body;
       const counterStrategy = await competitorSurveillance.createCounterStrategy(competitorHandle, theirStrategy);
-
+      
       res.json({
         counterStrategy,
         message: 'Контр-стратегия создана',
@@ -1620,7 +1619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitorData, marketTrends } = req.body;
       const predictions = await competitorSurveillance.predictCompetitorMoves(competitorData, marketTrends);
-
+      
       res.json({
         predictions,
         message: 'Действия конкурентов спрогнозированы',
@@ -1636,9 +1635,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { competitors } = req.body;
-
+      
       await competitorSurveillance.setupAutomaticMonitoring(userId, competitors);
-
+      
       res.json({
         message: 'Автоматический мониторинг конкурентов настроен',
         competitors: competitors.length,
@@ -1656,7 +1655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientProfile, targetMarketShare } = req.body;
       const dominationPlan = await brandDominationEngine.createDominationPlan(clientProfile, targetMarketShare);
-
+      
       res.json({
         plan: dominationPlan,
         message: 'План доминирования создан',
@@ -1672,7 +1671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientProfile } = req.body;
       const empire = await brandDominationEngine.buildBrandEmpire(clientProfile);
-
+      
       res.json({
         empire,
         message: 'Брендовая империя создана',
@@ -1688,9 +1687,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { clientProfile } = req.body;
-
+      
       const results = await brandDominationEngine.executeAggressiveGrowth(userId, clientProfile);
-
+      
       await storage.createActivityLog({
         userId,
         action: 'Aggressive Growth Launched',
@@ -1714,7 +1713,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { targetAudience, competitorWeaknesses } = req.body;
       const campaign = await brandDominationEngine.launchPsychologicalCampaign(targetAudience, competitorWeaknesses);
-
+      
       res.json({
         campaign,
         message: 'Психологическая кампания запущена',
@@ -1730,7 +1729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { niche } = req.body;
       const monopolizationPlan = await brandDominationEngine.createMonopolizationPlan(niche);
-
+      
       res.json({
         plan: monopolizationPlan,
         message: 'План монополизации рынка создан',
@@ -1738,114 +1737,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Ошибка создания плана монополизации:', error);
       res.status(500).json({ error: 'Не удалось создать план монополизации' });
-    }
-  });
-
-  // Тестирование Grok API
-  app.post('/api/grok/test', isAuthenticated, async (req: any, res) => {
-    try {
-      const { prompt } = req.body;
-
-      if (!prompt) {
-        return res.status(400).json({
-          success: false,
-          error: 'Prompt обязателен',
-        });
-      }
-
-      console.log('🧠 Тестирование Grok API с промптом:', prompt);
-
-      const result = await grokService.testConnection(prompt);
-
-      // Логируем активность
-      const userId = req.user.claims.sub;
-      await storage.createActivityLog({
-        userId,
-        action: 'Grok API Test',
-        description: 'Протестирован Grok API',
-        status: result.success ? 'success' : 'error',
-        metadata: { prompt: prompt.substring(0, 100), model: result.model },
-      });
-
-      res.json(result);
-    } catch (error) {
-      console.error('Ошибка тестирования Grok API:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Внутренняя ошибка сервера',
-      });
-    }
-  });
-
-  // Продвинутый анализ через Grok
-  app.post('/api/grok/advanced-analysis', isAuthenticated, async (req: any, res) => {
-    try {
-      const { prompt, type } = req.body;
-
-      if (!prompt) {
-        return res.status(400).json({
-          success: false,
-          error: 'Prompt обязателен',
-        });
-      }
-
-      console.log(`🔍 Запуск продвинутого анализа Grok: ${type}`);
-
-      const result = await grokService.advancedAnalysis(prompt, type);
-
-      // Логируем активность
-      const userId = req.user.claims.sub;
-      await storage.createActivityLog({
-        userId,
-        action: 'Grok Advanced Analysis',
-        description: `Выполнен продвинутый анализ: ${type}`,
-        status: result.success ? 'success' : 'error',
-        metadata: { analysisType: type, model: result.model },
-      });
-
-      res.json(result);
-    } catch (error) {
-      console.error('Ошибка продвинутого анализа Grok:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Ошибка продвинутого анализа',
-      });
-    }
-  });
-
-  // Генерация стратегии продвижения через Grok
-  app.post('/api/grok/promotion-strategy', isAuthenticated, async (req: any, res) => {
-    try {
-      const { channelUrl, niche } = req.body;
-
-      if (!channelUrl || !niche) {
-        return res.status(400).json({
-          success: false,
-          error: 'URL канала и ниша обязательны',
-        });
-      }
-
-      console.log(`📈 Создание стратегии продвижения для ${channelUrl} в нише ${niche}`);
-
-      const result = await grokService.generatePromotionStrategy(channelUrl, niche);
-
-      // Логируем активность
-      const userId = req.user.claims.sub;
-      await storage.createActivityLog({
-        userId,
-        action: 'Grok Promotion Strategy',
-        description: `Создана стратегия продвижения для ${channelUrl}`,
-        status: result.success ? 'success' : 'error',
-        metadata: { channelUrl, niche },
-      });
-
-      res.json(result);
-    } catch (error) {
-      console.error('Ошибка создания стратегии продвижения:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Не удалось создать стратегию продвижения',
-      });
     }
   });
 
