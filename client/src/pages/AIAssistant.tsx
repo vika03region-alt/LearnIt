@@ -145,7 +145,7 @@ export default function AIAssistant() {
 
   const handleSendMessage = () => {
     if (!messageText.trim() || !selectedConversationId) return;
-    
+
     sendMessage.mutate({
       conversationId: selectedConversationId,
       message: messageText.trim(),
@@ -307,7 +307,7 @@ export default function AIAssistant() {
                     </Badge>
                   </CardTitle>
                 </CardHeader>
-                
+
                 <CardContent className="flex-1 flex flex-col p-0">
                   {/* Сообщения */}
                   <ScrollArea className="flex-1 p-4">
@@ -382,13 +382,12 @@ export default function AIAssistant() {
                       </Button>
                     </div>
                   </div>
-                </>
-              )}
-            </CardContent>
-          )}
-        </Card>
+                </CardContent>
+              </>
+            )}
+          </Card>
+        </div>
       </div>
-    </div>
-  </Layout>
+    </Layout>
   );
 }
