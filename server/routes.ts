@@ -227,17 +227,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === AI АССИСТЕНТ ===
 
-  // Получить доступные AI провайдеры
-  app.get('/api/ai/providers', isAuthenticated, async (req: any, res) => {
-    try {
-      const providers = aiAssistantService.getAvailableProviders();
-      res.json(providers);
-    } catch (error) {
-      console.error("Error fetching AI providers:", error);
-      res.status(500).json({ message: "Failed to fetch AI providers" });
-    }
-  });
-
   // Получить все разговоры пользователя
   app.get('/api/ai/conversations', isAuthenticated, async (req: any, res) => {
     try {
@@ -254,8 +243,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/ai/conversations', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { title, provider } = req.body;
-      const conversation = await aiAssistantService.createConversation(userId, title, provider);
+      const { title } = req.body;
+      const conversation = await aiAssistantService.createConversation(userId, title);
       res.json(conversation);
     } catch (error) {
       console.error("Error creating conversation:", error);
