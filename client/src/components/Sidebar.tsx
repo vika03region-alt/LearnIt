@@ -18,7 +18,8 @@ import {
   Rocket,
   BarChart3,
   Target,
-  Users
+  Users,
+  Bot
 } from "lucide-react";
 import { SiTiktok, SiTelegram } from "react-icons/si";
 
@@ -168,6 +169,21 @@ export default function Sidebar() {
               >
                 <Brain className="w-5 h-5" />
                 {!collapsed && <span>AI Контент</span>}
+              </a>
+            </Link>
+
+            <Link href="/ai-assistant">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/ai-assistant"
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-ai-assistant"
+              >
+                <Bot className="w-5 h-5" />
+                {!collapsed && <span>AI Ассистент</span>}
               </a>
             </Link>
 
