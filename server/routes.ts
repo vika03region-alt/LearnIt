@@ -656,18 +656,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === ТЕСТИРОВАНИЕ TELEGRAM ПРОДВИЖЕНИЯ ===
 
-  // Проверка статуса секретов Telegram
+  // Проверка статуса секретов Telegram и OpenAI
   app.get('/api/telegram/check-secrets', isAuthenticated, async (req: any, res) => {
     try {
       const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
       const telegramChannelId = process.env.TELEGRAM_CHANNEL_ID;
+      const openaiApiKey = process.env.OPENAI_API_KEY;
 
       const status = {
         telegram: !!(telegramBotToken && telegramBotToken !== 'your_telegram_bot_token_here'),
         channel: !!(telegramChannelId && telegramChannelId !== '@IIPRB' && telegramChannelId.length > 5),
+        openai: !!(openaiApiKey && openaiApiKey.startsWith('sk-') && openaiApiKey.length > 20),
         channelId: telegramChannelId || '@IIPRB',
         botConfigured: !!telegramBotToken,
+        aiReady: !!(openaiApiKey && openaiApiKey.startsWith('sk-')),
       };
+
+      console.log('🔍 Статус секретов:', {
+        telegram: status.telegram ? '✅' : '❌',
+        channel: status.channel ? '✅' : '❌', 
+        openai: status.openai ? '✅' : '❌'
+      });
 
       res.json(status);
     } catch (error) {
