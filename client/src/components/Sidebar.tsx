@@ -18,7 +18,9 @@ import {
   Rocket,
   BarChart3,
   Target,
-  Users
+  Users,
+  AlertCircle,
+  Bot
 } from "lucide-react";
 import { SiTiktok, SiTelegram } from "react-icons/si";
 
@@ -198,6 +200,34 @@ export default function Sidebar() {
               >
                 <Calendar className="w-5 h-5" />
                 {!collapsed && <span>Планировщик</span>}
+              </a>
+            </Link>
+
+            <Link href="/secrets-check">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/secrets-check"
+                    ? "bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+              >
+                <AlertCircle className="w-5 h-5" />
+                {!collapsed && <span>Проверка секретов</span>}
+              </a>
+            </Link>
+
+            <Link href="/autonomous-ai">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/autonomous-ai"
+                    ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+              >
+                <Bot className="w-5 h-5" />
+                {!collapsed && <span>Автономная AI</span>}
               </a>
             </Link>
 
