@@ -1,5 +1,5 @@
 
-import { Sidebar } from "@/components/Sidebar";
+import Sidebar from "@/components/Sidebar";
 import SecretsChecker from "@/components/SecretsChecker";
 import GrokQuickTest from "@/components/GrokQuickTest";
 
