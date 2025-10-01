@@ -12,12 +12,11 @@ import SafetyCenter from "@/pages/SafetyCenter";
 import Scheduler from "@/pages/Scheduler";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
-import AIAssistant from "./pages/AIAssistant";
 import GrokTestDashboard from "./components/GrokTestDashboard";
-import AdvancedAnalyticsDashboard from "./components/AdvancedAnalyticsDashboard";
+import AIIntegrationTest from "./components/AIIntegrationTest";
 
 function Router() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   return (
     <Switch>
@@ -31,9 +30,8 @@ function Router() {
           <Route path="/safety" component={SafetyCenter} />
           <Route path="/scheduler" component={Scheduler} />
           <Route path="/settings" component={Settings} />
-          <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="/grok-test" element={<GrokTestDashboard />} />
-          <Route path="/advanced-analytics" element={<AdvancedAnalyticsDashboard userId={user?.id || ''} platformId={1} />} />
+            <Route path="/ai-integration-test" element={<AIIntegrationTest />} />
         </>
       )}
       <Route component={NotFound} />

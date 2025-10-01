@@ -17,31 +17,10 @@ import {
   Rocket,
   BarChart3,
   Target,
-  Users
+  Users,
+  Zap
 } from "lucide-react";
 import { SiTiktok, SiTelegram } from "react-icons/si";
-
-// Dummy SidebarItem component for demonstration purposes since it's not provided
-const SidebarItem = ({ icon: Icon, label, href, isActive }: any) => {
-  const location = useLocation()[0]; // Get current location
-  return (
-    <Link href={href}>
-      <a 
-        className={cn(
-          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-          isActive
-            ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm"
-            : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-        )}
-        data-testid={`link-${label.toLowerCase().replace(/\s+/g, '-')}`}
-      >
-        <Icon className="w-5 h-5" />
-        <span className="font-medium">{label}</span>
-      </a>
-    </Link>
-  );
-};
-
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -189,6 +168,36 @@ export default function Sidebar() {
               >
                 <Brain className="w-5 h-5" />
                 {!collapsed && <span>AI Контент</span>}
+              </a>
+            </Link>
+
+            <Link href="/grok-test">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/grok-test"
+                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-grok-test"
+              >
+                <Brain className="w-5 h-5" />
+                {!collapsed && <span>Grok Тест</span>}
+              </a>
+            </Link>
+
+            <Link href="/ai-integration-test">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/ai-integration-test"
+                    ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-ai-integration-test"
+              >
+                <Zap className="w-5 h-5" />
+                {!collapsed && <span>AI Интеграции</span>}
               </a>
             </Link>
 

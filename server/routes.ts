@@ -307,8 +307,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const conversation = await aiAssistantService.updateConversationTitle(
-        conversationId,
-        userId,
+        conversationId, 
+        userId, 
         title.trim()
       );
       res.json(conversation);
@@ -353,8 +353,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const userId = req.user.claims.sub;
       const updatedConversation = await aiAssistantService.updateConversationTitle(
-        conversationId,
-        userId,
+        conversationId, 
+        userId, 
         title
       );
 
@@ -1189,9 +1189,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userAccounts = await storage.getUserAccounts(userId);
 
         for (const platformId of platformIds) {
-          const account = userAccounts.find(acc =>
-            acc.platformId === platformId &&
-            acc.isActive &&
+          const account = userAccounts.find(acc => 
+            acc.platformId === platformId && 
+            acc.isActive && 
             acc.authStatus === 'connected'
           );
 
@@ -1238,8 +1238,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await socialMediaManager.validateAllTokens(userId);
 
       const updatedAccounts = await storage.getUserAccounts(userId);
-      res.json({
-        success: true,
+      res.json({ 
+        success: true, 
         accounts: updatedAccounts.map(acc => ({
           id: acc.id,
           platformId: acc.platformId,
@@ -1741,145 +1741,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // === GROK API INTEGRATION ===
-
   // Тестирование Grok API
   app.post('/api/grok/test', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const { message } = req.body;
+      const { prompt } = req.body;
 
-      if (!message) {
-        return res.status(400).json({ message: "Message is required" });
+      if (!prompt) {
+        return res.status(400).json({
+          success: false,
+          error: 'Prompt обязателен',
+        });
       }
 
-      const result = await grokService.testGrokAPI(message);
+      console.log('🧠 Тестирование Grok API с промптом:', prompt);
 
+      const result = await grokService.testConnection(prompt);
+
+      // Логируем активность
+      const userId = req.user.claims.sub;
       await storage.createActivityLog({
         userId,
         action: 'Grok API Test',
-        description: `Tested Grok API with message: ${message}`,
-        platformId: null,
-        status: 'success',
-        metadata: { message, result },
+        description: 'Протестирован Grok API',
+        status: result.success ? 'success' : 'error',
+        metadata: { prompt: prompt.substring(0, 100), model: result.model },
       });
 
       res.json(result);
     } catch (error) {
-      console.error("Error testing Grok API:", error);
-      res.status(500).json({ message: "Failed to test Grok API" });
+      console.error('Ошибка тестирования Grok API:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Внутренняя ошибка сервера',
+      });
     }
   });
 
-  // === ПРОДВИНУТАЯ АНАЛИТИКА ===
-
-  // Получить продвинутые метрики
-  app.get('/api/analytics/advanced-metrics/:userId/:platformId', isAuthenticated, async (req: any, res) => {
+  // Продвинутый анализ через Grok
+  app.post('/api/grok/advanced-analysis', isAuthenticated, async (req: any, res) => {
     try {
-      const { userId, platformId } = req.params;
+      const { prompt, type } = req.body;
 
-      // Симуляция продвинутых метрик (в реальности здесь был бы сложный AI анализ)
-      const advancedMetrics = {
-        viral_potential: Math.floor(Math.random() * 100),
-        content_quality_score: Math.floor(Math.random() * 100),
-        audience_sentiment: ['positive', 'negative', 'neutral'][Math.floor(Math.random() * 3)],
-        trend_alignment: Math.floor(Math.random() * 100),
-        competition_analysis: {
-          market_position: Math.floor(Math.random() * 100),
-          competitive_advantage: [
-            'Высокое качество контента',
-            'Стабильная аудитория',
-            'Уникальный стиль',
-            'Актуальные темы'
-          ],
-          threats: [
-            'Растущая конкуренция',
-            'Изменения алгоритмов',
-            'Сезонные колебания'
-          ],
-          opportunities: [
-            'Новые форматы контента',
-            'Партнерские программы',
-            'Международная экспансия',
-            'Диверсификация платформ'
-          ]
-        },
-        growth_projection: {
-          next_30_days: Math.floor(Math.random() * 50) + 10,
-          confidence: Math.floor(Math.random() * 30) + 70,
-          required_actions: [
-            'Увеличить частоту публикаций',
-            'Улучшить взаимодействие с аудиторией',
-            'Оптимизировать время публикаций'
-          ]
-        },
-        monetization_opportunities: {
-          potential_revenue: Math.floor(Math.random() * 10000) + 1000,
-          recommended_strategies: [
-            'Спонсорские интеграции',
-            'Партнерские программы',
-            'Продажа курсов/консультаций',
-            'Платные подписки',
-            'Мерчендайзинг'
-          ],
-          risk_level: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)]
-        }
-      };
+      if (!prompt) {
+        return res.status(400).json({
+          success: false,
+          error: 'Prompt обязателен',
+        });
+      }
 
-      res.json(advancedMetrics);
-    } catch (error) {
-      console.error("Error getting advanced metrics:", error);
-      res.status(500).json({ message: "Failed to get advanced metrics" });
-    }
-  });
+      console.log(`🔍 Запуск продвинутого анализа Grok: ${type}`);
 
-  // Получить Grok AI инсайты
-  app.get('/api/grok/insights/:userId/:platformId/:depth', isAuthenticated, async (req: any, res) => {
-    try {
-      const { userId, platformId, depth } = req.params;
+      const result = await grokService.advancedAnalysis(prompt, type);
 
-      const result = await grokService.generateAdvancedInsights(userId, parseInt(platformId), depth);
-      res.json(result);
-    } catch (error) {
-      console.error("Error getting Grok insights:", error);
-      res.status(500).json({ message: "Failed to get Grok insights" });
-    }
-  });
-
-  // Генерировать новый анализ
-  app.post('/api/grok/generate-analysis', isAuthenticated, async (req: any, res) => {
-    try {
+      // Логируем активность
       const userId = req.user.claims.sub;
-      const { platformId, depth } = req.body;
-
-      const result = await grokService.generateComprehensiveAnalysis(userId, platformId, depth);
-
       await storage.createActivityLog({
         userId,
-        action: 'Advanced Analysis Generated',
-        description: `Generated ${depth} analysis for platform ${platformId}`,
-        platformId: platformId,
-        status: 'success',
-        metadata: { depth, analysisType: 'comprehensive' },
+        action: 'Grok Advanced Analysis',
+        description: `Выполнен продвинутый анализ: ${type}`,
+        status: result.success ? 'success' : 'error',
+        metadata: { analysisType: type, model: result.model },
       });
 
       res.json(result);
     } catch (error) {
-      console.error("Error generating analysis:", error);
-      res.status(500).json({ message: "Failed to generate analysis" });
+      console.error('Ошибка продвинутого анализа Grok:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Ошибка продвинутого анализа',
+      });
     }
   });
 
-  // Прогностический анализ
-  app.get('/api/analytics/predictive/:userId/:platformId', isAuthenticated, async (req: any, res) => {
+  // Генерация стратегии продвижения через Grok
+  app.post('/api/grok/promotion-strategy', isAuthenticated, async (req: any, res) => {
     try {
-      const { userId, platformId } = req.params;
+      const { channelUrl, niche } = req.body;
 
-      const result = await grokService.generatePredictiveAnalysis(userId, parseInt(platformId));
+      if (!channelUrl || !niche) {
+        return res.status(400).json({
+          success: false,
+          error: 'URL канала и ниша обязательны',
+        });
+      }
+
+      console.log(`📈 Создание стратегии продвижения для ${channelUrl} в нише ${niche}`);
+
+      const result = await grokService.generatePromotionStrategy(channelUrl, niche);
+
+      // Логируем активность
+      const userId = req.user.claims.sub;
+      await storage.createActivityLog({
+        userId,
+        action: 'Grok Promotion Strategy',
+        description: `Создана стратегия продвижения для ${channelUrl}`,
+        status: result.success ? 'success' : 'error',
+        metadata: { channelUrl, niche },
+      });
+
       res.json(result);
     } catch (error) {
-      console.error("Error getting predictive analysis:", error);
-      res.status(500).json({ message: "Failed to get predictive analysis" });
+      console.error('Ошибка создания стратегии продвижения:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Не удалось создать стратегию продвижения',
+      });
     }
   });
 
