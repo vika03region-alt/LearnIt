@@ -17,7 +17,6 @@ import { aiLearningEngine } from "./services/aiLearningEngine";
 import { viralGrowthEngine } from "./services/viralGrowthEngine";
 import { competitorSurveillance } from "./services/competitorSurveillance";
 import { brandDominationEngine } from "./services/brandDominationEngine";
-import { telegramPromotionService } from "./services/telegramPromotionService";
 import type { Platform, UserAccount } from "@shared/schema";
 import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
 import { z } from "zod";
@@ -276,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const result = await aiAssistantService.sendMessage(conversationId, message.trim());
-
+      
       // Логируем активность
       const userId = req.user.claims.sub;
       await storage.createActivityLog({
@@ -323,9 +322,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
-
+      
       const success = await aiAssistantService.deleteConversation(conversationId, userId);
-
+      
       if (success) {
         await storage.createActivityLog({
           userId,
@@ -350,14 +349,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = parseInt(req.params.id);
       const title = await aiAssistantService.generateConversationTitle(conversationId);
-
+      
       const userId = req.user.claims.sub;
       const updatedConversation = await aiAssistantService.updateConversationTitle(
         conversationId, 
         userId, 
         title
       );
-
+      
       res.json({ title, conversation: updatedConversation });
     } catch (error) {
       console.error("Error generating title:", error);
@@ -686,6 +685,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         message: 'Клиент Lucifer Tradera успешно инициализирован',
+        analysis,
+        strategy,
+      });
+    } catch (error) {
+      console.error('Ошибка инициализации клиента:', error);
+      res.status(500).json({ error: 'Не удалось инициализировать клиента' });
+    }
+  });
+
+  // === ТЕСТИРОВАНИЕ TELEGRAM ПРОДВИЖЕНИЯ ===
+
+  // Анализ Telegram канала IIPRB
+  app.post('/api/telegram/analyze-channel', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { channelUrl = 'https://t.me/IIPRB' } = req.body;
+
+      const { telegramTestPromotion } = await import('./services/telegramTestPromotion');
+      const channelData = await telegramTestPromotion.analyzeChannel(channelUrl);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Telegram Channel Analyzed',
+        description: `Проанализирован канал ${channelData.title}`,
+        status: 'success',
+        metadata: { channelData },
+      });
+
+      res.json({
+        message: 'Канал успешно проанализирован',
+        channelData,
+      });
+    } catch (error) {
+      console.error('Ошибка анализа канала:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать канал' });
+    }
+  });
+
+  // Запуск тестовой кампании продвижения
+  app.post('/api/telegram/run-test-campaign', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const { telegramTestPromotion } = await import('./services/telegramTestPromotion');
+      const testResults = await telegramTestPromotion.runPromotionTest(userId);
+
+      // Симулируем публикацию контента
+      const postingResults = await telegramTestPromotion.simulatePosting(testResults.contentGenerated);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Telegram Test Campaign',
+        description: `Запущена тестовая кампания: ${postingResults.posted} постов опубликовано`,
+        status: 'success',
+        metadata: { testResults, postingResults },
+      });
+
+      res.json({
+        message: 'Тестовая кампания успешно запущена',
+        results: testResults,
+        posting: postingResults,
+      });
+    } catch (error) {
+      console.error('Ошибка запуска тестовой кампании:', error);
+      res.status(500).json({ error: 'Не удалось запустить тестовую кампанию' });
+    }
+  });
+
+  // Генерация контента для Telegram
+  app.post('/api/telegram/generate-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { contentType = 'trading_signal', count = 3 } = req.body;
+
+      const { telegramTestPromotion } = await import('./services/telegramTestPromotion');
+      const content = await telegramTestPromotion.generateTestContent(contentType);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Telegram Content Generated',
+        description: `Сгенерировано ${content.length} постов типа ${contentType}`,
+        status: 'success',
+        metadata: { contentType, count: content.length },
+      });
+
+      res.json({
+        message: 'Контент успешно сгенерирован',
+        content: content.slice(0, count),
+        contentType,
+      });
+    } catch (error) {
+      console.error('Ошибка генерации контента:', error);
+      res.status(500).json({ error: 'Не удалось сгенерировать контент' });
+    }
+  });
+
+  // Мониторинг результатов тестовой кампании
+  app.get('/api/telegram/monitor-results/:testId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { testId } = req.params;
+
+      const { telegramTestPromotion } = await import('./services/telegramTestPromotion');
+      const results = await telegramTestPromotion.monitorResults(testId);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Telegram Results Monitored',
+        description: `Результаты кампании: ${results.performance}`,
+        status: 'success',
+        metadata: { testId, results },
+      });
+
+      res.json({
+        message: 'Результаты мониторинга получены',
+        results,
+      });
+    } catch (error) {
+      console.error('Ошибка мониторинга результатов:', error);
+      res.status(500).json({ error: 'Не удалось получить результаты мониторинга' });
+    }
+  });
+
+  // Экспорт отчета о тестировании
+  app.post('/api/telegram/export-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { testResults } = req.body;
+
+      if (!testResults) {
+        return res.status(400).json({ error: 'Требуются результаты тестирования' });
+      }
+
+      const { telegramTestPromotion } = await import('./services/telegramTestPromotion');
+      const report = await telegramTestPromotion.exportResults(testResults);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Telegram Report Exported',
+        description: 'Экспортирован отчет о тестовой кампании',
+        status: 'success',
+        metadata: { reportLength: report.length },
+      });
+
+      res.json({
+        message: 'Отчет успешно сгенерирован',
+        report,
+      });
+    } catch (error) {
+      console.error('Ошибка экспорта отчета:', error);
+      res.status(500).json({ error: 'Не удалось экспортировать отчет' });
+    }
+  });лиент Lucifer Tradera успешно инициализирован',
         analysis,
         strategy,
         recommendations: analysis.recommendations,
@@ -1468,7 +1620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { niche, platform, targetEmotion } = req.body;
       const viralContent = await viralGrowthEngine.generateViralContent(niche, platform, targetEmotion);
-
+      
       res.json({
         content: viralContent,
         message: 'Вирусный контент создан с высоким потенциалом',
@@ -1484,9 +1636,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { campaignType, niche } = req.body;
-
+      
       const campaign = await viralGrowthEngine.launchViralCampaign(userId, campaignType, niche);
-
+      
       await storage.createActivityLog({
         userId,
         action: 'Viral Campaign Launched',
@@ -1510,7 +1662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { audience, goal } = req.body;
       const triggers = await viralGrowthEngine.generatePsychologicalTriggers(audience, goal);
-
+      
       res.json({
         triggers,
         message: 'Психологические триггеры сгенерированы',
@@ -1526,7 +1678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { emotion, niche, platform } = req.body;
       const emotionalContent = await viralGrowthEngine.createEmotionalContent(emotion, niche, platform);
-
+      
       res.json({
         content: emotionalContent,
         emotion,
@@ -1543,7 +1695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { content } = req.body;
       const enhancedContent = await viralGrowthEngine.applyNeuroMarketingPrinciples(content);
-
+      
       res.json({
         original: content,
         enhanced: enhancedContent,
@@ -1562,9 +1714,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { niche } = req.body;
-
+      
       const intelligence = await competitorSurveillance.monitorCompetitors(niche);
-
+      
       await storage.createActivityLog({
         userId,
         action: 'Competitor Intelligence',
@@ -1588,7 +1740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitors } = req.body;
       const strategies = await competitorSurveillance.analyzeCompetitorStrategies(competitors);
-
+      
       res.json({
         strategies,
         message: 'Стратегии конкурентов проанализированы',
@@ -1604,7 +1756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitorHandle, theirStrategy } = req.body;
       const counterStrategy = await competitorSurveillance.createCounterStrategy(competitorHandle, theirStrategy);
-
+      
       res.json({
         counterStrategy,
         message: 'Контр-стратегия создана',
@@ -1620,7 +1772,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitorData, marketTrends } = req.body;
       const predictions = await competitorSurveillance.predictCompetitorMoves(competitorData, marketTrends);
-
+      
       res.json({
         predictions,
         message: 'Действия конкурентов спрогнозированы',
@@ -1636,9 +1788,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { competitors } = req.body;
-
+      
       await competitorSurveillance.setupAutomaticMonitoring(userId, competitors);
-
+      
       res.json({
         message: 'Автоматический мониторинг конкурентов настроен',
         competitors: competitors.length,
@@ -1656,7 +1808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientProfile, targetMarketShare } = req.body;
       const dominationPlan = await brandDominationEngine.createDominationPlan(clientProfile, targetMarketShare);
-
+      
       res.json({
         plan: dominationPlan,
         message: 'План доминирования создан',
@@ -1672,7 +1824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientProfile } = req.body;
       const empire = await brandDominationEngine.buildBrandEmpire(clientProfile);
-
+      
       res.json({
         empire,
         message: 'Брендовая империя создана',
@@ -1688,9 +1840,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { clientProfile } = req.body;
-
+      
       const results = await brandDominationEngine.executeAggressiveGrowth(userId, clientProfile);
-
+      
       await storage.createActivityLog({
         userId,
         action: 'Aggressive Growth Launched',
@@ -1714,7 +1866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { targetAudience, competitorWeaknesses } = req.body;
       const campaign = await brandDominationEngine.launchPsychologicalCampaign(targetAudience, competitorWeaknesses);
-
+      
       res.json({
         campaign,
         message: 'Психологическая кампания запущена',
@@ -1730,7 +1882,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { niche } = req.body;
       const monopolizationPlan = await brandDominationEngine.createMonopolizationPlan(niche);
-
+      
       res.json({
         plan: monopolizationPlan,
         message: 'План монополизации рынка создан',
@@ -1743,38 +1895,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup advanced promotion strategy routes
   setupPromotionStrategyRoutes(app);
-
-  // Telegram Promotion Routes
-  app.post('/api/telegram/promote-group', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { groupId, targetAudience } = req.body; // groupId would be the Telegram group link or ID
-
-      if (!groupId || !targetAudience) {
-        return res.status(400).json({ error: 'Group ID and target audience are required' });
-      }
-
-      const result = await telegramPromotionService.testGroupPromotion(userId, groupId, targetAudience);
-
-      await storage.createActivityLog({
-        userId,
-        action: 'Telegram Group Promotion Test',
-        description: `Tested promotion for Telegram group: ${groupId}`,
-        platformId: null, // Assuming Telegram doesn't have a platformId in this context
-        status: 'success',
-        metadata: { groupId, targetAudience, result },
-      });
-
-      res.json({
-        message: 'Telegram group promotion test initiated',
-        result,
-      });
-    } catch (error) {
-      console.error('Error testing Telegram group promotion:', error);
-      res.status(500).json({ error: 'Failed to test Telegram group promotion' });
-    }
-  });
-
 
   const httpServer = createServer(app);
   return httpServer;
