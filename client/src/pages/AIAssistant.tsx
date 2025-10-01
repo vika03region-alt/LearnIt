@@ -7,11 +7,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { useToast } from "../hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageCircle, Send, Plus, Trash2, Edit2, Sparkles, Bot, User } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import Layout from "../components/Layout";
+import Layout from "@/components/Layout";
 
 interface Conversation {
   id: number;
@@ -124,9 +124,9 @@ export default function AIAssistant() {
       apiRequest(`/api/ai/conversations/${conversationId}`, {
         method: "DELETE",
       }),
-    onSuccess: (_, conversationId) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ai/conversations"] });
-      if (selectedConversationId === conversationId) {
+      if (selectedConversationId === selectedConversationId) {
         setSelectedConversationId(null);
       }
       toast({
@@ -145,7 +145,7 @@ export default function AIAssistant() {
 
   const handleSendMessage = () => {
     if (!messageText.trim() || !selectedConversationId) return;
-
+    
     sendMessage.mutate({
       conversationId: selectedConversationId,
       message: messageText.trim(),
@@ -307,7 +307,7 @@ export default function AIAssistant() {
                     </Badge>
                   </CardTitle>
                 </CardHeader>
-
+                
                 <CardContent className="flex-1 flex flex-col p-0">
                   {/* Сообщения */}
                   <ScrollArea className="flex-1 p-4">
@@ -382,12 +382,13 @@ export default function AIAssistant() {
                       </Button>
                     </div>
                   </div>
-                </CardContent>
-              </>
-            )}
-          </Card>
-        </div>
+                </>
+              )}
+            </CardContent>
+          )}
+        </Card>
       </div>
-    </Layout>
+    </div>
+  </Layout>
   );
 }
