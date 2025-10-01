@@ -14,6 +14,9 @@ import Scheduler from "@/pages/Scheduler";
 import Settings from "@/pages/Settings";
 import AIAssistant from "@/pages/AIAssistant";
 import NotFound from "@/pages/not-found";
+import Layout from "./components/Layout";
+import { TelegramTestDashboard } from './components/TelegramTestDashboard';
+import { GrokTestDashboard } from './components/GrokTestDashboard';
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -34,6 +37,16 @@ function Router() {
               return (
                 <React.Suspense fallback={<div>Loading...</div>}>
                   <TelegramTestDashboard />
+                </React.Suspense>
+              );
+            }}
+          </Route>
+          <Route path="/grok-test">
+            {() => {
+              const GrokTestDashboard = React.lazy(() => import('./components/GrokTestDashboard').then(m => ({ default: m.GrokTestDashboard })));
+              return (
+                <React.Suspense fallback={<div>Loading...</div>}>
+                  <GrokTestDashboard />
                 </React.Suspense>
               );
             }}

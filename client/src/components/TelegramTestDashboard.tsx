@@ -50,7 +50,13 @@ export function TelegramTestDashboard() {
   const [testResults, setTestResults] = useState<TestResults | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [generatedContent, setGeneratedContent] = useState<string[]>([]);
-  const [secretsStatus, setSecretsStatus] = useState<{telegram: boolean, channel: boolean, openai: boolean}>({ telegram: false, channel: false, openai: false });
+  const [secretsStatus, setSecretsStatus] = useState<{telegram: boolean, channel: boolean, openai: boolean, grok: boolean, aiProvider: string}>({ 
+    telegram: false, 
+    channel: false, 
+    openai: false, 
+    grok: false,
+    aiProvider: 'openai'
+  });
   const { toast } = useToast();
 
   // Проверка секретов при загрузке
@@ -233,7 +239,13 @@ export function TelegramTestDashboard() {
             Channel: {secretsStatus.channel ? "✓" : "✗"}
           </Badge>
           <Badge className={secretsStatus.openai ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
-            AI: {secretsStatus.openai ? "✓" : "✗"}
+            OpenAI: {secretsStatus.openai ? "✓" : "✗"}
+          </Badge>
+          <Badge className={secretsStatus.grok ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+            Grok: {secretsStatus.grok ? "✓" : "✗"}
+          </Badge>
+          <Badge className="bg-blue-100 text-blue-800">
+            Provider: {secretsStatus.aiProvider}
           </Badge>
           <Badge className="bg-blue-100 text-blue-800">
             <MessageCircle className="w-4 h-4 mr-1" />
@@ -489,17 +501,22 @@ export function TelegramTestDashboard() {
       )}
 
       {/* Предупреждения */}
-      {(!secretsStatus.telegram || !secretsStatus.channel || !secretsStatus.openai) && (
+      {(!secretsStatus.telegram || !secretsStatus.channel || (!secretsStatus.openai && !secretsStatus.grok)) && (
         <Alert className="border-amber-200 bg-amber-50">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-800">
             <strong>Требуется настройка:</strong>
-            {!secretsStatus.openai && " OpenAI API Key"}
-            {(!secretsStatus.openai && (!secretsStatus.telegram || !secretsStatus.channel)) && ","}
+            {(!secretsStatus.openai && !secretsStatus.grok) && " AI API Key (OpenAI или Grok)"}
+            {((!secretsStatus.openai && !secretsStatus.grok) && (!secretsStatus.telegram || !secretsStatus.channel)) && ","}
             {!secretsStatus.telegram && " Telegram Bot Token"}
             {(!secretsStatus.telegram && !secretsStatus.channel) && " и"}
             {!secretsStatus.channel && " Channel ID"}
-            . Проверьте файл .env или настройки секретов.
+            . Проверьте настройки секретов в Replit.
+            {(!secretsStatus.openai && !secretsStatus.grok) && (
+              <div className="mt-2 text-sm">
+                💡 Добавьте GROK_API_KEY для использования Grok AI или OPENAI_API_KEY для OpenAI GPT.
+              </div>
+            )}
           </AlertDescription>
         </Alert>
       )}
