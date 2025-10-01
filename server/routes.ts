@@ -652,425 +652,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === АВТОМАТИЧЕСКОЕ ПРОДВИЖЕНИЕ ===
 
-  
-
-  // === GROK AI ИНТЕГРАЦИЯ ===
-
-  // Проверка статуса Grok API
-  app.get('/api/grok/status', isAuthenticated, async (req: any, res) => {
-    try {
-      const { grokService } = await import('./services/grokService');
-      const status = grokService.getStatus();
-      res.json(status);
-    } catch (error) {
-      console.error('Ошибка проверки статуса Grok:', error);
-      res.status(500).json({ error: 'Не удалось проверить статус Grok API' });
-    }
-  });
-
-  // Генерация контента через Grok
-  app.post('/api/grok/generate', isAuthenticated, async (req: any, res) => {
+  // Инициализация клиента Lucifer
+  app.post('/api/client/init-lucifer', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { prompt, contentType = 'general', systemPrompt } = req.body;
 
-      if (!prompt) {
-        return res.status(400).json({ error: 'Prompt обязателен' });
-      }
-
-      const { grokService } = await import('./services/grokService');
-      
-      if (!grokService.isAvailable()) {
-        return res.status(503).json({ 
-          error: 'Grok API недоступен. Проверьте GROK_API_KEY в секретах.',
-          suggestion: 'Добавьте GROK_API_KEY в секреты Replit'
-        });
-      }
-
-      const result = await grokService.generateContent(prompt, systemPrompt);
-
-      // Логируем использование
-      await storage.createActivityLog({
-        userId,
-        action: 'Grok Content Generated',
-        description: `Сгенерировано содержимое через Grok AI (${contentType})`,
-        status: 'success',
-        metadata: { 
-          contentType, 
-          tokensUsed: result.tokensUsed, 
-          cost: result.cost,
-          provider: 'grok'
+      const luciferProfile = {
+        name: 'Lucifer Tradera',
+        platforms: {
+          youtube: 'https://www.youtube.com/@Lucifer_tradera',
+          tiktok: 'https://vm.tiktok.com/ZNHnt6CTrMdwp-ckGNa',
+          telegram: ['https://t.me/Lucifer_Izzy_bot', 'https://t.me/Lucifer_tradera']
         },
-      });
-
-      res.json({
-        content: result.content,
-        tokensUsed: result.tokensUsed,
-        cost: result.cost,
-        provider: 'grok',
-        message: 'Контент успешно сгенерирован через Grok AI'
-      });
-    } catch (error) {
-      console.error('Ошибка генерации через Grok:', error);
-      res.status(500).json({ 
-        error: 'Не удалось сгенерировать контент через Grok',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
-
-  // Генерация торгового контента через Grok
-  app.post('/api/grok/trading-content', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { contentType, prompt } = req.body;
-
-      if (!contentType || !prompt) {
-        return res.status(400).json({ error: 'ContentType и prompt обязательны' });
-      }
-
-      const { grokService } = await import('./services/grokService');
-      const result = await grokService.generateTradingContent(contentType, prompt);
-
-      await storage.createActivityLog({
-        userId,
-        action: 'Grok Trading Content',
-        description: `Создан торговый контент через Grok: ${contentType}`,
-        status: 'success',
-        metadata: { contentType, tokensUsed: result.tokensUsed },
-      });
-
-      res.json({
-        ...result,
-        provider: 'grok',
-        contentType,
-        message: `Торговый контент (${contentType}) создан через Grok AI`
-      });
-    } catch (error) {
-      console.error('Ошибка создания торгового контента:', error);
-      res.status(500).json({ error: 'Не удалось создать торговый контент' });
-    }
-  });
-
-  // Анализ рыночного настроения через Grok
-  app.post('/api/grok/market-sentiment', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { markets, timeframe = '24h' } = req.body;
-
-      if (!markets || !Array.isArray(markets)) {
-        return res.status(400).json({ error: 'Markets должен быть массивом' });
-      }
-
-      const { grokService } = await import('./services/grokService');
-      const result = await grokService.analyzeMarketSentiment(markets, timeframe);
-
-      await storage.createActivityLog({
-        userId,
-        action: 'Grok Market Analysis',
-        description: `Анализ настроения рынка через Grok: ${markets.join(', ')}`,
-        status: 'success',
-        metadata: { markets, timeframe, tokensUsed: result.tokensUsed },
-      });
-
-      res.json({
-        ...result,
-        markets,
-        timeframe,
-        provider: 'grok',
-        message: 'Анализ рыночного настроения завершен'
-      });
-    } catch (error) {
-      console.error('Ошибка анализа рынка:', error);
-      res.status(500).json({ error: 'Не удалось провести анализ рынка' });
-    }
-  });
-
-  // Генерация вирусного контента через Grok
-  app.post('/api/grok/viral-content', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { platform, niche, trend } = req.body;
-
-      if (!platform || !niche || !trend) {
-        return res.status(400).json({ error: 'Platform, niche и trend обязательны' });
-      }
-
-      const { grokService } = await import('./services/grokService');
-      const result = await grokService.generateViralContent(platform, niche, trend);
-
-      await storage.createActivityLog({
-        userId,
-        action: 'Grok Viral Content',
-        description: `Создан вирусный контент для ${platform}: ${niche}`,
-        status: 'success',
-        metadata: { platform, niche, trend, tokensUsed: result.tokensUsed },
-      });
-
-      res.json({
-        ...result,
-        platform,
-        niche,
-        trend,
-        provider: 'grok',
-        message: `Вирусный контент для ${platform} создан`
-      });
-    } catch (error) {
-      console.error('Ошибка создания вирусного контента:', error);
-      res.status(500).json({ error: 'Не удалось создать вирусный контент' });
-    }
-  });
-
-  // Сравнение с другими AI
-  app.post('/api/grok/compare', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { prompt } = req.body;
-
-      if (!prompt) {
-        return res.status(400).json({ error: 'Prompt обязателен' });
-      }
-
-      const { grokService } = await import('./services/grokService');
-      const result = await grokService.compareWithOtherAI(prompt);
-
-      await storage.createActivityLog({
-        userId,
-        action: 'Grok AI Comparison',
-        description: 'Сравнительный анализ через Grok AI',
-        status: 'success',
-        metadata: { 
-          tokensUsed: result.grokResponse.tokensUsed,
-          provider: 'grok'
-        },
-      });
-
-      res.json({
-        ...result,
-        provider: 'grok',
-        message: 'Сравнительный анализ завершен'
-      });
-    } catch (error) {
-      console.error('Ошибка сравнительного анализа:', error);
-      res.status(500).json({ error: 'Не удалось выполнить сравнительный анализ' });
-    }
-  });
-
-  // === ТЕСТИРОВАНИЕ TELEGRAM ПРОДВИЖЕНИЯ ===
-
-  // Проверка статуса всех AI секретов и конфигураций
-  app.get('/api/check-secrets', isAuthenticated, async (req: any, res) => {
-    try {
-      const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
-      const telegramChannelId = process.env.TELEGRAM_CHANNEL_ID;
-      const openaiApiKey = process.env.OPENAI_API_KEY;
-      const grokApiKey = process.env.GROK_API_KEY;
-      const aiProvider = process.env.AI_PROVIDER || 'openai';
-
-      const status = {
-        telegram: !!(telegramBotToken && telegramBotToken !== 'your_telegram_bot_token_here'),
-        channel: !!(telegramChannelId && telegramChannelId !== '@IIPRB' && telegramChannelId.length > 5),
-        openai: !!(openaiApiKey && openaiApiKey.startsWith('sk-') && openaiApiKey.length > 20),
-        grok: !!(grokApiKey && grokApiKey.startsWith('grok-') && grokApiKey.length > 20),
-        channelId: telegramChannelId || '@IIPRB',
-        botConfigured: !!telegramBotToken,
-        aiProvider: aiProvider,
-        aiReady: aiProvider === 'grok' ? 
-          !!(grokApiKey && grokApiKey.startsWith('grok-')) : 
-          !!(openaiApiKey && openaiApiKey.startsWith('sk-')),
+        niche: 'trading',
+        contentType: 'trading_signals',
       };
 
-      console.log('🔍 Статус всех секретов:', {
-        telegram: status.telegram ? '✅' : '❌',
-        channel: status.channel ? '✅' : '❌', 
-        openai: status.openai ? '✅' : '❌',
-        grok: status.grok ? '✅' : '❌',
-        provider: aiProvider
-      });
+      // Запускаем глубокий анализ
+      const analysis = await clientAnalysisService.analyzeClientProfile(luciferProfile);
 
-      res.json(status);
-    } catch (error) {
-      console.error('Ошибка проверки секретов:', error);
-      res.status(500).json({ error: 'Не удалось проверить секреты' });
-    }
-  });
+      // Создаем стратегию продвижения
+      const strategy = await promotionEngine.createPromotionStrategy(luciferProfile);
 
-  // Проверка статуса секретов Telegram и OpenAI (backward compatibility)
-  app.get('/api/telegram/check-secrets', isAuthenticated, async (req: any, res) => {
-    try {
-      const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
-      const telegramChannelId = process.env.TELEGRAM_CHANNEL_ID;
-      const openaiApiKey = process.env.OPENAI_API_KEY;
-      const grokApiKey = process.env.GROK_API_KEY;
-      const aiProvider = process.env.AI_PROVIDER || 'openai';
-
-      const status = {
-        telegram: !!(telegramBotToken && telegramBotToken !== 'your_telegram_bot_token_here'),
-        channel: !!(telegramChannelId && telegramChannelId !== '@IIPRB' && telegramChannelId.length > 5),
-        openai: !!(openaiApiKey && openaiApiKey.startsWith('sk-') && openaiApiKey.length > 20),
-        grok: !!(grokApiKey && grokApiKey.startsWith('grok-') && grokApiKey.length > 20),
-        channelId: telegramChannelId || '@IIPRB',
-        botConfigured: !!telegramBotToken,
-        aiProvider: aiProvider,
-        aiReady: aiProvider === 'grok' ? 
-          !!(grokApiKey && grokApiKey.startsWith('grok-')) : 
-          !!(openaiApiKey && openaiApiKey.startsWith('sk-')),
-      };
-
-      console.log('🔍 Статус секретов:', {
-        telegram: status.telegram ? '✅' : '❌',
-        channel: status.channel ? '✅' : '❌', 
-        openai: status.openai ? '✅' : '❌',
-        grok: status.grok ? '✅' : '❌'
-      });
-
-      res.json(status);
-    } catch (error) {
-      console.error('Ошибка проверки секретов:', error);
-      res.status(500).json({ error: 'Не удалось проверить секреты' });
-    }
-  });
-
-  // Анализ Telegram канала IIPRB
-  app.post('/api/telegram/analyze-channel', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { channelUrl = 'https://t.me/IIPRB' } = req.body;
-
-      const { telegramTestPromotion } = await import('./services/telegramTestPromotion');
-      const channelData = await telegramTestPromotion.analyzeChannel(channelUrl);
-
+      // Логируем инициализацию
       await storage.createActivityLog({
         userId,
-        action: 'Telegram Channel Analyzed',
-        description: `Проанализирован канал ${channelData.title}`,
+        action: 'Client Initialized',
+        description: 'Lucifer Tradera profile analyzed and promotion strategy created',
         status: 'success',
-        metadata: { channelData },
+        metadata: { client: 'Lucifer_tradera', analysis, strategy },
       });
 
       res.json({
-        message: 'Канал успешно проанализирован',
-        channelData,
+        message: 'Клиент Lucifer Tradera успешно инициализирован',
+        analysis,
+        strategy,
+        recommendations: analysis.recommendations,
       });
     } catch (error) {
-      console.error('Ошибка анализа канала:', error);
-      res.status(500).json({ error: 'Не удалось проанализировать канал' });
-    }
-  });
-
-  // Запуск тестовой кампании продвижения
-  app.post('/api/telegram/run-test-campaign', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      
-      const { telegramTestPromotion } = await import('./services/telegramTestPromotion');
-      const testResults = await telegramTestPromotion.runPromotionTest(userId);
-
-      // Симулируем публикацию контента
-      const postingResults = await telegramTestPromotion.simulatePosting(testResults.contentGenerated);
-
-      await storage.createActivityLog({
-        userId,
-        action: 'Telegram Test Campaign',
-        description: `Запущена тестовая кампания: ${postingResults.posted} постов опубликовано`,
-        status: 'success',
-        metadata: { testResults, postingResults },
-      });
-
-      res.json({
-        message: 'Тестовая кампания успешно запущена',
-        results: testResults,
-        posting: postingResults,
-      });
-    } catch (error) {
-      console.error('Ошибка запуска тестовой кампании:', error);
-      res.status(500).json({ error: 'Не удалось запустить тестовую кампанию' });
-    }
-  });
-
-  // Генерация контента для Telegram
-  app.post('/api/telegram/generate-content', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { contentType = 'trading_signal', count = 3 } = req.body;
-
-      const { telegramTestPromotion } = await import('./services/telegramTestPromotion');
-      const content = await telegramTestPromotion.generateTestContent(contentType);
-
-      await storage.createActivityLog({
-        userId,
-        action: 'Telegram Content Generated',
-        description: `Сгенерировано ${content.length} постов типа ${contentType}`,
-        status: 'success',
-        metadata: { contentType, count: content.length },
-      });
-
-      res.json({
-        message: 'Контент успешно сгенерирован',
-        content: content.slice(0, count),
-        contentType,
-      });
-    } catch (error) {
-      console.error('Ошибка генерации контента:', error);
-      res.status(500).json({ error: 'Не удалось сгенерировать контент' });
-    }
-  });
-
-  // Мониторинг результатов тестовой кампании
-  app.get('/api/telegram/monitor-results/:testId', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { testId } = req.params;
-
-      const { telegramTestPromotion } = await import('./services/telegramTestPromotion');
-      const results = await telegramTestPromotion.monitorResults(testId);
-
-      await storage.createActivityLog({
-        userId,
-        action: 'Telegram Results Monitored',
-        description: `Результаты кампании: ${results.performance}`,
-        status: 'success',
-        metadata: { testId, results },
-      });
-
-      res.json({
-        message: 'Результаты мониторинга получены',
-        results,
-      });
-    } catch (error) {
-      console.error('Ошибка мониторинга результатов:', error);
-      res.status(500).json({ error: 'Не удалось получить результаты мониторинга' });
-    }
-  });
-
-  // Экспорт отчета о тестировании
-  app.post('/api/telegram/export-report', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { testResults } = req.body;
-
-      if (!testResults) {
-        return res.status(400).json({ error: 'Требуются результаты тестирования' });
-      }
-
-      const { telegramTestPromotion } = await import('./services/telegramTestPromotion');
-      const report = await telegramTestPromotion.exportResults(testResults);
-
-      await storage.createActivityLog({
-        userId,
-        action: 'Telegram Report Exported',
-        description: 'Экспортирован отчет о тестовой кампании',
-        status: 'success',
-        metadata: { reportLength: report.length },
-      });
-
-      res.json({
-        message: 'Отчет успешно сгенерирован',
-        report,
-      });
-    } catch (error) {
-      console.error('Ошибка экспорта отчета:', error);
-      res.status(500).json({ error: 'Не удалось экспортировать отчет' });
+      console.error('Ошибка инициализации клиента:', error);
+      res.status(500).json({ error: 'Не удалось инициализировать клиента' });
     }
   });
 

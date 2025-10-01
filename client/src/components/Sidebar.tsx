@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
@@ -17,8 +18,7 @@ import {
   Rocket,
   BarChart3,
   Target,
-  Users,
-  MessageCircle
+  Users
 } from "lucide-react";
 import { SiTiktok, SiTelegram } from "react-icons/si";
 
@@ -53,12 +53,12 @@ export default function Sidebar() {
 
   const getPlatformStatus = (platformName: string) => {
     if (!safetyStatus?.platforms) return 'inactive';
-
+    
     const platformData = Object.values(safetyStatus.platforms).find(
       (platform: any, index: number) => index.toString() === platformName || platform.name === platformName
     );
     if (!platformData) return 'inactive';
-
+    
     if (platformData.percentage > 90) return 'critical';
     if (platformData.percentage > 80) return 'warning';
     return 'active';
@@ -99,21 +99,22 @@ export default function Sidebar() {
             </div>
           )}
         </div>
-
+        
         <nav className="space-y-2">
-          <div 
-            className={cn(
-              "flex items-center gap-3 px-3 py-3 rounded-lg transition-colors cursor-pointer",
-              location === "/" 
-                ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm" 
-                : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-            )}
-            data-testid="link-dashboard"
-            onClick={() => window.location.href = "/"}
-          >
-            <Gauge className="w-5 h-5" />
-            {!collapsed && <span className="font-medium">Главная Панель</span>}
-          </div>
+          <Link href="/">
+            <a 
+              className={cn(
+                "flex items-center gap-3 px-3 py-3 rounded-lg transition-colors",
+                location === "/" 
+                  ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm" 
+                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+              )}
+              data-testid="link-dashboard"
+            >
+              <Gauge className="w-5 h-5" />
+              {!collapsed && <span className="font-medium">Главная Панель</span>}
+            </a>
+          </Link>
 
           {/* Раздел платформы */}
           {!collapsed && (
@@ -125,27 +126,27 @@ export default function Sidebar() {
           )}
 
           {platforms?.map((platform: any) => (
-            <div 
-              key={platform.id}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
-                location === `/platform/${platform.id}`
-                  ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid={`link-platform-${platform.name}`}
-              onClick={() => window.location.href = `/platform/${platform.id}`}
-            >
-              {getPlatformIcon(platform.name)}
-              {!collapsed && <span>{platform.displayName}</span>}
-              {!collapsed && (
-                <span className="ml-auto">
-                  {getStatusIndicator(getPlatformStatus(platform.name))}
-                </span>
-              )}
-            </div>
+            <Link key={platform.id} href={`/platform/${platform.id}`}>
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === `/platform/${platform.id}`
+                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid={`link-platform-${platform.name}`}
+              >
+                {getPlatformIcon(platform.name)}
+                {!collapsed && <span>{platform.displayName}</span>}
+                {!collapsed && (
+                  <span className="ml-auto">
+                    {getStatusIndicator(getPlatformStatus(platform.name))}
+                  </span>
+                )}
+              </a>
+            </Link>
           ))}
-
+          
           <div className="pt-4 border-t border-slate-200">
             {!collapsed && (
               <div className="px-3 py-2 mb-2">
@@ -155,100 +156,69 @@ export default function Sidebar() {
               </div>
             )}
 
-            <div 
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
-                location === "/ai-content"
-                  ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-ai-content"
-              onClick={() => window.location.href = "/ai-content"}
-            >
-              <Brain className="w-5 h-5" />
-              {!collapsed && <span>AI Контент</span>}
-            </div>
-
-            <div 
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
-                location === "/ai-assistant"
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-ai-assistant"
-              onClick={() => window.location.href = "/ai-assistant"}
-            >
-              <Brain className="w-5 h-5" />
-              {!collapsed && <span>AI Ассистент</span>}
-            </div>
-
-            <div 
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
-                location === "/telegram-test"
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-telegram-test"
-              onClick={() => window.location.href = "/telegram-test"}
-            >
-              <MessageCircle className="w-5 h-5" />
-              {!collapsed && <span>Telegram Test</span>}
-            </div>
-
-            <Link href="/grok-test">
-              <a className="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
-                <Brain className="w-4 h-4" />
-                <span>Grok AI Test</span>
+            <Link href="/ai-content">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/ai-content"
+                    ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-ai-content"
+              >
+                <Brain className="w-5 h-5" />
+                {!collapsed && <span>AI Контент</span>}
               </a>
             </Link>
 
-            <div 
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
-                location === "/safety"
-                  ? "bg-gradient-to-r from-green-500 to-blue-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-safety"
-              onClick={() => window.location.href = "/safety"}
-            >
-              <Shield className="w-5 h-5" />
-              {!collapsed && <span>Безопасность</span>}
-            </div>
+            <Link href="/safety">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/safety"
+                    ? "bg-gradient-to-r from-green-500 to-blue-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-safety"
+              >
+                <Shield className="w-5 h-5" />
+                {!collapsed && <span>Безопасность</span>}
+              </a>
+            </Link>
 
-            <div 
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
-                location === "/scheduler"
-                  ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-scheduler"
-              onClick={() => window.location.href = "/scheduler"}
-            >
-              <Calendar className="w-5 h-5" />
-              {!collapsed && <span>Планировщик</span>}
-            </div>
+            <Link href="/scheduler">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/scheduler"
+                    ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-scheduler"
+              >
+                <Calendar className="w-5 h-5" />
+                {!collapsed && <span>Планировщик</span>}
+              </a>
+            </Link>
 
-            <div 
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
-                location === "/settings"
-                  ? "bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-settings"
-              onClick={() => window.location.href = "/settings"}
-            >
-              <Settings className="w-5 h-5" />
-              {!collapsed && <span>Настройки</span>}
-            </div>
+            <Link href="/settings">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/settings"
+                    ? "bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-settings"
+              >
+                <Settings className="w-5 h-5" />
+                {!collapsed && <span>Настройки</span>}
+              </a>
+            </Link>
           </div>
         </nav>
       </div>
-
+      
       <div className="absolute bottom-6 left-6 right-6">
         <Button
           variant="outline"

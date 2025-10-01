@@ -1,4 +1,3 @@
-import React from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -12,11 +11,7 @@ import AIContent from "@/pages/AIContent";
 import SafetyCenter from "@/pages/SafetyCenter";
 import Scheduler from "@/pages/Scheduler";
 import Settings from "@/pages/Settings";
-import AIAssistant from "@/pages/AIAssistant";
 import NotFound from "@/pages/not-found";
-import Layout from "./components/Layout";
-import { TelegramTestDashboard } from './components/TelegramTestDashboard';
-import { GrokTestDashboard } from './components/GrokTestDashboard';
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -30,27 +25,6 @@ function Router() {
           <Route path="/" component={Dashboard} />
           <Route path="/platform/:platformId" component={PlatformDetails} />
           <Route path="/ai-content" component={AIContent} />
-          <Route path="/ai-assistant" component={AIAssistant} />
-          <Route path="/telegram-test">
-            {() => {
-              const TelegramTestDashboard = React.lazy(() => import('./components/TelegramTestDashboard').then(m => ({ default: m.TelegramTestDashboard })));
-              return (
-                <React.Suspense fallback={<div>Loading...</div>}>
-                  <TelegramTestDashboard />
-                </React.Suspense>
-              );
-            }}
-          </Route>
-          <Route path="/grok-test">
-            {() => {
-              const GrokTestDashboard = React.lazy(() => import('./components/GrokTestDashboard').then(m => ({ default: m.GrokTestDashboard })));
-              return (
-                <React.Suspense fallback={<div>Loading...</div>}>
-                  <GrokTestDashboard />
-                </React.Suspense>
-              );
-            }}
-          </Route>
           <Route path="/safety" component={SafetyCenter} />
           <Route path="/scheduler" component={Scheduler} />
           <Route path="/settings" component={Settings} />

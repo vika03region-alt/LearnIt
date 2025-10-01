@@ -7,15 +7,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { useToast } from "../hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageCircle, Send, Plus, Trash2, Edit2, Sparkles, Bot, User } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import Layout from "@/components/Layout";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import AIContentPanel from "@/components/AIContentPanel";
-import { ViralGrowthDashboard } from "@/components/ViralGrowthDashboard";
-import TelegramPromotionTester from "@/components/TelegramPromotionTester";
 
 interface Conversation {
   id: number;
@@ -149,7 +145,7 @@ export default function AIAssistant() {
 
   const handleSendMessage = () => {
     if (!messageText.trim() || !selectedConversationId) return;
-
+    
     sendMessage.mutate({
       conversationId: selectedConversationId,
       message: messageText.trim(),
@@ -182,35 +178,217 @@ export default function AIAssistant() {
           </Badge>
         </div>
 
-        <Tabs defaultValue="generation" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="generation">Генерация</TabsTrigger>
-          <TabsTrigger value="viral">Вирусность</TabsTrigger>
-          <TabsTrigger value="telegram">Telegram</TabsTrigger>
-          <TabsTrigger value="learning">Обучение</TabsTrigger>
-          <TabsTrigger value="domination">Доминация</TabsTrigger>
-        </TabsList>
-        <TabsContent value="generation">
-          <AIContentPanel />
-        </TabsContent>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
+          {/* Sidebar с разговорами */}
+          <Card className="lg:col-span-1">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Разговоры</CardTitle>
+                <Button
+                  size="sm"
+                  onClick={() => createConversation.mutate()}
+                  disabled={createConversation.isPending}
+                  data-testid="button-new-conversation"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[500px]">
+                <div className="p-4 space-y-2">
+                  {loadingConversations ? (
+                    <div className="text-center text-gray-500 py-4">Загрузка...</div>
+                  ) : conversations.length === 0 ? (
+                    <div className="text-center text-gray-500 py-4">
+                      Нет разговоров.
+                      <br />
+                      Создайте новый!
+                    </div>
+                  ) : (
+                    conversations.map((conversation: Conversation) => (
+                      <div
+                        key={conversation.id}
+                        className={`p-3 rounded-lg cursor-pointer transition-colors group ${
+                          selectedConversationId === conversation.id
+                            ? "bg-blue-100 dark:bg-blue-900"
+                            : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                        }`}
+                        onClick={() => setSelectedConversationId(conversation.id)}
+                        data-testid={`conversation-${conversation.id}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          {isEditing === conversation.id ? (
+                            <div className="flex-1 flex gap-1">
+                              <Input
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                onKeyPress={(e) => {
+                                  if (e.key === "Enter") {
+                                    handleUpdateTitle(conversation.id);
+                                  }
+                                }}
+                                className="h-6 text-sm"
+                                data-testid={`input-edit-title-${conversation.id}`}
+                              />
+                              <Button
+                                size="sm"
+                                className="h-6 px-2"
+                                onClick={() => handleUpdateTitle(conversation.id)}
+                                data-testid={`button-save-title-${conversation.id}`}
+                              >
+                                ✓
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium truncate">{conversation.title}</p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(conversation.updatedAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsEditing(conversation.id);
+                                    setEditTitle(conversation.title);
+                                  }}
+                                  data-testid={`button-edit-${conversation.id}`}
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 text-red-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteConversation.mutate(conversation.id);
+                                  }}
+                                  data-testid={`button-delete-${conversation.id}`}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
 
-        <TabsContent value="viral">
-          <ViralGrowthDashboard />
-        </TabsContent>
+          {/* Основная область чата */}
+          <Card className="lg:col-span-3 flex flex-col">
+            {!selectedConversationId ? (
+              <CardContent className="flex-1 flex items-center justify-center">
+                <div className="text-center text-gray-500">
+                  <MessageCircle className="w-16 h-16 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Выберите разговор</h3>
+                  <p>Выберите существующий разговор или создайте новый</p>
+                </div>
+              </CardContent>
+            ) : (
+              <>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bot className="w-5 h-5 text-blue-600" />
+                    Чат с AI-ассистентом
+                    <Badge variant="outline" className="ml-auto">
+                      ID: {selectedConversationId}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                
+                <CardContent className="flex-1 flex flex-col p-0">
+                  {/* Сообщения */}
+                  <ScrollArea className="flex-1 p-4">
+                    {loadingMessages ? (
+                      <div className="text-center text-gray-500 py-4">Загрузка сообщений...</div>
+                    ) : messages.length === 0 ? (
+                      <div className="text-center text-gray-500 py-8">
+                        <Bot className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                        <p className="mb-2">Начните разговор с AI-ассистентом</p>
+                        <p className="text-sm">Задайте любой вопрос о контенте, аналитике или платформе</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {messages.map((message: Message) => (
+                          <div
+                            key={message.id}
+                            className={`flex gap-3 ${
+                              message.role === "user" ? "flex-row-reverse" : "flex-row"
+                            }`}
+                            data-testid={`message-${message.id}`}
+                          >
+                            <Avatar className="w-8 h-8">
+                              <AvatarFallback className={message.role === "user" ? "bg-blue-100" : "bg-green-100"}>
+                                {message.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div
+                              className={`flex-1 max-w-[80%] p-3 rounded-lg ${
+                                message.role === "user"
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap">{message.content}</p>
+                              <p className={`text-xs mt-2 ${
+                                message.role === "user" ? "text-blue-100" : "text-gray-500"
+                              }`}>
+                                {new Date(message.createdAt).toLocaleTimeString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
 
-        <TabsContent value="telegram">
-          <TelegramPromotionTester />
-        </TabsContent>
+                  <Separator />
 
-        <TabsContent value="learning">
-          <AILearningDashboard />
-        </TabsContent>
-
-        <TabsContent value="domination">
-          <AIDominationDashboard />
-        </TabsContent>
-      </Tabs>
+                  {/* Ввод сообщения */}
+                  <div className="p-4">
+                    <div className="flex gap-2">
+                      <Textarea
+                        placeholder="Напишите ваш вопрос..."
+                        value={messageText}
+                        onChange={(e) => setMessageText(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        className="flex-1 min-h-[80px] resize-none"
+                        disabled={sendMessage.isPending}
+                        data-testid="input-message"
+                      />
+                      <Button
+                        onClick={handleSendMessage}
+                        disabled={!messageText.trim() || sendMessage.isPending}
+                        className="px-4"
+                        data-testid="button-send"
+                      >
+                        {sendMessage.isPending ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          )}
+        </Card>
       </div>
-    </Layout>
+    </div>
+  </Layout>
   );
 }
