@@ -1,3 +1,1891 @@
-[
-  {"type": "file", "name": "src/routes/index.ts", "content": "import type { Express } from \"express\";\nimport { createServer, type Server } from \"http\";\nimport { storage } from \"./storage\";\nimport { setupAuth, isAuthenticated } from \"./replitAuth\";\nimport { seedPlatforms } from \"./seedDatabase\";\nimport { aiContentService } from \"./services/aiContent\";\nimport { aiAnalyticsService } from \"./services/aiAnalytics\";\nimport { aiAssistantService } from \"./services/aiAssistant\";\nimport { clientAnalysisService } from \"./services/clientAnalysis\";\nimport { promotionEngine } from \"./services/promotionEngine\";\nimport { socialMediaManager } from \"./services/socialMediaIntegration\";\nimport { analyticsService } from \"./services/analytics\";\nimport { safetyService } from \"./services/safety\";\nimport { schedulerService } from \"./services/scheduler\";\nimport { setupPromotionStrategyRoutes } from \"./routes/promotionStrategy\";\nimport { aiLearningEngine } from \"./services/aiLearningEngine\";\nimport { viralGrowthEngine } from \"./services/viralGrowthEngine\";\nimport { competitorSurveillance } from \"./services/competitorSurveillance\";\nimport { brandDominationEngine } from \"./services/brandDominationEngine\";\nimport type { Platform, UserAccount } from \"@shared/schema\";\nimport { insertPostSchema, insertAIContentLogSchema } from \"@shared/schema\";\nimport { z } from \"zod\";\nimport { grokService } from \"./services/grokService\";\n\nexport async function registerRoutes(app: Express): Promise<Server> {\n  // Initialize database with platforms\n  await seedPlatforms();\n\n  // Auth middleware\n  await setupAuth(app);\n\n  // Auth routes\n  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const user = await storage.getUser(userId);\n      res.json(user);\n    } catch (error) {\n      console.error(\"Error fetching user:\", error);\n      res.status(500).json({ message: \"Failed to fetch user\" });\n    }\n  });\n\n  // Platform routes\n  app.get('/api/platforms', isAuthenticated, async (req, res) => {\n    try {\n      const platforms = await storage.getPlatforms();\n      res.json(platforms);\n    } catch (error) {\n      console.error(\"Error fetching platforms:\", error);\n      res.status(500).json({ message: \"Failed to fetch platforms\" });\n    }\n  });\n\n  // User account routes\n  app.get('/api/user-accounts', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const accounts = await storage.getUserAccounts(userId);\n      res.json(accounts);\n    } catch (error) {\n      console.error(\"Error fetching user accounts:\", error);\n      res.status(500).json({ message: \"Failed to fetch user accounts\" });\n    }\n  });\n\n  app.post('/api/user-accounts', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const accountData = { ...req.body, userId };\n      const account = await storage.createUserAccount(accountData);\n\n      // Log activity\n      await storage.createActivityLog({\n        userId,\n        action: 'Account Connected',\n        description: `Connected ${req.body.accountHandle} account`,\n        platformId: req.body.platformId,\n        status: 'success',\n        metadata: null,\n      });\n\n      res.json(account);\n    } catch (error) {\n      console.error(\"Error creating user account:\", error);\n      res.status(500).json({ message: \"Failed to create user account\" });\n    }\n  });\n\n  // Post routes\n  app.get('/api/posts', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const limit = parseInt(req.query.limit as string) || 50;\n      const posts = await storage.getUserPosts(userId, limit);\n      res.json(posts);\n    } catch (error) {\n      console.error(\"Error fetching posts:\", error);\n      res.status(500).json({ message: \"Failed to fetch posts\" });\n    }\n  });\n\n  app.post('/api/posts', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const postData = insertPostSchema.parse(req.body);\n\n      const post = await storage.createPost({ ...postData, userId });\n\n      // Log activity\n      await storage.createActivityLog({\n        userId,\n        action: 'Post Created',\n        description: `Created new post for platform ${postData.platformId}`,\n        platformId: postData.platformId,\n        status: 'success',\n        metadata: null,\n      });\n\n      res.json(post);\n    } catch (error) {\n      console.error(\"Error creating post:\", error);\n      res.status(500).json({ message: \"Failed to create post\" });\n    }\n  });\n\n  // === АНАЛИЗ КЛИЕНТА ===\n\n  // Глубокий анализ клиента\n  app.post('/api/client/analyze', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { clientData } = req.body;\n      console.log('🔍 Запуск анализа клиента:', clientData);\n\n      const profile = await clientAnalysisService.analyzeClient(clientData);\n      const savedProfile = await clientAnalysisService.createClientProfile(userId, profile);\n\n      res.json(savedProfile);\n    } catch (error) {\n      console.error('Ошибка анализа клиента:', error);\n      res.status(500).json({ error: 'Не удалось проанализировать клиента' });\n    }\n  });\n\n  // Инициализация для Lucifer Tradera\n  app.post('/api/client/init-lucifer', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      if (!userId) {\n        return res.status(401).json({ error: 'Unauthorized' });\n      }\n\n      console.log('🚀 Инициализация клиента Lucifer Tradera...');\n\n      const luciferData = {\n        youtube: 'https://www.youtube.com/@Lucifer_tradera',\n        tiktok: 'https://vm.tiktok.com/ZNHnt6CTrMdwp-ckGNa',\n        telegram: ['Lucifer_Izzy_bot', 'Lucifer_tradera'],\n      };\n\n      const profile = await clientAnalysisService.analyzeClient(luciferData);\n      const savedProfile = await clientAnalysisService.createClientProfile(userId, profile);\n\n      // Создаем стратегию продвижения\n      const strategy = await promotionEngine.createPromotionStrategy(savedProfile);\n\n      res.json({\n        message: 'Клиент Lucifer Tradera успешно проанализирован и добавлен в систему',\n        profile: savedProfile,\n        strategy,\n      });\n    } catch (error) {\n      console.error('Ошибка инициализации Lucifer Tradera:', error);\n      res.status(500).json({ error: 'Не удалось инициализировать клиента' });\n    }\n  });\n\n  // === AI ИНСТРУМЕНТЫ ===\n\n  // Генерация контента\n  app.post('/api/ai/generate-content', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { prompt, contentType, targetPlatforms } = insertAIContentLogSchema.parse(req.body);\n\n      const result = await aiContentService.generateContent(prompt, contentType, targetPlatforms || []);\n\n      // Log the generation\n      await storage.createAIContentLog({\n        userId,\n        prompt,\n        generatedContent: result.content,\n        contentType,\n        targetPlatforms,\n        tokensUsed: result.tokensUsed,\n        cost: result.cost,\n      });\n\n      // Log activity\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Content Generated',\n        description: `Generated ${contentType} content`,\n        platformId: null,\n        status: 'success',\n        metadata: { contentType, targetPlatforms },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error generating AI content:\", error);\n      res.status(500).json({ message: \"Failed to generate AI content\" });\n    }\n  });\n\n  app.get('/api/ai/content-logs', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const limit = parseInt(req.query.limit as string) || 50;\n      const logs = await storage.getUserAIContentLogs(userId, limit);\n      res.json(logs);\n    } catch (error) {\n      console.error(\"Error fetching AI content logs:\", error);\n      res.status(500).json({ message: \"Failed to fetch AI content logs\" });\n    }\n  });\n\n  // === AI АССИСТЕНТ ===\n\n  // Получить все разговоры пользователя\n  app.get('/api/ai/conversations', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const conversations = await aiAssistantService.getUserConversations(userId);\n      res.json(conversations);\n    } catch (error) {\n      console.error(\"Error fetching conversations:\", error);\n      res.status(500).json({ message: \"Failed to fetch conversations\" });\n    }\n  });\n\n  // Создать новый разговор\n  app.post('/api/ai/conversations', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { title } = req.body;\n      const conversation = await aiAssistantService.createConversation(userId, title);\n      res.json(conversation);\n    } catch (error) {\n      console.error(\"Error creating conversation:\", error);\n      res.status(500).json({ message: \"Failed to create conversation\" });\n    }\n  });\n\n  // Получить сообщения разговора\n  app.get('/api/ai/conversations/:id/messages', isAuthenticated, async (req: any, res) => {\n    try {\n      const conversationId = parseInt(req.params.id);\n      const messages = await aiAssistantService.getConversationMessages(conversationId);\n      res.json(messages);\n    } catch (error) {\n      console.error(\"Error fetching messages:\", error);\n      res.status(500).json({ message: \"Failed to fetch messages\" });\n    }\n  });\n\n  // Отправить сообщение в разговор\n  app.post('/api/ai/conversations/:id/messages', isAuthenticated, async (req: any, res) => {\n    try {\n      const conversationId = parseInt(req.params.id);\n      const { message } = req.body;\n\n      if (!message || message.trim().length === 0) {\n        return res.status(400).json({ message: \"Message content is required\" });\n      }\n\n      const result = await aiAssistantService.sendMessage(conversationId, message.trim());\n\n      // Логируем активность\n      const userId = req.user.claims.sub;\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Assistant Message',\n        description: 'Отправлено сообщение AI-ассистенту',\n        platformId: null,\n        status: result.error ? 'error' : 'success',\n        metadata: { conversationId, tokensUsed: result.tokensUsed, cost: result.cost },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error sending message:\", error);\n      res.status(500).json({ message: \"Failed to send message\" });\n    }\n  });\n\n  // Обновить заголовок разговора\n  app.put('/api/ai/conversations/:id', isAuthenticated, async (req: any, res) => {\n    try {\n      const conversationId = parseInt(req.params.id);\n      const userId = req.user.claims.sub;\n      const { title } = req.body;\n\n      if (!title || title.trim().length === 0) {\n        return res.status(400).json({ message: \"Title is required\" });\n      }\n\n      const conversation = await aiAssistantService.updateConversationTitle(\n        conversationId, \n        userId, \n        title.trim()\n      );\n      res.json(conversation);\n    } catch (error) {\n      console.error(\"Error updating conversation:\", error);\n      res.status(500).json({ message: \"Failed to update conversation\" });\n    }\n  });\n\n  // Удалить разговор\n  app.delete('/api/ai/conversations/:id', isAuthenticated, async (req: any, res) => {\n    try {\n      const conversationId = parseInt(req.params.id);\n      const userId = req.user.claims.sub;\n\n      const success = await aiAssistantService.deleteConversation(conversationId, userId);\n\n      if (success) {\n        await storage.createActivityLog({\n          userId,\n          action: 'AI Conversation Deleted',\n          description: `Удален разговор с AI-ассистентом #${conversationId}`,\n          platformId: null,\n          status: 'success',\n          metadata: { conversationId },\n        });\n        res.json({ message: \"Conversation deleted successfully\" });\n      } else {\n        res.status(404).json({ message: \"Conversation not found\" });\n      }\n    } catch (error) {\n      console.error(\"Error deleting conversation:\", error);\n      res.status(500).json({ message: \"Failed to delete conversation\" });\n    }\n  });\n\n  // Сгенерировать заголовок для разговора автоматически\n  app.post('/api/ai/conversations/:id/generate-title', isAuthenticated, async (req: any, res) => {\n    try {\n      const conversationId = parseInt(req.params.id);\n      const title = await aiAssistantService.generateConversationTitle(conversationId);\n\n      const userId = req.user.claims.sub;\n      const updatedConversation = await aiAssistantService.updateConversationTitle(\n        conversationId, \n        userId, \n        title\n      );\n\n      res.json({ title, conversation: updatedConversation });\n    } catch (error) {\n      console.error(\"Error generating title:\", error);\n      res.status(500).json({ message: \"Failed to generate title\" });\n    }\n  });\n\n  // === ПРОФЕССИОНАЛЬНЫЕ AI ТРЕЙДИНГ МАРШРУТЫ ===\n\n  // Генерация viral TikTok контента\n  app.post('/api/ai/viral-tiktok', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { trend, hooks } = req.body;\n\n      if (!trend || !hooks || !Array.isArray(hooks)) {\n        return res.status(400).json({ message: \"Trend and hooks array are required\" });\n      }\n\n      const result = await aiContentService.generateViralTikTokContent(trend, hooks);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Viral TikTok Generated',\n        description: `Generated viral TikTok content for trend: ${trend}`,\n        platformId: null,\n        status: 'success',\n        metadata: { trend, hooks },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error generating viral TikTok content:\", error);\n      res.status(500).json({ message: \"Failed to generate viral TikTok content\" });\n    }\n  });\n\n  // Генерация YouTube анализа в стиле топ-каналов\n  app.post('/api/ai/youtube-analysis', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { markets, style } = req.body;\n\n      if (!markets || !Array.isArray(markets) || !style) {\n        return res.status(400).json({ message: \"Markets array and style are required\" });\n      }\n\n      const result = await aiContentService.generateYouTubeAnalysis(markets, style);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'AI YouTube Analysis Generated',\n        description: `Generated YouTube analysis in ${style} style for ${markets.join(', ')}`,\n        platformId: null,\n        status: 'success',\n        metadata: { markets, style },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error generating YouTube analysis:\", error);\n      res.status(500).json({ message: \"Failed to generate YouTube analysis\" });\n    }\n  });\n\n  // Генерация live торговых сигналов\n  app.post('/api/ai/live-signal', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { symbol, action, entry, targets, stopLoss, leverage, confidence } = req.body;\n\n      if (!symbol || !action || !entry || !targets || !stopLoss) {\n        return res.status(400).json({ message: \"Symbol, action, entry, targets, and stopLoss are required\" });\n      }\n\n      const result = await aiContentService.generateLiveSignalPost(\n        symbol, action, entry, targets, stopLoss, leverage, confidence\n      );\n\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Live Signal Generated',\n        description: `Generated live signal for ${symbol} (${action})`,\n        platformId: null,\n        status: 'success',\n        metadata: { symbol, action, entry, targets, stopLoss, leverage },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error generating live signal:\", error);\n      res.status(500).json({ message: \"Failed to generate live signal\" });\n    }\n  });\n\n  // Генерация crypto прогнозов\n  app.post('/api/ai/crypto-predictions', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { timeframe, coins, reasoning } = req.body;\n\n      if (!timeframe || !coins || !reasoning || !Array.isArray(coins) || !Array.isArray(reasoning)) {\n        return res.status(400).json({ message: \"Timeframe, coins array, and reasoning array are required\" });\n      }\n\n      const result = await aiContentService.generateCryptoPredictions(timeframe, coins, reasoning);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Crypto Predictions Generated',\n        description: `Generated crypto predictions for ${timeframe}: ${coins.join(', ')}`,\n        platformId: null,\n        status: 'success',\n        metadata: { timeframe, coins, reasoning },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error generating crypto predictions:\", error);\n      res.status(500).json({ message: \"Failed to generate crypto predictions\" });\n    }\n  });\n\n  // Анализ мемкоинов\n  app.post('/api/ai/memecoin-analysis', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { coin, metrics } = req.body;\n\n      if (!coin || !metrics) {\n        return res.status(400).json({ message: \"Coin and metrics are required\" });\n      }\n\n      const result = await aiContentService.generateMemeCoinAnalysis(coin, metrics);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Memecoin Analysis Generated',\n        description: `Generated memecoin analysis for ${coin}`,\n        platformId: null,\n        status: 'success',\n        metadata: { coin, metrics },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error generating memecoin analysis:\", error);\n      res.status(500).json({ message: \"Failed to generate memecoin analysis\" });\n    }\n  });\n\n  // Генерация forex обучения\n  app.post('/api/ai/forex-education', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { topic, experience, focus } = req.body;\n\n      if (!topic || !experience || !focus) {\n        return res.status(400).json({ message: \"Topic, experience, and focus are required\" });\n      }\n\n      const result = await aiContentService.generateForexEducation(topic, experience, focus);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Forex Education Generated',\n        description: `Generated forex education on ${topic} for ${experience} traders`,\n        platformId: null,\n        status: 'success',\n        metadata: { topic, experience, focus },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error generating forex education:\", error);\n      res.status(500).json({ message: \"Failed to generate forex education\" });\n    }\n  });\n\n  // === АНАЛИЗ ТРЕНДОВ И ОПТИМИЗАЦИЯ ===\n\n  // Анализ трендовых тем\n  app.post('/api/ai/analyze-trends', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { platform, niche } = req.body;\n\n      if (!platform || !niche) {\n        return res.status(400).json({ message: \"Platform and niche are required\" });\n      }\n\n      const result = await aiContentService.analyzeTrendingTopics(platform, niche);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Trends Analyzed',\n        description: `Analyzed trending topics for ${platform} ${niche}`,\n        platformId: null,\n        status: 'success',\n        metadata: { platform, niche },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error analyzing trends:\", error);\n      res.status(500).json({ message: \"Failed to analyze trends\" });\n    }\n  });\n\n  // Профессиональная оптимизация хештегов для трейдинга\n  app.post('/api/ai/optimize-hashtags-pro', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { content, platform, targetAudience } = req.body;\n\n      if (!content || !platform) {\n        return res.status(400).json({ message: \"Content and platform are required\" });\n      }\n\n      const result = await aiContentService.optimizeHashtags(content, platform, targetAudience);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Hashtags Optimized',\n        description: `Optimized hashtags for ${platform}`,\n        platformId: null,\n        status: 'success',\n        metadata: { platform, targetAudience },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error optimizing hashtags:\", error);\n      res.status(500).json({ message: \"Failed to optimize hashtags\" });\n    }\n  });\n\n  // Конкурентный анализ\n  app.post('/api/ai/competitor-analysis', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { competitors, analysisType } = req.body;\n\n      if (!competitors || !Array.isArray(competitors) || !analysisType) {\n        return res.status(400).json({ message: \"Competitors array and analysis type are required\" });\n      }\n\n      const result = await aiContentService.generateCompetitorAnalysis(competitors, analysisType);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Competitor Analysis',\n        description: `Analyzed competitors for ${analysisType}: ${competitors.join(', ')}`,\n        platformId: null,\n        status: 'success',\n        metadata: { competitors, analysisType },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error analyzing competitors:\", error);\n      res.status(500).json({ message: \"Failed to analyze competitors\" });\n    }\n  });\n\n  // Генерация hook-библиотеки\n  app.post('/api/ai/generate-hooks', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { contentType, emotion } = req.body;\n\n      if (!contentType || !emotion) {\n        return res.status(400).json({ message: \"Content type and emotion are required\" });\n      }\n\n      const result = await aiContentService.generateHookLibrary(contentType, emotion);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Hooks Generated',\n        description: `Generated ${contentType} hooks with ${emotion} emotion`,\n        platformId: null,\n        status: 'success',\n        metadata: { contentType, emotion },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error generating hooks:\", error);\n      res.status(500).json({ message: \"Failed to generate hooks\" });\n    }\n  });\n\n  // === АВТОМАТИЧЕСКОЕ ПРОДВИЖЕНИЕ ===\n\n  // Инициализация клиента Lucifer\n  app.post('/api/client/init-lucifer', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n\n      const luciferProfile = {\n        name: 'Lucifer Tradera',\n        platforms: {\n          youtube: 'https://www.youtube.com/@Lucifer_tradera',\n          tiktok: 'https://vm.tiktok.com/ZNHnt6CTrMdwp-ckGNa',\n          telegram: ['https://t.me/Lucifer_Izzy_bot', 'https://t.me/Lucifer_tradera']\n        },\n        niche: 'trading',\n        contentType: 'trading_signals',\n      };\n\n      // Запускаем глубокий анализ\n      const analysis = await clientAnalysisService.analyzeClientProfile(luciferProfile);\n\n      // Создаем стратегию продвижения\n      const strategy = await promotionEngine.createPromotionStrategy(luciferProfile);\n\n      // Логируем инициализацию\n      await storage.createActivityLog({\n        userId,\n        action: 'Client Initialized',\n        description: 'Lucifer Tradera profile analyzed and promotion strategy created',\n        status: 'success',\n        metadata: { client: 'Lucifer_tradera', analysis, strategy },\n      });\n\n      res.json({\n        message: 'Клиент Lucifer Tradera успешно инициализирован',\n        analysis,\n        strategy,\n        recommendations: analysis.recommendations,\n      });\n    } catch (error) {\n      console.error('Ошибка инициализации клиента:', error);\n      res.status(500).json({ error: 'Не удалось инициализировать клиента' });\n    }\n  });\n\n  // Запуск автоматического продвижения\n  app.post('/api/promotion/start', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      if (!userId) {\n        return res.status(401).json({ error: 'Unauthorized' });\n      }\n\n      const { strategy } = req.body;\n      const result = await promotionEngine.executePromotionStrategy(userId, strategy);\n\n      res.json({\n        message: 'Автоматическое продвижение запущено',\n        result,\n      });\n    } catch (error) {\n      console.error('Ошибка запуска продвижения:', error);\n      res.status(500).json({ error: 'Не удалось запустить продвижение' });\n    }\n  });\n\n  // Получение метрик продвижения\n  app.get('/api/promotion/metrics/:clientId', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { clientId } = req.params;\n\n      const metrics = await promotionEngine.getPromotionMetrics(userId, clientId);\n\n      res.json(metrics);\n    } catch (error) {\n      console.error('Ошибка получения метрик:', error);\n      res.status(500).json({ error: 'Не удалось получить метрики' });\n    }\n  });\n\n  // Адаптивное обновление стратегии\n  app.post('/api/promotion/adapt-strategy', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { strategyId, performanceData } = req.body;\n\n      const adaptedStrategy = await promotionEngine.adaptStrategy(strategyId, performanceData);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'Strategy Adapted',\n        description: `Strategy ${strategyId} adapted based on performance`,\n        status: 'success',\n        metadata: { strategyId, adaptedStrategy },\n      });\n\n      res.json({\n        message: 'Стратегия успешно адаптирована',\n        adaptedStrategy,\n      });\n    } catch (error) {\n      console.error('Ошибка адаптации стратегии:', error);\n      res.status(500).json({ error: 'Не удалось адаптировать стратегию' });\n    }\n  });\n\n  // Анализ результатов продвижения\n  app.get('/api/promotion/results', isAuthenticated, async (req, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      if (!userId) {\n        return res.status(401).json({ error: 'Unauthorized' });\n      }\n\n      const days = parseInt(req.query.days as string) || 7;\n      const results = await promotionEngine.analyzePromotionResults(userId, days);\n\n      res.json(results);\n    } catch (error) {\n      console.error('Ошибка анализа результатов:', error);\n      res.status(500).json({ error: 'Не удалось получить результаты' });\n    }\n  });\n\n  // Analytics routes\n  app.get('/api/analytics', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const platformId = req.query.platformId ? parseInt(req.query.platformId as string) : undefined;\n      const analytics = await storage.getUserAnalytics(userId, platformId);\n      res.json(analytics);\n    } catch (error) {\n      console.error(\"Error fetching analytics:\", error);\n      res.status(500).json({ message: \"Failed to fetch analytics\" });\n    }\n  });\n\n  app.get('/api/analytics/dashboard', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const dashboardData = await analyticsService.getDashboardData(userId);\n      res.json(dashboardData);\n    } catch (error) {\n      console.error(\"Error fetching dashboard data:\", error);\n      res.status(500).json({ message: \"Failed to fetch dashboard data\" });\n    }\n  });\n\n  // Safety routes\n  app.get('/api/safety/status', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const safetyStatus = await safetyService.getUserSafetyStatus(userId);\n      res.json(safetyStatus);\n    } catch (error) {\n      console.error(\"Error fetching safety status:\", error);\n      res.status(500).json({ message: \"Failed to fetch safety status\" });\n    }\n  });\n\n  app.post('/api/safety/check', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const result = await safetyService.performSafetyCheck(userId);\n      res.json(result);\n    } catch (error) {\n      console.error(\"Error performing safety check:\", error);\n      res.status(500).json({ message: \"Failed to perform safety check\" });\n    }\n  });\n\n  // Scheduler routes\n  app.get('/api/scheduler/jobs', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const jobs = await schedulerService.getUserJobs(userId);\n      res.json(jobs);\n    } catch (error) {\n      console.error(\"Error fetching scheduled jobs:\", error);\n      res.status(500).json({ message: \"Failed to fetch scheduled jobs\" });\n    }\n  });\n\n  app.post('/api/scheduler/emergency-stop', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      await schedulerService.emergencyStop(userId);\n\n      // Log activity\n      await storage.createActivityLog({\n        userId,\n        action: 'Emergency Stop',\n        description: 'All automation stopped by user',\n        platformId: null,\n        status: 'warning',\n        metadata: null,\n      });\n\n      res.json({ message: 'Emergency stop activated' });\n    } catch (error) {\n      console.error(\"Error performing emergency stop:\", error);\n      res.status(500).json({ message: \"Failed to perform emergency stop\" });\n    }\n  });\n\n  // Activity logs\n  app.get('/api/activity', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const limit = parseInt(req.query.limit as string) || 50;\n      const activities = await storage.getUserActivityLogs(userId, limit);\n      res.json(activities);\n    } catch (error) {\n      console.error(\"Error fetching activity logs:\", error);\n      res.status(500).json({ message: \"Failed to fetch activity logs\" });\n    }\n  });\n\n  // Deep Analytics Routes\n  app.get('/api/analytics/platform/:platformId', isAuthenticated, async (req: any, res) => {\n    try {\n      const { platformId } = req.params;\n      const userId = req.user.claims.sub;\n      const days = parseInt(req.query.days as string) || 30;\n      const analytics = await storage.getPlatformAnalytics(userId, parseInt(platformId), days);\n\n      const latestMetrics = analytics[0]?.metrics || {\n        followers: 0,\n        following: 0,\n        posts: 0,\n        likes: 0,\n        comments: 0,\n        shares: 0,\n        views: 0,\n        impressions: 0,\n        reach: 0,\n        engagement_rate: 0,\n        growth_rate: 0,\n      };\n\n      res.json(latestMetrics);\n    } catch (error) {\n      console.error('Ошибка получения метрик платформы:', error);\n      res.status(500).json({ error: 'Не удалось получить метрики платформы' });\n    }\n  });\n\n  app.get('/api/analytics/insights', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const type = req.query.type as string;\n      const insights = await storage.getAIInsights(userId, type);\n      res.json(insights);\n    } catch (error) {\n      console.error('Ошибка получения AI инсайтов:', error);\n      res.status(500).json({ error: 'Не удалось получить AI инсайты' });\n    }\n  });\n\n  app.get('/api/analytics/competitors/:platformId', isAuthenticated, async (req: any, res) => {\n    try {\n      const { platformId } = req.params;\n      const userId = req.user.claims.sub;\n      const competitors = await storage.getCompetitorAnalyses(userId, parseInt(platformId));\n\n      const competitorData = competitors.map(comp => ({\n        handle: comp.competitorHandle,\n        name: comp.competitorName || comp.competitorHandle,\n        metrics: {\n          followers: comp.metrics.followers,\n          engagement_rate: comp.metrics.engagement_rate,\n          posting_frequency: comp.metrics.posting_frequency,\n        },\n        insights: [\n          `Средняя вовлеченность: ${comp.metrics.engagement_rate.toFixed(1)}%`,\n          `Частота публикаций: ${comp.metrics.posting_frequency.toFixed(1)} постов в день`,\n          `${comp.metrics.followers.toLocaleString()} подписчиков`,\n        ],\n      }));\n\n      res.json(competitorData);\n    } catch (error) {\n      console.error('Ошибка получения анализа конкурентов:', error);\n      res.status(500).json({ error: 'Не удалось получить анализ конкурентов' });\n    }\n  });\n\n  app.get('/api/analytics/trends/:platformId', isAuthenticated, async (req: any, res) => {\n    try {\n      const { platformId } = req.params;\n      const category = req.query.category as string;\n      const days = parseInt(req.query.days as string) || 7;\n      const trends = await storage.getTrendAnalysis(parseInt(platformId), category, days);\n\n      const trendData = trends.map(trend => ({\n        name: trend.trend_name,\n        volume: trend.data.volume,\n        growth_rate: trend.data.growth_rate,\n        confidence: parseFloat(trend.confidence),\n        category: trend.category,\n      }));\n\n      res.json(trendData);\n    } catch (error) {\n      console.error('Ошибка получения трендов:', error);\n      res.status(500).json({ error: 'Не удалось получить тренды' });\n    }\n  });\n\n  app.post('/api/analytics/analyze-content', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { content, platform } = req.body;\n\n      if (!content || !platform) {\n        return res.status(400).json({ error: 'Контент и платформа обязательны' });\n      }\n\n      const platformData = await storage.getUserAccounts(userId);\n      const targetPlatform = platformData.find(p => p.platformId.toString() === platform);\n\n      let historicalData: any[] = [];\n      if (targetPlatform) {\n        historicalData = await storage.getContentPerformance(userId, targetPlatform.platformId, 30);\n      }\n\n      const analysis = await aiAnalyticsService.analyzeContent(content, platform, historicalData);\n      res.json(analysis);\n    } catch (error) {\n      console.error('Ошибка AI анализа контента:', error);\n      res.status(500).json({ error: 'Не удалось проанализировать контент' });\n    }\n  });\n\n  app.post('/api/analytics/optimize-hashtags', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { content, platform, targetAudience } = req.body;\n\n      if (!content || !platform) {\n        return res.status(400).json({ error: 'Контент и платформа обязательны' });\n      }\n\n      const hashtagOptimization = await aiAnalyticsService.optimizeHashtags(\n        content,\n        platform,\n        targetAudience\n      );\n\n      res.json(hashtagOptimization);\n    } catch (error) {\n      console.error('Ошибка оптимизации хештегов:', error);\n      res.status(500).json({ error: 'Не удалось оптимизировать хештеги' });\n    }\n  });\n\n  // Social Media OAuth Integration Routes\n  app.get('/api/social/auth/:platformId', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const platformId = parseInt(req.params.platformId);\n      const state = require('crypto').randomUUID();\n\n      const service = socialMediaManager.getService(platformId);\n      if (!service) {\n        return res.status(400).json({ error: 'Platform not supported' });\n      }\n\n      const authUrl = await service.getAuthUrl(userId, state);\n\n      // Store state for CSRF protection\n      req.session.oauthState = { state, userId, platformId };\n\n      res.json({ authUrl });\n    } catch (error) {\n      console.error('OAuth initialization error:', error);\n      res.status(500).json({ error: 'Failed to initialize OAuth' });\n    }\n  });\n\n  app.get('/api/social/callback', isAuthenticated, async (req: any, res) => {\n    try {\n      const { code, state, error } = req.query;\n\n      if (error) {\n        return res.status(400).json({ error: `OAuth error: ${error}` });\n      }\n\n      if (!code || !state) {\n        return res.status(400).json({ error: 'Missing authorization code or state' });\n      }\n\n      const sessionState = req.session.oauthState;\n      if (!sessionState || sessionState.state !== state) {\n        return res.status(400).json({ error: 'Invalid state parameter' });\n      }\n\n      const { userId, platformId } = sessionState;\n\n      const service = socialMediaManager.getService(platformId);\n      if (!service) {\n        return res.status(400).json({ error: 'Platform not supported' });\n      }\n\n      // Exchange code for tokens\n      const tokens = await service.exchangeCodeForToken(code, state);\n\n      // Create or update user account\n      const existingAccount = await storage.getUserAccount(userId, platformId);\n\n      let accountId: number;\n      if (existingAccount) {\n        await storage.updateUserAccount(existingAccount.id, {\n          accessToken: tokens.accessToken,\n          refreshToken: tokens.refreshToken,\n          tokenExpiry: tokens.expiresAt,\n          authStatus: 'connected',\n        });\n        accountId = existingAccount.id;\n      } else {\n        const newAccount = await storage.createUserAccount({\n          userId,\n          platformId,\n          accountHandle: 'New Account', // Will be updated with actual data\n          accessToken: tokens.accessToken,\n          refreshToken: tokens.refreshToken,\n          tokenExpiry: tokens.expiresAt,\n          authStatus: 'connected',\n        });\n        accountId = newAccount.id;\n      }\n\n      // For Instagram, get Business Account ID automatically\n      if (platformId === 1) { // Instagram\n        try {\n          const instagramService = service as any; // Cast to access Instagram-specific methods\n          if (instagramService.getInstagramBusinessAccountId) {\n            const businessAccountId = await instagramService.getInstagramBusinessAccountId(tokens.accessToken);\n\n            if (businessAccountId) {\n              // Get existing platform config and merge with business account ID\n              const currentAccount = await storage.getUserAccount(userId, platformId);\n              const existingConfig = (currentAccount && currentAccount.platformConfig) || {};\n\n              await storage.updateUserAccount(accountId, {\n                platformConfig: {\n                  ...existingConfig,\n                  businessAccountId,\n                },\n                accountHandle: `Instagram Business Account`,\n              });\n              console.log(`Instagram Business Account ID obtained: ${businessAccountId}`);\n            } else {\n              console.warn('Instagram Business Account ID not found. User may need to connect Instagram to Facebook page.');\n            }\n          }\n        } catch (error) {\n          console.error('Failed to get Instagram Business Account ID:', error);\n          // Don't fail the entire OAuth flow for this\n        }\n      }\n\n      // Clean up session\n      delete req.session.oauthState;\n\n      // Log successful connection\n      const platform = await storage.getPlatform(platformId);\n      await storage.createActivityLog({\n        userId,\n        platformId,\n        action: 'Platform Connected',\n        description: `Successfully connected ${platform?.displayName} account`,\n        status: 'success',\n        metadata: {},\n      });\n\n      res.json({ success: true, message: 'Platform connected successfully' });\n    } catch (error) {\n      console.error('OAuth callback error:', error);\n      res.status(500).json({ error: 'Failed to complete OAuth flow' });\n    }\n  });\n\n  app.post('/api/social/disconnect/:accountId', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const accountId = parseInt(req.params.accountId);\n\n      const account = await storage.getUserAccount(userId, accountId);\n      if (!account) {\n        return res.status(404).json({ error: 'Account not found' });\n      }\n\n      await storage.updateUserAccount(accountId, {\n        isActive: false,\n        authStatus: 'disconnected',\n        accessToken: null,\n        refreshToken: null,\n        tokenExpiry: null,\n      });\n\n      // Log disconnection\n      const platform = await storage.getPlatform(account.platformId);\n      await storage.createActivityLog({\n        userId,\n        platformId: account.platformId,\n        action: 'Platform Disconnected',\n        description: `Disconnected ${platform?.displayName} account`,\n        status: 'success',\n        metadata: {},\n      });\n\n      res.json({ success: true, message: 'Account disconnected successfully' });\n    } catch (error) {\n      console.error('Disconnect account error:', error);\n      res.status(500).json({ error: 'Failed to disconnect account' });\n    }\n  });\n\n  app.post('/api/social/post', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { content, mediaUrls, platformIds } = req.body;\n\n      if (!content) {\n        return res.status(400).json({ error: 'Content is required' });\n      }\n\n      const postData = { content, mediaUrls };\n      let results;\n\n      if (platformIds && platformIds.length > 0) {\n        // Post to specific platforms\n        results = {} as { [platformId: number]: any };\n        const userAccounts = await storage.getUserAccounts(userId);\n\n        for (const platformId of platformIds) {\n          const account = userAccounts.find(acc => \n            acc.platformId === platformId && \n            acc.isActive && \n            acc.authStatus === 'connected'\n          );\n\n          if (account) {\n            const service = socialMediaManager.getService(platformId);\n            if (service) {\n              (results as any)[platformId] = await service.post(account, postData);\n            }\n          } else {\n            (results as any)[platformId] = {\n              success: false,\n              error: 'Account not connected for this platform',\n            };\n          }\n        }\n      } else {\n        // Post to all connected platforms\n        results = await socialMediaManager.postToAllPlatforms(userId, postData);\n      }\n\n      // Log posting activity\n      const successfulPosts = Object.values(results).filter((r: any) => r.success).length;\n      const totalPosts = Object.keys(results).length;\n\n      await storage.createActivityLog({\n        userId,\n        platformId: null,\n        action: 'Multi-Platform Post',\n        description: `Posted to ${successfulPosts}/${totalPosts} platforms`,\n        status: successfulPosts > 0 ? 'success' : 'error',\n        metadata: { results },\n      });\n\n      res.json({ results, summary: { successful: successfulPosts, total: totalPosts } });\n    } catch (error) {\n      console.error('Social media posting error:', error);\n      res.status(500).json({ error: 'Failed to post content' });\n    }\n  });\n\n  app.post('/api/social/validate-tokens', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      await socialMediaManager.validateAllTokens(userId);\n\n      const updatedAccounts = await storage.getUserAccounts(userId);\n      res.json({ \n        success: true, \n        accounts: updatedAccounts.map(acc => ({\n          id: acc.id,\n          platformId: acc.platformId,\n          authStatus: acc.authStatus,\n          isActive: acc.isActive,\n        }))\n      });\n    } catch (error) {\n      console.error('Token validation error:', error);\n      res.status(500).json({ error: 'Failed to validate tokens' });\n    }\n  });\n\n  // === AI ОБУЧЕНИЕ И РАЗВИТИЕ СИСТЕМЫ ===\n\n  // Инициализация AI обучения для клиента\n  app.post('/api/ai/initialize-learning', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { clientProfile } = req.body;\n\n      await aiLearningEngine.trainOnClientData(userId, clientProfile);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'AI Learning Initialized',\n        description: 'AI система обучена на данных клиента',\n        status: 'success',\n        metadata: { clientProfile: clientProfile.name },\n      });\n\n      res.json({\n        message: 'AI система успешно обучена на данных клиента',\n        learningStatus: 'initialized',\n      });\n    } catch (error) {\n      console.error('Ошибка инициализации обучения AI:', error);\n      res.status(500).json({ error: 'Не удалось инициализировать обучение AI' });\n    }\n  });\n\n  // Генерация продвинутой стратегии продвижения\n  app.post('/api/ai/generate-advanced-strategy', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { clientProfile } = req.body;\n\n      const strategy = await aiLearningEngine.generateAdvancedPromotionStrategy(clientProfile);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'Advanced Strategy Generated',\n        description: 'Создана продвинутая AI стратегия продвижения',\n        status: 'success',\n        metadata: { strategy: strategy },\n      });\n\n      res.json({\n        strategy,\n        message: 'Продвинутая стратегия продвижения создана',\n      });\n    } catch (error) {\n      console.error('Ошибка генерации продвинутой стратегии:', error);\n      res.status(500).json({ error: 'Не удалось создать продвинутую стратегию' });\n    }\n  });\n\n  // Предсказание успешности контента\n  app.post('/api/ai/predict-content-success', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { content, platform, timing, clientProfile } = req.body;\n\n      const prediction = await aiLearningEngine.predictContentSuccess(\n        content,\n        platform,\n        new Date(timing),\n        clientProfile\n      );\n\n      res.json({\n        prediction,\n        message: 'Прогноз успешности контента готов',\n      });\n    } catch (error) {\n      console.error('Ошибка предсказания успешности:', error);\n      res.status(500).json({ error: 'Не удалось спрогнозировать успешность контента' });\n    }\n  });\n\n  // Генерация уникального контента\n  app.post('/api/ai/generate-unique-content', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { clientProfile, contentType, platform } = req.body;\n\n      const uniqueContent = await aiLearningEngine.generateUniqueContent(\n        clientProfile,\n        contentType,\n        platform\n      );\n\n      await storage.createActivityLog({\n        userId,\n        action: 'Unique Content Generated',\n        description: `Создан уникальный ${contentType} контент для ${platform}`,\n        status: 'success',\n        metadata: { contentType, platform, uniqueness_score: uniqueContent.uniqueness_score },\n      });\n\n      res.json({\n        content: uniqueContent,\n        message: 'Уникальный контент создан',\n      });\n    } catch (error) {\n      console.error('Ошибка генерации уникального контента:', error);\n      res.status(500).json({ error: 'Не удалось создать уникальный контент' });\n    }\n  });\n\n  // Генерация вирусных триггеров\n  app.post('/api/ai/generate-viral-triggers', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { contentType, platform, audience } = req.body;\n\n      const viralTriggers = await aiLearningEngine.generateViralTriggers(\n        contentType,\n        platform,\n        audience\n      );\n\n      res.json({\n        triggers: viralTriggers,\n        message: 'Вирусные триггеры созданы',\n      });\n    } catch (error) {\n      console.error('Ошибка генерации вирусных триггеров:', error);\n      res.status(500).json({ error: 'Не удалось создать вирусные триггеры' });\n    }\n  });\n\n  // Запуск непрерывного обучения\n  app.post('/api/ai/continuous-learning', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n\n      await aiLearningEngine.continuousLearning();\n\n      await storage.createActivityLog({\n        userId,\n        action: 'Continuous Learning Cycle',\n        description: 'Запущен цикл непрерывного обучения AI',\n        status: 'success',\n        metadata: { timestamp: new Date() },\n      });\n\n      res.json({\n        message: 'Цикл непрерывного обучения завершен',\n        status: 'learning_updated',\n      });\n    } catch (error) {\n      console.error('Ошибка непрерывного обучения:', error);\n      res.status(500).json({ error: 'Не удалось выполнить обучение' });\n    }\n  });\n\n  // Отчет об обучении AI\n  app.get('/api/ai/learning-report', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n\n      const report = await aiLearningEngine.generateLearningReport(userId);\n\n      res.json({\n        report,\n        message: 'Отчет об обучении AI готов',\n      });\n    } catch (error) {\n      console.error('Ошибка генерации отчета об обучении:', error);\n      res.status(500).json({ error: 'Не удалось создать отчет' });\n    }\n  });\n\n  // Автоматическое обучение системы (запускается периодически)\n  app.post('/api/ai/auto-learning', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n\n      // Запускаем автоматическое обучение в фоне\n      setInterval(async () => {\n        try {\n          await aiLearningEngine.continuousLearning();\n          console.log('🔄 Автоматическое обучение AI выполнено');\n        } catch (error) {\n          console.error('Ошибка автоматического обучения:', error);\n        }\n      }, 60 * 60 * 1000); // Каждый час\n\n      res.json({\n        message: 'Автоматическое обучение AI активировано',\n        frequency: 'каждый час',\n      });\n    } catch (error) {\n      console.error('Ошибка активации автоматического обучения:', error);\n      res.status(500).json({ error: 'Не удалось активировать автоматическое обучение' });\n    }\n  });\n\n  // === РЕВОЛЮЦИОННЫЕ ФУНКЦИИ ВИРУСНОГО РОСТА ===\n\n  // Анализ вирусного потенциала\n  app.post('/api/viral/analyze-potential', isAuthenticated, async (req: any, res) => {\n    try {\n      const { content, platform } = req.body;\n      const viralMetrics = await viralGrowthEngine.analyzeViralPotential(content, platform);\n      res.json({ metrics: viralMetrics, message: 'Анализ вирусного потенциала завершен' });\n    } catch (error) {\n      console.error('Ошибка анализа вирусного потенциала:', error);\n      res.status(500).json({ error: 'Не удалось проанализировать вирусный потенциал' });\n    }\n  });\n\n  // Генерация вирусного контента\n  app.post('/api/viral/generate-content', isAuthenticated, async (req: any, res) => {\n    try {\n      const { niche, platform, targetEmotion } = req.body;\n      const viralContent = await viralGrowthEngine.generateViralContent(niche, platform, targetEmotion);\n\n      res.json({\n        content: viralContent,\n        message: 'Вирусный контент создан с высоким потенциалом',\n      });\n    } catch (error) {\n      console.error('Ошибка генерации вирусного контента:', error);\n      res.status(500).json({ error: 'Не удалось создать вирусный контент' });\n    }\n  });\n\n  // Запуск вирусной кампании\n  app.post('/api/viral/launch-campaign', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { campaignType, niche } = req.body;\n\n      const campaign = await viralGrowthEngine.launchViralCampaign(userId, campaignType, niche);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'Viral Campaign Launched',\n        description: `Запущена вирусная кампания: ${campaignType}`,\n        status: 'success',\n        metadata: campaign,\n      });\n\n      res.json({\n        campaign,\n        message: 'Вирусная кампания успешно запущена!',\n      });\n    } catch (error) {\n      console.error('Ошибка запуска вирусной кампании:', error);\n      res.status(500).json({ error: 'Не удалось запустить вирусную кампанию' });\n    }\n  });\n\n  // Генерация психологических триггеров\n  app.post('/api/viral/psychological-triggers', isAuthenticated, async (req: any, res) => {\n    try {\n      const { audience, goal } = req.body;\n      const triggers = await viralGrowthEngine.generatePsychologicalTriggers(audience, goal);\n\n      res.json({\n        triggers,\n        message: 'Психологические триггеры сгенерированы',\n      });\n    } catch (error) {\n      console.error('Ошибка генерации психологических триггеров:', error);\n      res.status(500).json({ error: 'Не удалось создать психологические триггеры' });\n    }\n  });\n\n  // Создание эмоционального контента\n  app.post('/api/viral/emotional-content', isAuthenticated, async (req: any, res) => {\n    try {\n      const { emotion, niche, platform } = req.body;\n      const emotionalContent = await viralGrowthEngine.createEmotionalContent(emotion, niche, platform);\n\n      res.json({\n        content: emotionalContent,\n        emotion,\n        message: `Эмоциональный контент (${emotion}) создан`,\n      });\n    } catch (error) {\n      console.error('Ошибка создания эмоционального контента:', error);\n      res.status(500).json({ error: 'Не удалось создать эмоциональный контент' });\n    }\n  });\n\n  // Применение нейромаркетинга\n  app.post('/api/viral/neuromarketing', isAuthenticated, async (req: any, res) => {\n    try {\n      const { content } = req.body;\n      const enhancedContent = await viralGrowthEngine.applyNeuroMarketingPrinciples(content);\n\n      res.json({\n        original: content,\n        enhanced: enhancedContent,\n        message: 'Нейромаркетинговые принципы применены',\n      });\n    } catch (error) {\n      console.error('Ошибка применения нейромаркетинга:', error);\n      res.status(500).json({ error: 'Не удалось применить нейромаркетинг' });\n    }\n  });\n\n  // === СИСТЕМА СЛЕЖЕНИЯ ЗА КОНКУРЕНТАМИ ===\n\n  // Мониторинг конкурентов\n  app.post('/api/competitors/monitor', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { niche } = req.body;\n\n      const intelligence = await competitorSurveillance.monitorCompetitors(niche);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'Competitor Intelligence',\n        description: `Собрана разведка по конкурентам в нише: ${niche}`,\n        status: 'success',\n        metadata: intelligence,\n      });\n\n      res.json({\n        intelligence,\n        message: 'Разведданные по конкурентам получены',\n      });\n    } catch (error) {\n      console.error('Ошибка мониторинга конкурентов:', error);\n      res.status(500).json({ error: 'Не удалось провести мониторинг конкурентов' });\n    }\n  });\n\n  // Анализ стратегий конкурентов\n  app.post('/api/competitors/analyze-strategies', isAuthenticated, async (req: any, res) => {\n    try {\n      const { competitors } = req.body;\n      const strategies = await competitorSurveillance.analyzeCompetitorStrategies(competitors);\n\n      res.json({\n        strategies,\n        message: 'Стратегии конкурентов проанализированы',\n      });\n    } catch (error) {\n      console.error('Ошибка анализа стратегий конкурентов:', error);\n      res.status(500).json({ error: 'Не удалось проанализировать стратегии конкурентов' });\n    }\n  });\n\n  // Создание контр-стратегии\n  app.post('/api/competitors/counter-strategy', isAuthenticated, async (req: any, res) => {\n    try {\n      const { competitorHandle, theirStrategy } = req.body;\n      const counterStrategy = await competitorSurveillance.createCounterStrategy(competitorHandle, theirStrategy);\n\n      res.json({\n        counterStrategy,\n        message: 'Контр-стратегия создана',\n      });\n    } catch (error) {\n      console.error('Ошибка создания контр-стратегии:', error);\n      res.status(500).json({ error: 'Не удалось создать контр-стратегию' });\n    }\n  });\n\n  // Предсказание действий конкурентов\n  app.post('/api/competitors/predict-moves', isAuthenticated, async (req: any, res) => {\n    try {\n      const { competitorData, marketTrends } = req.body;\n      const predictions = await competitorSurveillance.predictCompetitorMoves(competitorData, marketTrends);\n\n      res.json({\n        predictions,\n        message: 'Действия конкурентов спрогнозированы',\n      });\n    } catch (error) {\n      console.error('Ошибка предсказания действий конкурентов:', error);\n      res.status(500).json({ error: 'Не удалось спрогнозировать действия конкурентов' });\n    }\n  });\n\n  // Настройка автоматического мониторинга\n  app.post('/api/competitors/setup-monitoring', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { competitors } = req.body;\n\n      await competitorSurveillance.setupAutomaticMonitoring(userId, competitors);\n\n      res.json({\n        message: 'Автоматический мониторинг конкурентов настроен',\n        competitors: competitors.length,\n      });\n    } catch (error) {\n      console.error('Ошибка настройки мониторинга:', error);\n      res.status(500).json({ error: 'Не удалось настроить мониторинг' });\n    }\n  });\n\n  // === СИСТЕМА ДОМИНИРОВАНИЯ БРЕНДА ===\n\n  // Создание плана доминирования\n  app.post('/api/domination/create-plan', isAuthenticated, async (req: any, res) => {\n    try {\n      const { clientProfile, targetMarketShare } = req.body;\n      const dominationPlan = await brandDominationEngine.createDominationPlan(clientProfile, targetMarketShare);\n\n      res.json({\n        plan: dominationPlan,\n        message: 'План доминирования создан',\n      });\n    } catch (error) {\n      console.error('Ошибка создания плана доминирования:', error);\n      res.status(500).json({ error: 'Не удалось создать план доминирования' });\n    }\n  });\n\n  // Создание брендовой империи\n  app.post('/api/domination/build-empire', isAuthenticated, async (req: any, res) => {\n    try {\n      const { clientProfile } = req.body;\n      const empire = await brandDominationEngine.buildBrandEmpire(clientProfile);\n\n      res.json({\n        empire,\n        message: 'Брендовая империя создана',\n      });\n    } catch (error) {\n      console.error('Ошибка создания брендовой империи:', error);\n      res.status(500).json({ error: 'Не удалось создать брендовую империю' });\n    }\n  });\n\n  // Запуск агрессивного роста\n  app.post('/api/domination/aggressive-growth', isAuthenticated, async (req: any, res) => {\n    try {\n      const userId = req.user.claims.sub;\n      const { clientProfile } = req.body;\n\n      const results = await brandDominationEngine.executeAggressiveGrowth(userId, clientProfile);\n\n      await storage.createActivityLog({\n        userId,\n        action: 'Aggressive Growth Launched',\n        description: 'Запущена агрессивная стратегия роста и доминирования',\n        status: 'success',\n        metadata: results,\n      });\n\n      res.json({\n        results,\n        message: 'Агрессивная стратегия роста запущена!',\n      });\n    } catch (error) {\n      console.error('Ошибка запуска агрессивного роста:', error);\n      res.status(500).json({ error: 'Не удалось запустить агрессивный рост' });\n    }\n  });\n\n  // Психологическая кампания\n  app.post('/api/domination/psychological-campaign', isAuthenticated, async (req: any, res) => {\n    try {\n      const { targetAudience, competitorWeaknesses } = req.body;\n      const campaign = await brandDominationEngine.launchPsychologicalCampaign(targetAudience, competitorWeaknesses);\n\n      res.json({\n        campaign,\n        message: 'Психологическая кампания запущена',\n      });\n    } catch (error) {\n      console.error('Ошибка запуска психологической кампании:', error);\n      res.status(500).json({ error: 'Не удалось запустить психологическую кампанию' });\n    }\n  });\n\n  // План монополизации\n  app.post('/api/domination/monopolization-plan', isAuthenticated, async (req: any, res) => {\n    try {\n      const { niche } = req.body;\n      const monopolizationPlan = await brandDominationEngine.createMonopolizationPlan(niche);\n\n      res.json({\n        plan: monopolizationPlan,\n        message: 'План монополизации рынка создан',\n      });\n    } catch (error) {\n      console.error('Ошибка создания плана монополизации:', error);\n      res.status(500).json({ error: 'Не удалось создать план монополизации' });\n    }\n  });\n\n  // Тестирование Grok API\n  app.post('/api/grok/test', isAuthenticated, async (req: any, res) => {\n    try {\n      const { prompt } = req.body;\n\n      if (!prompt) {\n        return res.status(400).json({\n          success: false,\n          error: 'Prompt обязателен',\n        });\n      }\n\n      console.log('🧠 Тестирование Grok API с промптом:', prompt);\n\n      const result = await grokService.testConnection(prompt);\n\n      // Логируем активность\n      const userId = req.user.claims.sub;\n      await storage.createActivityLog({\n        userId,\n        action: 'Grok API Test',\n        description: 'Протестирован Grok API',\n        status: result.success ? 'success' : 'error',\n        metadata: { prompt: prompt.substring(0, 100), model: result.model },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error('Ошибка тестирования Grok API:', error);\n      res.status(500).json({\n        success: false,\n        error: 'Внутренняя ошибка сервера',\n      });\n    }\n  });\n\n  // Продвинутый анализ через Grok\n  app.post('/api/grok/advanced-analysis', isAuthenticated, async (req: any, res) => {\n    try {\n      const { prompt, type } = req.body;\n\n      if (!prompt) {\n        return res.status(400).json({\n          success: false,\n          error: 'Prompt обязателен',\n        });\n      }\n\n      console.log(`🔍 Запуск продвинутого анализа Grok: ${type}`);\n\n      const result = await grokService.advancedAnalysis(prompt, type);\n\n      // Логируем активность\n      const userId = req.user.claims.sub;\n      await storage.createActivityLog({\n        userId,\n        action: 'Grok Advanced Analysis',\n        description: `Выполнен продвинутый анализ: ${type}`,\n        status: result.success ? 'success' : 'error',\n        metadata: { analysisType: type, model: result.model },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error('Ошибка продвинутого анализа Grok:', error);\n      res.status(500).json({\n        success: false,\n        error: 'Ошибка продвинутого анализа',\n      });\n    }\n  });\n\n  // Генерация стратегии продвижения через Grok\n  app.post('/api/grok/promotion-strategy', isAuthenticated, async (req: any, res) => {\n    try {\n      const { channelUrl, niche } = req.body;\n\n      if (!channelUrl || !niche) {\n        return res.status(400).json({\n          success: false,\n          error: 'URL канала и ниша обязательны',\n        });\n      }\n\n      console.log(`📈 Создание стратегии продвижения для ${channelUrl} в нише ${niche}`);\n\n      const result = await grokService.generatePromotionStrategy(channelUrl, niche);\n\n      // Логируем активность\n      const userId = req.user.claims.sub;\n      await storage.createActivityLog({\n        userId,\n        action: 'Grok Promotion Strategy',\n        description: `Создана стратегия продвижения для ${channelUrl}`,\n        status: result.success ? 'success' : 'error',\n        metadata: { channelUrl, niche },\n      });\n\n      res.json(result);\n    } catch (error) {\n      console.error('Ошибка создания стратегии продвижения:', error);\n      res.status(500).json({\n        success: false,\n        error: 'Не удалось создать стратегию продвижения',\n      });\n    }\n  });\n\n  // Setup advanced promotion strategy routes\n  setupPromotionStrategyRoutes(app);\n\n  const httpServer = createServer(app);\n  return httpServer;\n}\n"}
-]
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import { seedPlatforms } from "./seedDatabase";
+import { aiContentService } from "./services/aiContent";
+import { aiAnalyticsService } from "./services/aiAnalytics";
+import { aiAssistantService } from "./services/aiAssistant";
+import { clientAnalysisService } from "./services/clientAnalysis";
+import { promotionEngine } from "./services/promotionEngine";
+import { socialMediaManager } from "./services/socialMediaIntegration";
+import { analyticsService } from "./services/analytics";
+import { safetyService } from "./services/safety";
+import { schedulerService } from "./services/scheduler";
+import { setupPromotionStrategyRoutes } from "./routes/promotionStrategy";
+import { aiLearningEngine } from "./services/aiLearningEngine";
+import { viralGrowthEngine } from "./services/viralGrowthEngine";
+import { competitorSurveillance } from "./services/competitorSurveillance";
+import { brandDominationEngine } from "./services/brandDominationEngine";
+import type { Platform, UserAccount } from "@shared/schema";
+import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
+import { z } from "zod";
+import { grokService } from "./services/grokService";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize database with platforms
+  await seedPlatforms();
+
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Platform routes
+  app.get('/api/platforms', isAuthenticated, async (req, res) => {
+    try {
+      const platforms = await storage.getPlatforms();
+      res.json(platforms);
+    } catch (error) {
+      console.error("Error fetching platforms:", error);
+      res.status(500).json({ message: "Failed to fetch platforms" });
+    }
+  });
+
+  // User account routes
+  app.get('/api/user-accounts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const accounts = await storage.getUserAccounts(userId);
+      res.json(accounts);
+    } catch (error) {
+      console.error("Error fetching user accounts:", error);
+      res.status(500).json({ message: "Failed to fetch user accounts" });
+    }
+  });
+
+  app.post('/api/user-accounts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const accountData = { ...req.body, userId };
+      const account = await storage.createUserAccount(accountData);
+
+      // Log activity
+      await storage.createActivityLog({
+        userId,
+        action: 'Account Connected',
+        description: `Connected ${req.body.accountHandle} account`,
+        platformId: req.body.platformId,
+        status: 'success',
+        metadata: null,
+      });
+
+      res.json(account);
+    } catch (error) {
+      console.error("Error creating user account:", error);
+      res.status(500).json({ message: "Failed to create user account" });
+    }
+  });
+
+  // Post routes
+  app.get('/api/posts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const posts = await storage.getUserPosts(userId, limit);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching posts:", error);
+      res.status(500).json({ message: "Failed to fetch posts" });
+    }
+  });
+
+  app.post('/api/posts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const postData = insertPostSchema.parse(req.body);
+
+      const post = await storage.createPost({ ...postData, userId });
+
+      // Log activity
+      await storage.createActivityLog({
+        userId,
+        action: 'Post Created',
+        description: `Created new post for platform ${postData.platformId}`,
+        platformId: postData.platformId,
+        status: 'success',
+        metadata: null,
+      });
+
+      res.json(post);
+    } catch (error) {
+      console.error("Error creating post:", error);
+      res.status(500).json({ message: "Failed to create post" });
+    }
+  });
+
+  // === АНАЛИЗ КЛИЕНТА ===
+
+  // Глубокий анализ клиента
+  app.post('/api/client/analyze', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientData } = req.body;
+      console.log('🔍 Запуск анализа клиента:', clientData);
+
+      const profile = await clientAnalysisService.analyzeClient(clientData);
+      const savedProfile = await clientAnalysisService.createClientProfile(userId, profile);
+
+      res.json(savedProfile);
+    } catch (error) {
+      console.error('Ошибка анализа клиента:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать клиента' });
+    }
+  });
+
+  // Инициализация для Lucifer Tradera
+  app.post('/api/client/init-lucifer', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      console.log('🚀 Инициализация клиента Lucifer Tradera...');
+
+      const luciferData = {
+        youtube: 'https://www.youtube.com/@Lucifer_tradera',
+        tiktok: 'https://vm.tiktok.com/ZNHnt6CTrMdwp-ckGNa',
+        telegram: ['Lucifer_Izzy_bot', 'Lucifer_tradera'],
+      };
+
+      const profile = await clientAnalysisService.analyzeClient(luciferData);
+      const savedProfile = await clientAnalysisService.createClientProfile(userId, profile);
+
+      // Создаем стратегию продвижения
+      const strategy = await promotionEngine.createPromotionStrategy(savedProfile);
+
+      res.json({
+        message: 'Клиент Lucifer Tradera успешно проанализирован и добавлен в систему',
+        profile: savedProfile,
+        strategy,
+      });
+    } catch (error) {
+      console.error('Ошибка инициализации Lucifer Tradera:', error);
+      res.status(500).json({ error: 'Не удалось инициализировать клиента' });
+    }
+  });
+
+  // === AI ИНСТРУМЕНТЫ ===
+
+  // Генерация контента
+  app.post('/api/ai/generate-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { prompt, contentType, targetPlatforms } = insertAIContentLogSchema.parse(req.body);
+
+      const result = await aiContentService.generateContent(prompt, contentType, targetPlatforms || []);
+
+      // Log the generation
+      await storage.createAIContentLog({
+        userId,
+        prompt,
+        generatedContent: result.content,
+        contentType,
+        targetPlatforms,
+        tokensUsed: result.tokensUsed,
+        cost: result.cost,
+      });
+
+      // Log activity
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Content Generated',
+        description: `Generated ${contentType} content`,
+        platformId: null,
+        status: 'success',
+        metadata: { contentType, targetPlatforms },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating AI content:", error);
+      res.status(500).json({ message: "Failed to generate AI content" });
+    }
+  });
+
+  app.get('/api/ai/content-logs', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const logs = await storage.getUserAIContentLogs(userId, limit);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching AI content logs:", error);
+      res.status(500).json({ message: "Failed to fetch AI content logs" });
+    }
+  });
+
+  // === AI АССИСТЕНТ ===
+
+  // Получить все разговоры пользователя
+  app.get('/api/ai/conversations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const conversations = await aiAssistantService.getUserConversations(userId);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ message: "Failed to fetch conversations" });
+    }
+  });
+
+  // Создать новый разговор
+  app.post('/api/ai/conversations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title } = req.body;
+      const conversation = await aiAssistantService.createConversation(userId, title);
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      res.status(500).json({ message: "Failed to create conversation" });
+    }
+  });
+
+  // Получить сообщения разговора
+  app.get('/api/ai/conversations/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const messages = await aiAssistantService.getConversationMessages(conversationId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  // Отправить сообщение в разговор
+  app.post('/api/ai/conversations/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const { message } = req.body;
+
+      if (!message || message.trim().length === 0) {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+
+      const result = await aiAssistantService.sendMessage(conversationId, message.trim());
+
+      // Логируем активность
+      const userId = req.user.claims.sub;
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Assistant Message',
+        description: 'Отправлено сообщение AI-ассистенту',
+        platformId: null,
+        status: result.error ? 'error' : 'success',
+        metadata: { conversationId, tokensUsed: result.tokensUsed, cost: result.cost },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Обновить заголовок разговора
+  app.put('/api/ai/conversations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { title } = req.body;
+
+      if (!title || title.trim().length === 0) {
+        return res.status(400).json({ message: "Title is required" });
+      }
+
+      const conversation = await aiAssistantService.updateConversationTitle(
+        conversationId,
+        userId,
+        title.trim()
+      );
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error updating conversation:", error);
+      res.status(500).json({ message: "Failed to update conversation" });
+    }
+  });
+
+  // Удалить разговор
+  app.delete('/api/ai/conversations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      const success = await aiAssistantService.deleteConversation(conversationId, userId);
+
+      if (success) {
+        await storage.createActivityLog({
+          userId,
+          action: 'AI Conversation Deleted',
+          description: `Удален разговор с AI-ассистентом #${conversationId}`,
+          platformId: null,
+          status: 'success',
+          metadata: { conversationId },
+        });
+        res.json({ message: "Conversation deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Conversation not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ message: "Failed to delete conversation" });
+    }
+  });
+
+  // Сгенерировать заголовок для разговора автоматически
+  app.post('/api/ai/conversations/:id/generate-title', isAuthenticated, async (req: any, res) => {
+    try {
+      const conversationId = parseInt(req.params.id);
+      const title = await aiAssistantService.generateConversationTitle(conversationId);
+
+      const userId = req.user.claims.sub;
+      const updatedConversation = await aiAssistantService.updateConversationTitle(
+        conversationId,
+        userId,
+        title
+      );
+
+      res.json({ title, conversation: updatedConversation });
+    } catch (error) {
+      console.error("Error generating title:", error);
+      res.status(500).json({ message: "Failed to generate title" });
+    }
+  });
+
+  // === ПРОФЕССИОНАЛЬНЫЕ AI ТРЕЙДИНГ МАРШРУТЫ ===
+
+  // Генерация viral TikTok контента
+  app.post('/api/ai/viral-tiktok', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { trend, hooks } = req.body;
+
+      if (!trend || !hooks || !Array.isArray(hooks)) {
+        return res.status(400).json({ message: "Trend and hooks array are required" });
+      }
+
+      const result = await aiContentService.generateViralTikTokContent(trend, hooks);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Viral TikTok Generated',
+        description: `Generated viral TikTok content for trend: ${trend}`,
+        platformId: null,
+        status: 'success',
+        metadata: { trend, hooks },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating viral TikTok content:", error);
+      res.status(500).json({ message: "Failed to generate viral TikTok content" });
+    }
+  });
+
+  // Генерация YouTube анализа в стиле топ-каналов
+  app.post('/api/ai/youtube-analysis', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { markets, style } = req.body;
+
+      if (!markets || !Array.isArray(markets) || !style) {
+        return res.status(400).json({ message: "Markets array and style are required" });
+      }
+
+      const result = await aiContentService.generateYouTubeAnalysis(markets, style);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI YouTube Analysis Generated',
+        description: `Generated YouTube analysis in ${style} style for ${markets.join(', ')}`,
+        platformId: null,
+        status: 'success',
+        metadata: { markets, style },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating YouTube analysis:", error);
+      res.status(500).json({ message: "Failed to generate YouTube analysis" });
+    }
+  });
+
+  // Генерация live торговых сигналов
+  app.post('/api/ai/live-signal', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { symbol, action, entry, targets, stopLoss, leverage, confidence } = req.body;
+
+      if (!symbol || !action || !entry || !targets || !stopLoss) {
+        return res.status(400).json({ message: "Symbol, action, entry, targets, and stopLoss are required" });
+      }
+
+      const result = await aiContentService.generateLiveSignalPost(
+        symbol, action, entry, targets, stopLoss, leverage, confidence
+      );
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Live Signal Generated',
+        description: `Generated live signal for ${symbol} (${action})`,
+        platformId: null,
+        status: 'success',
+        metadata: { symbol, action, entry, targets, stopLoss, leverage },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating live signal:", error);
+      res.status(500).json({ message: "Failed to generate live signal" });
+    }
+  });
+
+  // Генерация crypto прогнозов
+  app.post('/api/ai/crypto-predictions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { timeframe, coins, reasoning } = req.body;
+
+      if (!timeframe || !coins || !reasoning || !Array.isArray(coins) || !Array.isArray(reasoning)) {
+        return res.status(400).json({ message: "Timeframe, coins array, and reasoning array are required" });
+      }
+
+      const result = await aiContentService.generateCryptoPredictions(timeframe, coins, reasoning);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Crypto Predictions Generated',
+        description: `Generated crypto predictions for ${timeframe}: ${coins.join(', ')}`,
+        platformId: null,
+        status: 'success',
+        metadata: { timeframe, coins, reasoning },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating crypto predictions:", error);
+      res.status(500).json({ message: "Failed to generate crypto predictions" });
+    }
+  });
+
+  // Анализ мемкоинов
+  app.post('/api/ai/memecoin-analysis', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { coin, metrics } = req.body;
+
+      if (!coin || !metrics) {
+        return res.status(400).json({ message: "Coin and metrics are required" });
+      }
+
+      const result = await aiContentService.generateMemeCoinAnalysis(coin, metrics);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Memecoin Analysis Generated',
+        description: `Generated memecoin analysis for ${coin}`,
+        platformId: null,
+        status: 'success',
+        metadata: { coin, metrics },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating memecoin analysis:", error);
+      res.status(500).json({ message: "Failed to generate memecoin analysis" });
+    }
+  });
+
+  // Генерация forex обучения
+  app.post('/api/ai/forex-education', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { topic, experience, focus } = req.body;
+
+      if (!topic || !experience || !focus) {
+        return res.status(400).json({ message: "Topic, experience, and focus are required" });
+      }
+
+      const result = await aiContentService.generateForexEducation(topic, experience, focus);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Forex Education Generated',
+        description: `Generated forex education on ${topic} for ${experience} traders`,
+        platformId: null,
+        status: 'success',
+        metadata: { topic, experience, focus },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating forex education:", error);
+      res.status(500).json({ message: "Failed to generate forex education" });
+    }
+  });
+
+  // === АНАЛИЗ ТРЕНДОВ И ОПТИМИЗАЦИЯ ===
+
+  // Анализ трендовых тем
+  app.post('/api/ai/analyze-trends', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { platform, niche } = req.body;
+
+      if (!platform || !niche) {
+        return res.status(400).json({ message: "Platform and niche are required" });
+      }
+
+      const result = await aiContentService.analyzeTrendingTopics(platform, niche);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Trends Analyzed',
+        description: `Analyzed trending topics for ${platform} ${niche}`,
+        platformId: null,
+        status: 'success',
+        metadata: { platform, niche },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error analyzing trends:", error);
+      res.status(500).json({ message: "Failed to analyze trends" });
+    }
+  });
+
+  // Профессиональная оптимизация хештегов для трейдинга
+  app.post('/api/ai/optimize-hashtags-pro', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, platform, targetAudience } = req.body;
+
+      if (!content || !platform) {
+        return res.status(400).json({ message: "Content and platform are required" });
+      }
+
+      const result = await aiContentService.optimizeHashtags(content, platform, targetAudience);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Hashtags Optimized',
+        description: `Optimized hashtags for ${platform}`,
+        platformId: null,
+        status: 'success',
+        metadata: { platform, targetAudience },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error optimizing hashtags:", error);
+      res.status(500).json({ message: "Failed to optimize hashtags" });
+    }
+  });
+
+  // Конкурентный анализ
+  app.post('/api/ai/competitor-analysis', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { competitors, analysisType } = req.body;
+
+      if (!competitors || !Array.isArray(competitors) || !analysisType) {
+        return res.status(400).json({ message: "Competitors array and analysis type are required" });
+      }
+
+      const result = await aiContentService.generateCompetitorAnalysis(competitors, analysisType);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Competitor Analysis',
+        description: `Analyzed competitors for ${analysisType}: ${competitors.join(', ')}`,
+        platformId: null,
+        status: 'success',
+        metadata: { competitors, analysisType },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error analyzing competitors:", error);
+      res.status(500).json({ message: "Failed to analyze competitors" });
+    }
+  });
+
+  // Генерация hook-библиотеки
+  app.post('/api/ai/generate-hooks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { contentType, emotion } = req.body;
+
+      if (!contentType || !emotion) {
+        return res.status(400).json({ message: "Content type and emotion are required" });
+      }
+
+      const result = await aiContentService.generateHookLibrary(contentType, emotion);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Hooks Generated',
+        description: `Generated ${contentType} hooks with ${emotion} emotion`,
+        platformId: null,
+        status: 'success',
+        metadata: { contentType, emotion },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating hooks:", error);
+      res.status(500).json({ message: "Failed to generate hooks" });
+    }
+  });
+
+  // === АВТОМАТИЧЕСКОЕ ПРОДВИЖЕНИЕ ===
+
+  // Инициализация клиента Lucifer
+  app.post('/api/client/init-lucifer', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const luciferProfile = {
+        name: 'Lucifer Tradera',
+        platforms: {
+          youtube: 'https://www.youtube.com/@Lucifer_tradera',
+          tiktok: 'https://vm.tiktok.com/ZNHnt6CTrMdwp-ckGNa',
+          telegram: ['https://t.me/Lucifer_Izzy_bot', 'https://t.me/Lucifer_tradera']
+        },
+        niche: 'trading',
+        contentType: 'trading_signals',
+      };
+
+      // Запускаем глубокий анализ
+      const analysis = await clientAnalysisService.analyzeClientProfile(luciferProfile);
+
+      // Создаем стратегию продвижения
+      const strategy = await promotionEngine.createPromotionStrategy(luciferProfile);
+
+      // Логируем инициализацию
+      await storage.createActivityLog({
+        userId,
+        action: 'Client Initialized',
+        description: 'Lucifer Tradera profile analyzed and promotion strategy created',
+        status: 'success',
+        metadata: { client: 'Lucifer_tradera', analysis, strategy },
+      });
+
+      res.json({
+        message: 'Клиент Lucifer Tradera успешно инициализирован',
+        analysis,
+        strategy,
+        recommendations: analysis.recommendations,
+      });
+    } catch (error) {
+      console.error('Ошибка инициализации клиента:', error);
+      res.status(500).json({ error: 'Не удалось инициализировать клиента' });
+    }
+  });
+
+  // Запуск автоматического продвижения
+  app.post('/api/promotion/start', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const { strategy } = req.body;
+      const result = await promotionEngine.executePromotionStrategy(userId, strategy);
+
+      res.json({
+        message: 'Автоматическое продвижение запущено',
+        result,
+      });
+    } catch (error) {
+      console.error('Ошибка запуска продвижения:', error);
+      res.status(500).json({ error: 'Не удалось запустить продвижение' });
+    }
+  });
+
+  // Получение метрик продвижения
+  app.get('/api/promotion/metrics/:clientId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientId } = req.params;
+
+      const metrics = await promotionEngine.getPromotionMetrics(userId, clientId);
+
+      res.json(metrics);
+    } catch (error) {
+      console.error('Ошибка получения метрик:', error);
+      res.status(500).json({ error: 'Не удалось получить метрики' });
+    }
+  });
+
+  // Адаптивное обновление стратегии
+  app.post('/api/promotion/adapt-strategy', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { strategyId, performanceData } = req.body;
+
+      const adaptedStrategy = await promotionEngine.adaptStrategy(strategyId, performanceData);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Strategy Adapted',
+        description: `Strategy ${strategyId} adapted based on performance`,
+        status: 'success',
+        metadata: { strategyId, adaptedStrategy },
+      });
+
+      res.json({
+        message: 'Стратегия успешно адаптирована',
+        adaptedStrategy,
+      });
+    } catch (error) {
+      console.error('Ошибка адаптации стратегии:', error);
+      res.status(500).json({ error: 'Не удалось адаптировать стратегию' });
+    }
+  });
+
+  // Анализ результатов продвижения
+  app.get('/api/promotion/results', isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const days = parseInt(req.query.days as string) || 7;
+      const results = await promotionEngine.analyzePromotionResults(userId, days);
+
+      res.json(results);
+    } catch (error) {
+      console.error('Ошибка анализа результатов:', error);
+      res.status(500).json({ error: 'Не удалось получить результаты' });
+    }
+  });
+
+  // Analytics routes
+  app.get('/api/analytics', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const platformId = req.query.platformId ? parseInt(req.query.platformId as string) : undefined;
+      const analytics = await storage.getUserAnalytics(userId, platformId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get('/api/analytics/dashboard', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const dashboardData = await analyticsService.getDashboardData(userId);
+      res.json(dashboardData);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard data" });
+    }
+  });
+
+  // Safety routes
+  app.get('/api/safety/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const safetyStatus = await safetyService.getUserSafetyStatus(userId);
+      res.json(safetyStatus);
+    } catch (error) {
+      console.error("Error fetching safety status:", error);
+      res.status(500).json({ message: "Failed to fetch safety status" });
+    }
+  });
+
+  app.post('/api/safety/check', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const result = await safetyService.performSafetyCheck(userId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error performing safety check:", error);
+      res.status(500).json({ message: "Failed to perform safety check" });
+    }
+  });
+
+  // Scheduler routes
+  app.get('/api/scheduler/jobs', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const jobs = await schedulerService.getUserJobs(userId);
+      res.json(jobs);
+    } catch (error) {
+      console.error("Error fetching scheduled jobs:", error);
+      res.status(500).json({ message: "Failed to fetch scheduled jobs" });
+    }
+  });
+
+  app.post('/api/scheduler/emergency-stop', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await schedulerService.emergencyStop(userId);
+
+      // Log activity
+      await storage.createActivityLog({
+        userId,
+        action: 'Emergency Stop',
+        description: 'All automation stopped by user',
+        platformId: null,
+        status: 'warning',
+        metadata: null,
+      });
+
+      res.json({ message: 'Emergency stop activated' });
+    } catch (error) {
+      console.error("Error performing emergency stop:", error);
+      res.status(500).json({ message: "Failed to perform emergency stop" });
+    }
+  });
+
+  // Activity logs
+  app.get('/api/activity', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const activities = await storage.getUserActivityLogs(userId, limit);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching activity logs:", error);
+      res.status(500).json({ message: "Failed to fetch activity logs" });
+    }
+  });
+
+  // Deep Analytics Routes
+  app.get('/api/analytics/platform/:platformId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { platformId } = req.params;
+      const userId = req.user.claims.sub;
+      const days = parseInt(req.query.days as string) || 30;
+      const analytics = await storage.getPlatformAnalytics(userId, parseInt(platformId), days);
+
+      const latestMetrics = analytics[0]?.metrics || {
+        followers: 0,
+        following: 0,
+        posts: 0,
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        views: 0,
+        impressions: 0,
+        reach: 0,
+        engagement_rate: 0,
+        growth_rate: 0,
+      };
+
+      res.json(latestMetrics);
+    } catch (error) {
+      console.error('Ошибка получения метрик платформы:', error);
+      res.status(500).json({ error: 'Не удалось получить метрики платформы' });
+    }
+  });
+
+  app.get('/api/analytics/insights', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const type = req.query.type as string;
+      const insights = await storage.getAIInsights(userId, type);
+      res.json(insights);
+    } catch (error) {
+      console.error('Ошибка получения AI инсайтов:', error);
+      res.status(500).json({ error: 'Не удалось получить AI инсайты' });
+    }
+  });
+
+  app.get('/api/analytics/competitors/:platformId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { platformId } = req.params;
+      const userId = req.user.claims.sub;
+      const competitors = await storage.getCompetitorAnalyses(userId, parseInt(platformId));
+
+      const competitorData = competitors.map(comp => ({
+        handle: comp.competitorHandle,
+        name: comp.competitorName || comp.competitorHandle,
+        metrics: {
+          followers: comp.metrics.followers,
+          engagement_rate: comp.metrics.engagement_rate,
+          posting_frequency: comp.metrics.posting_frequency,
+        },
+        insights: [
+          `Средняя вовлеченность: ${comp.metrics.engagement_rate.toFixed(1)}%`,
+          `Частота публикаций: ${comp.metrics.posting_frequency.toFixed(1)} постов в день`,
+          `${comp.metrics.followers.toLocaleString()} подписчиков`,
+        ],
+      }));
+
+      res.json(competitorData);
+    } catch (error) {
+      console.error('Ошибка получения анализа конкурентов:', error);
+      res.status(500).json({ error: 'Не удалось получить анализ конкурентов' });
+    }
+  });
+
+  app.get('/api/analytics/trends/:platformId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { platformId } = req.params;
+      const category = req.query.category as string;
+      const days = parseInt(req.query.days as string) || 7;
+      const trends = await storage.getTrendAnalysis(parseInt(platformId), category, days);
+
+      const trendData = trends.map(trend => ({
+        name: trend.trend_name,
+        volume: trend.data.volume,
+        growth_rate: trend.data.growth_rate,
+        confidence: parseFloat(trend.confidence),
+        category: trend.category,
+      }));
+
+      res.json(trendData);
+    } catch (error) {
+      console.error('Ошибка получения трендов:', error);
+      res.status(500).json({ error: 'Не удалось получить тренды' });
+    }
+  });
+
+  app.post('/api/analytics/analyze-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, platform } = req.body;
+
+      if (!content || !platform) {
+        return res.status(400).json({ error: 'Контент и платформа обязательны' });
+      }
+
+      const platformData = await storage.getUserAccounts(userId);
+      const targetPlatform = platformData.find(p => p.platformId.toString() === platform);
+
+      let historicalData: any[] = [];
+      if (targetPlatform) {
+        historicalData = await storage.getContentPerformance(userId, targetPlatform.platformId, 30);
+      }
+
+      const analysis = await aiAnalyticsService.analyzeContent(content, platform, historicalData);
+      res.json(analysis);
+    } catch (error) {
+      console.error('Ошибка AI анализа контента:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать контент' });
+    }
+  });
+
+  app.post('/api/analytics/optimize-hashtags', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, platform, targetAudience } = req.body;
+
+      if (!content || !platform) {
+        return res.status(400).json({ error: 'Контент и платформа обязательны' });
+      }
+
+      const hashtagOptimization = await aiAnalyticsService.optimizeHashtags(
+        content,
+        platform,
+        targetAudience
+      );
+
+      res.json(hashtagOptimization);
+    } catch (error) {
+      console.error('Ошибка оптимизации хештегов:', error);
+      res.status(500).json({ error: 'Не удалось оптимизировать хештеги' });
+    }
+  });
+
+  // Social Media OAuth Integration Routes
+  app.get('/api/social/auth/:platformId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const platformId = parseInt(req.params.platformId);
+      const state = require('crypto').randomUUID();
+
+      const service = socialMediaManager.getService(platformId);
+      if (!service) {
+        return res.status(400).json({ error: 'Platform not supported' });
+      }
+
+      const authUrl = await service.getAuthUrl(userId, state);
+
+      // Store state for CSRF protection
+      req.session.oauthState = { state, userId, platformId };
+
+      res.json({ authUrl });
+    } catch (error) {
+      console.error('OAuth initialization error:', error);
+      res.status(500).json({ error: 'Failed to initialize OAuth' });
+    }
+  });
+
+  app.get('/api/social/callback', isAuthenticated, async (req: any, res) => {
+    try {
+      const { code, state, error } = req.query;
+
+      if (error) {
+        return res.status(400).json({ error: `OAuth error: ${error}` });
+      }
+
+      if (!code || !state) {
+        return res.status(400).json({ error: 'Missing authorization code or state' });
+      }
+
+      const sessionState = req.session.oauthState;
+      if (!sessionState || sessionState.state !== state) {
+        return res.status(400).json({ error: 'Invalid state parameter' });
+      }
+
+      const { userId, platformId } = sessionState;
+
+      const service = socialMediaManager.getService(platformId);
+      if (!service) {
+        return res.status(400).json({ error: 'Platform not supported' });
+      }
+
+      // Exchange code for tokens
+      const tokens = await service.exchangeCodeForToken(code, state);
+
+      // Create or update user account
+      const existingAccount = await storage.getUserAccount(userId, platformId);
+
+      let accountId: number;
+      if (existingAccount) {
+        await storage.updateUserAccount(existingAccount.id, {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          tokenExpiry: tokens.expiresAt,
+          authStatus: 'connected',
+        });
+        accountId = existingAccount.id;
+      } else {
+        const newAccount = await storage.createUserAccount({
+          userId,
+          platformId,
+          accountHandle: 'New Account', // Will be updated with actual data
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          tokenExpiry: tokens.expiresAt,
+          authStatus: 'connected',
+        });
+        accountId = newAccount.id;
+      }
+
+      // For Instagram, get Business Account ID automatically
+      if (platformId === 1) { // Instagram
+        try {
+          const instagramService = service as any; // Cast to access Instagram-specific methods
+          if (instagramService.getInstagramBusinessAccountId) {
+            const businessAccountId = await instagramService.getInstagramBusinessAccountId(tokens.accessToken);
+
+            if (businessAccountId) {
+              // Get existing platform config and merge with business account ID
+              const currentAccount = await storage.getUserAccount(userId, platformId);
+              const existingConfig = (currentAccount && currentAccount.platformConfig) || {};
+
+              await storage.updateUserAccount(accountId, {
+                platformConfig: {
+                  ...existingConfig,
+                  businessAccountId,
+                },
+                accountHandle: `Instagram Business Account`,
+              });
+              console.log(`Instagram Business Account ID obtained: ${businessAccountId}`);
+            } else {
+              console.warn('Instagram Business Account ID not found. User may need to connect Instagram to Facebook page.');
+            }
+          }
+        } catch (error) {
+          console.error('Failed to get Instagram Business Account ID:', error);
+          // Don't fail the entire OAuth flow for this
+        }
+      }
+
+      // Clean up session
+      delete req.session.oauthState;
+
+      // Log successful connection
+      const platform = await storage.getPlatform(platformId);
+      await storage.createActivityLog({
+        userId,
+        platformId,
+        action: 'Platform Connected',
+        description: `Successfully connected ${platform?.displayName} account`,
+        status: 'success',
+        metadata: {},
+      });
+
+      res.json({ success: true, message: 'Platform connected successfully' });
+    } catch (error) {
+      console.error('OAuth callback error:', error);
+      res.status(500).json({ error: 'Failed to complete OAuth flow' });
+    }
+  });
+
+  app.post('/api/social/disconnect/:accountId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const accountId = parseInt(req.params.accountId);
+
+      const account = await storage.getUserAccount(userId, accountId);
+      if (!account) {
+        return res.status(404).json({ error: 'Account not found' });
+      }
+
+      await storage.updateUserAccount(accountId, {
+        isActive: false,
+        authStatus: 'disconnected',
+        accessToken: null,
+        refreshToken: null,
+        tokenExpiry: null,
+      });
+
+      // Log disconnection
+      const platform = await storage.getPlatform(account.platformId);
+      await storage.createActivityLog({
+        userId,
+        platformId: account.platformId,
+        action: 'Platform Disconnected',
+        description: `Disconnected ${platform?.displayName} account`,
+        status: 'success',
+        metadata: {},
+      });
+
+      res.json({ success: true, message: 'Account disconnected successfully' });
+    } catch (error) {
+      console.error('Disconnect account error:', error);
+      res.status(500).json({ error: 'Failed to disconnect account' });
+    }
+  });
+
+  app.post('/api/social/post', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, mediaUrls, platformIds } = req.body;
+
+      if (!content) {
+        return res.status(400).json({ error: 'Content is required' });
+      }
+
+      const postData = { content, mediaUrls };
+      let results;
+
+      if (platformIds && platformIds.length > 0) {
+        // Post to specific platforms
+        results = {} as { [platformId: number]: any };
+        const userAccounts = await storage.getUserAccounts(userId);
+
+        for (const platformId of platformIds) {
+          const account = userAccounts.find(acc =>
+            acc.platformId === platformId &&
+            acc.isActive &&
+            acc.authStatus === 'connected'
+          );
+
+          if (account) {
+            const service = socialMediaManager.getService(platformId);
+            if (service) {
+              (results as any)[platformId] = await service.post(account, postData);
+            }
+          } else {
+            (results as any)[platformId] = {
+              success: false,
+              error: 'Account not connected for this platform',
+            };
+          }
+        }
+      } else {
+        // Post to all connected platforms
+        results = await socialMediaManager.postToAllPlatforms(userId, postData);
+      }
+
+      // Log posting activity
+      const successfulPosts = Object.values(results).filter((r: any) => r.success).length;
+      const totalPosts = Object.keys(results).length;
+
+      await storage.createActivityLog({
+        userId,
+        platformId: null,
+        action: 'Multi-Platform Post',
+        description: `Posted to ${successfulPosts}/${totalPosts} platforms`,
+        status: successfulPosts > 0 ? 'success' : 'error',
+        metadata: { results },
+      });
+
+      res.json({ results, summary: { successful: successfulPosts, total: totalPosts } });
+    } catch (error) {
+      console.error('Social media posting error:', error);
+      res.status(500).json({ error: 'Failed to post content' });
+    }
+  });
+
+  app.post('/api/social/validate-tokens', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await socialMediaManager.validateAllTokens(userId);
+
+      const updatedAccounts = await storage.getUserAccounts(userId);
+      res.json({
+        success: true,
+        accounts: updatedAccounts.map(acc => ({
+          id: acc.id,
+          platformId: acc.platformId,
+          authStatus: acc.authStatus,
+          isActive: acc.isActive,
+        }))
+      });
+    } catch (error) {
+      console.error('Token validation error:', error);
+      res.status(500).json({ error: 'Failed to validate tokens' });
+    }
+  });
+
+  // === AI ОБУЧЕНИЕ И РАЗВИТИЕ СИСТЕМЫ ===
+
+  // Инициализация AI обучения для клиента
+  app.post('/api/ai/initialize-learning', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientProfile } = req.body;
+
+      await aiLearningEngine.trainOnClientData(userId, clientProfile);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Learning Initialized',
+        description: 'AI система обучена на данных клиента',
+        status: 'success',
+        metadata: { clientProfile: clientProfile.name },
+      });
+
+      res.json({
+        message: 'AI система успешно обучена на данных клиента',
+        learningStatus: 'initialized',
+      });
+    } catch (error) {
+      console.error('Ошибка инициализации обучения AI:', error);
+      res.status(500).json({ error: 'Не удалось инициализировать обучение AI' });
+    }
+  });
+
+  // Генерация продвинутой стратегии продвижения
+  app.post('/api/ai/generate-advanced-strategy', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientProfile } = req.body;
+
+      const strategy = await aiLearningEngine.generateAdvancedPromotionStrategy(clientProfile);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Advanced Strategy Generated',
+        description: 'Создана продвинутая AI стратегия продвижения',
+        status: 'success',
+        metadata: { strategy: strategy },
+      });
+
+      res.json({
+        strategy,
+        message: 'Продвинутая стратегия продвижения создана',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации продвинутой стратегии:', error);
+      res.status(500).json({ error: 'Не удалось создать продвинутую стратегию' });
+    }
+  });
+
+  // Предсказание успешности контента
+  app.post('/api/ai/predict-content-success', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, platform, timing, clientProfile } = req.body;
+
+      const prediction = await aiLearningEngine.predictContentSuccess(
+        content,
+        platform,
+        new Date(timing),
+        clientProfile
+      );
+
+      res.json({
+        prediction,
+        message: 'Прогноз успешности контента готов',
+      });
+    } catch (error) {
+      console.error('Ошибка предсказания успешности:', error);
+      res.status(500).json({ error: 'Не удалось спрогнозировать успешность контента' });
+    }
+  });
+
+  // Генерация уникального контента
+  app.post('/api/ai/generate-unique-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientProfile, contentType, platform } = req.body;
+
+      const uniqueContent = await aiLearningEngine.generateUniqueContent(
+        clientProfile,
+        contentType,
+        platform
+      );
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Unique Content Generated',
+        description: `Создан уникальный ${contentType} контент для ${platform}`,
+        status: 'success',
+        metadata: { contentType, platform, uniqueness_score: uniqueContent.uniqueness_score },
+      });
+
+      res.json({
+        content: uniqueContent,
+        message: 'Уникальный контент создан',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации уникального контента:', error);
+      res.status(500).json({ error: 'Не удалось создать уникальный контент' });
+    }
+  });
+
+  // Генерация вирусных триггеров
+  app.post('/api/ai/generate-viral-triggers', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { contentType, platform, audience } = req.body;
+
+      const viralTriggers = await aiLearningEngine.generateViralTriggers(
+        contentType,
+        platform,
+        audience
+      );
+
+      res.json({
+        triggers: viralTriggers,
+        message: 'Вирусные триггеры созданы',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации вирусных триггеров:', error);
+      res.status(500).json({ error: 'Не удалось создать вирусные триггеры' });
+    }
+  });
+
+  // Запуск непрерывного обучения
+  app.post('/api/ai/continuous-learning', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      await aiLearningEngine.continuousLearning();
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Continuous Learning Cycle',
+        description: 'Запущен цикл непрерывного обучения AI',
+        status: 'success',
+        metadata: { timestamp: new Date() },
+      });
+
+      res.json({
+        message: 'Цикл непрерывного обучения завершен',
+        status: 'learning_updated',
+      });
+    } catch (error) {
+      console.error('Ошибка непрерывного обучения:', error);
+      res.status(500).json({ error: 'Не удалось выполнить обучение' });
+    }
+  });
+
+  // Отчет об обучении AI
+  app.get('/api/ai/learning-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const report = await aiLearningEngine.generateLearningReport(userId);
+
+      res.json({
+        report,
+        message: 'Отчет об обучении AI готов',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации отчета об обучении:', error);
+      res.status(500).json({ error: 'Не удалось создать отчет' });
+    }
+  });
+
+  // Автоматическое обучение системы (запускается периодически)
+  app.post('/api/ai/auto-learning', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Запускаем автоматическое обучение в фоне
+      setInterval(async () => {
+        try {
+          await aiLearningEngine.continuousLearning();
+          console.log('🔄 Автоматическое обучение AI выполнено');
+        } catch (error) {
+          console.error('Ошибка автоматического обучения:', error);
+        }
+      }, 60 * 60 * 1000); // Каждый час
+
+      res.json({
+        message: 'Автоматическое обучение AI активировано',
+        frequency: 'каждый час',
+      });
+    } catch (error) {
+      console.error('Ошибка активации автоматического обучения:', error);
+      res.status(500).json({ error: 'Не удалось активировать автоматическое обучение' });
+    }
+  });
+
+  // === РЕВОЛЮЦИОННЫЕ ФУНКЦИИ ВИРУСНОГО РОСТА ===
+
+  // Анализ вирусного потенциала
+  app.post('/api/viral/analyze-potential', isAuthenticated, async (req: any, res) => {
+    try {
+      const { content, platform } = req.body;
+      const viralMetrics = await viralGrowthEngine.analyzeViralPotential(content, platform);
+      res.json({ metrics: viralMetrics, message: 'Анализ вирусного потенциала завершен' });
+    } catch (error) {
+      console.error('Ошибка анализа вирусного потенциала:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать вирусный потенциал' });
+    }
+  });
+
+  // Генерация вирусного контента
+  app.post('/api/viral/generate-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const { niche, platform, targetEmotion } = req.body;
+      const viralContent = await viralGrowthEngine.generateViralContent(niche, platform, targetEmotion);
+
+      res.json({
+        content: viralContent,
+        message: 'Вирусный контент создан с высоким потенциалом',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации вирусного контента:', error);
+      res.status(500).json({ error: 'Не удалось создать вирусный контент' });
+    }
+  });
+
+  // Запуск вирусной кампании
+  app.post('/api/viral/launch-campaign', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { campaignType, niche } = req.body;
+
+      const campaign = await viralGrowthEngine.launchViralCampaign(userId, campaignType, niche);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Viral Campaign Launched',
+        description: `Запущена вирусная кампания: ${campaignType}`,
+        status: 'success',
+        metadata: campaign,
+      });
+
+      res.json({
+        campaign,
+        message: 'Вирусная кампания успешно запущена!',
+      });
+    } catch (error) {
+      console.error('Ошибка запуска вирусной кампании:', error);
+      res.status(500).json({ error: 'Не удалось запустить вирусную кампанию' });
+    }
+  });
+
+  // Генерация психологических триггеров
+  app.post('/api/viral/psychological-triggers', isAuthenticated, async (req: any, res) => {
+    try {
+      const { audience, goal } = req.body;
+      const triggers = await viralGrowthEngine.generatePsychologicalTriggers(audience, goal);
+
+      res.json({
+        triggers,
+        message: 'Психологические триггеры сгенерированы',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации психологических триггеров:', error);
+      res.status(500).json({ error: 'Не удалось создать психологические триггеры' });
+    }
+  });
+
+  // Создание эмоционального контента
+  app.post('/api/viral/emotional-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const { emotion, niche, platform } = req.body;
+      const emotionalContent = await viralGrowthEngine.createEmotionalContent(emotion, niche, platform);
+
+      res.json({
+        content: emotionalContent,
+        emotion,
+        message: `Эмоциональный контент (${emotion}) создан`,
+      });
+    } catch (error) {
+      console.error('Ошибка создания эмоционального контента:', error);
+      res.status(500).json({ error: 'Не удалось создать эмоциональный контент' });
+    }
+  });
+
+  // Применение нейромаркетинга
+  app.post('/api/viral/neuromarketing', isAuthenticated, async (req: any, res) => {
+    try {
+      const { content } = req.body;
+      const enhancedContent = await viralGrowthEngine.applyNeuroMarketingPrinciples(content);
+
+      res.json({
+        original: content,
+        enhanced: enhancedContent,
+        message: 'Нейромаркетинговые принципы применены',
+      });
+    } catch (error) {
+      console.error('Ошибка применения нейромаркетинга:', error);
+      res.status(500).json({ error: 'Не удалось применить нейромаркетинг' });
+    }
+  });
+
+  // === СИСТЕМА СЛЕЖЕНИЯ ЗА КОНКУРЕНТАМИ ===
+
+  // Мониторинг конкурентов
+  app.post('/api/competitors/monitor', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { niche } = req.body;
+
+      const intelligence = await competitorSurveillance.monitorCompetitors(niche);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Competitor Intelligence',
+        description: `Собрана разведка по конкурентам в нише: ${niche}`,
+        status: 'success',
+        metadata: intelligence,
+      });
+
+      res.json({
+        intelligence,
+        message: 'Разведданные по конкурентам получены',
+      });
+    } catch (error) {
+      console.error('Ошибка мониторинга конкурентов:', error);
+      res.status(500).json({ error: 'Не удалось провести мониторинг конкурентов' });
+    }
+  });
+
+  // Анализ стратегий конкурентов
+  app.post('/api/competitors/analyze-strategies', isAuthenticated, async (req: any, res) => {
+    try {
+      const { competitors } = req.body;
+      const strategies = await competitorSurveillance.analyzeCompetitorStrategies(competitors);
+
+      res.json({
+        strategies,
+        message: 'Стратегии конкурентов проанализированы',
+      });
+    } catch (error) {
+      console.error('Ошибка анализа стратегий конкурентов:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать стратегии конкурентов' });
+    }
+  });
+
+  // Создание контр-стратегии
+  app.post('/api/competitors/counter-strategy', isAuthenticated, async (req: any, res) => {
+    try {
+      const { competitorHandle, theirStrategy } = req.body;
+      const counterStrategy = await competitorSurveillance.createCounterStrategy(competitorHandle, theirStrategy);
+
+      res.json({
+        counterStrategy,
+        message: 'Контр-стратегия создана',
+      });
+    } catch (error) {
+      console.error('Ошибка создания контр-стратегии:', error);
+      res.status(500).json({ error: 'Не удалось создать контр-стратегию' });
+    }
+  });
+
+  // Предсказание действий конкурентов
+  app.post('/api/competitors/predict-moves', isAuthenticated, async (req: any, res) => {
+    try {
+      const { competitorData, marketTrends } = req.body;
+      const predictions = await competitorSurveillance.predictCompetitorMoves(competitorData, marketTrends);
+
+      res.json({
+        predictions,
+        message: 'Действия конкурентов спрогнозированы',
+      });
+    } catch (error) {
+      console.error('Ошибка предсказания действий конкурентов:', error);
+      res.status(500).json({ error: 'Не удалось спрогнозировать действия конкурентов' });
+    }
+  });
+
+  // Настройка автоматического мониторинга
+  app.post('/api/competitors/setup-monitoring', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { competitors } = req.body;
+
+      await competitorSurveillance.setupAutomaticMonitoring(userId, competitors);
+
+      res.json({
+        message: 'Автоматический мониторинг конкурентов настроен',
+        competitors: competitors.length,
+      });
+    } catch (error) {
+      console.error('Ошибка настройки мониторинга:', error);
+      res.status(500).json({ error: 'Не удалось настроить мониторинг' });
+    }
+  });
+
+  // === СИСТЕМА ДОМИНИРОВАНИЯ БРЕНДА ===
+
+  // Создание плана доминирования
+  app.post('/api/domination/create-plan', isAuthenticated, async (req: any, res) => {
+    try {
+      const { clientProfile, targetMarketShare } = req.body;
+      const dominationPlan = await brandDominationEngine.createDominationPlan(clientProfile, targetMarketShare);
+
+      res.json({
+        plan: dominationPlan,
+        message: 'План доминирования создан',
+      });
+    } catch (error) {
+      console.error('Ошибка создания плана доминирования:', error);
+      res.status(500).json({ error: 'Не удалось создать план доминирования' });
+    }
+  });
+
+  // Создание брендовой империи
+  app.post('/api/domination/build-empire', isAuthenticated, async (req: any, res) => {
+    try {
+      const { clientProfile } = req.body;
+      const empire = await brandDominationEngine.buildBrandEmpire(clientProfile);
+
+      res.json({
+        empire,
+        message: 'Брендовая империя создана',
+      });
+    } catch (error) {
+      console.error('Ошибка создания брендовой империи:', error);
+      res.status(500).json({ error: 'Не удалось создать брендовую империю' });
+    }
+  });
+
+  // Запуск агрессивного роста
+  app.post('/api/domination/aggressive-growth', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientProfile } = req.body;
+
+      const results = await brandDominationEngine.executeAggressiveGrowth(userId, clientProfile);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Aggressive Growth Launched',
+        description: 'Запущена агрессивная стратегия роста и доминирования',
+        status: 'success',
+        metadata: results,
+      });
+
+      res.json({
+        results,
+        message: 'Агрессивная стратегия роста запущена!',
+      });
+    } catch (error) {
+      console.error('Ошибка запуска агрессивного роста:', error);
+      res.status(500).json({ error: 'Не удалось запустить агрессивный рост' });
+    }
+  });
+
+  // Психологическая кампания
+  app.post('/api/domination/psychological-campaign', isAuthenticated, async (req: any, res) => {
+    try {
+      const { targetAudience, competitorWeaknesses } = req.body;
+      const campaign = await brandDominationEngine.launchPsychologicalCampaign(targetAudience, competitorWeaknesses);
+
+      res.json({
+        campaign,
+        message: 'Психологическая кампания запущена',
+      });
+    } catch (error) {
+      console.error('Ошибка запуска психологической кампании:', error);
+      res.status(500).json({ error: 'Не удалось запустить психологическую кампанию' });
+    }
+  });
+
+  // План монополизации
+  app.post('/api/domination/monopolization-plan', isAuthenticated, async (req: any, res) => {
+    try {
+      const { niche } = req.body;
+      const monopolizationPlan = await brandDominationEngine.createMonopolizationPlan(niche);
+
+      res.json({
+        plan: monopolizationPlan,
+        message: 'План монополизации рынка создан',
+      });
+    } catch (error) {
+      console.error('Ошибка создания плана монополизации:', error);
+      res.status(500).json({ error: 'Не удалось создать план монополизации' });
+    }
+  });
+
+  // === GROK API INTEGRATION ===
+
+  // Тестирование Grok API
+  app.post('/api/grok/test', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { message } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const result = await grokService.testGrokAPI(message);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Grok API Test',
+        description: `Tested Grok API with message: ${message}`,
+        platformId: null,
+        status: 'success',
+        metadata: { message, result },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error testing Grok API:", error);
+      res.status(500).json({ message: "Failed to test Grok API" });
+    }
+  });
+
+  // === ПРОДВИНУТАЯ АНАЛИТИКА ===
+
+  // Получить продвинутые метрики
+  app.get('/api/analytics/advanced-metrics/:userId/:platformId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId, platformId } = req.params;
+
+      // Симуляция продвинутых метрик (в реальности здесь был бы сложный AI анализ)
+      const advancedMetrics = {
+        viral_potential: Math.floor(Math.random() * 100),
+        content_quality_score: Math.floor(Math.random() * 100),
+        audience_sentiment: ['positive', 'negative', 'neutral'][Math.floor(Math.random() * 3)],
+        trend_alignment: Math.floor(Math.random() * 100),
+        competition_analysis: {
+          market_position: Math.floor(Math.random() * 100),
+          competitive_advantage: [
+            'Высокое качество контента',
+            'Стабильная аудитория',
+            'Уникальный стиль',
+            'Актуальные темы'
+          ],
+          threats: [
+            'Растущая конкуренция',
+            'Изменения алгоритмов',
+            'Сезонные колебания'
+          ],
+          opportunities: [
+            'Новые форматы контента',
+            'Партнерские программы',
+            'Международная экспансия',
+            'Диверсификация платформ'
+          ]
+        },
+        growth_projection: {
+          next_30_days: Math.floor(Math.random() * 50) + 10,
+          confidence: Math.floor(Math.random() * 30) + 70,
+          required_actions: [
+            'Увеличить частоту публикаций',
+            'Улучшить взаимодействие с аудиторией',
+            'Оптимизировать время публикаций'
+          ]
+        },
+        monetization_opportunities: {
+          potential_revenue: Math.floor(Math.random() * 10000) + 1000,
+          recommended_strategies: [
+            'Спонсорские интеграции',
+            'Партнерские программы',
+            'Продажа курсов/консультаций',
+            'Платные подписки',
+            'Мерчендайзинг'
+          ],
+          risk_level: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)]
+        }
+      };
+
+      res.json(advancedMetrics);
+    } catch (error) {
+      console.error("Error getting advanced metrics:", error);
+      res.status(500).json({ message: "Failed to get advanced metrics" });
+    }
+  });
+
+  // Получить Grok AI инсайты
+  app.get('/api/grok/insights/:userId/:platformId/:depth', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId, platformId, depth } = req.params;
+
+      const result = await grokService.generateAdvancedInsights(userId, parseInt(platformId), depth);
+      res.json(result);
+    } catch (error) {
+      console.error("Error getting Grok insights:", error);
+      res.status(500).json({ message: "Failed to get Grok insights" });
+    }
+  });
+
+  // Генерировать новый анализ
+  app.post('/api/grok/generate-analysis', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { platformId, depth } = req.body;
+
+      const result = await grokService.generateComprehensiveAnalysis(userId, platformId, depth);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Advanced Analysis Generated',
+        description: `Generated ${depth} analysis for platform ${platformId}`,
+        platformId: platformId,
+        status: 'success',
+        metadata: { depth, analysisType: 'comprehensive' },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating analysis:", error);
+      res.status(500).json({ message: "Failed to generate analysis" });
+    }
+  });
+
+  // Прогностический анализ
+  app.get('/api/analytics/predictive/:userId/:platformId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId, platformId } = req.params;
+
+      const result = await grokService.generatePredictiveAnalysis(userId, parseInt(platformId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error getting predictive analysis:", error);
+      res.status(500).json({ message: "Failed to get predictive analysis" });
+    }
+  });
+
+  // Setup advanced promotion strategy routes
+  setupPromotionStrategyRoutes(app);
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
