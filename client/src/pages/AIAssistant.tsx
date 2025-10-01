@@ -386,8 +386,8 @@ export default function AIAssistant() {
               </>
             )}
           </Card>
+        </div>
       </div>
-    </div>
-  </Layout>
+    </Layout>
   );
 }
