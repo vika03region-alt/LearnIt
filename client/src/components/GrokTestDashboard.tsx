@@ -62,9 +62,27 @@ export function GrokTestDashboard() {
       const response = await fetch('/api/grok/status');
       const status = await response.json();
       setGrokStatus(status);
+      
+      if (!status.available) {
+        toast({
+          title: "Grok API недоступен",
+          description: "Добавьте GROK_API_KEY в секреты Replit",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Grok AI готов к работе!",
+          description: `Модель: ${status.model}`,
+        });
+      }
     } catch (error) {
       console.error('Ошибка проверки статуса Grok:', error);
       setGrokStatus({ available: false, model: 'unavailable', features: [] });
+      toast({
+        title: "Ошибка подключения",
+        description: "Не удалось проверить статус Grok API",
+        variant: "destructive",
+      });
     }
   };
 
@@ -235,6 +253,41 @@ export function GrokTestDashboard() {
     }
   };
 
+  const testGrokConnection = async () => {
+    setLoading('testing-connection');
+    try {
+      // Отправляем простой тестовый запрос к Grok
+      const response = await fetch('/api/grok/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt: "Привет! Это тест подключения. Ответь кратко, что ты Grok AI от xAI.",
+          contentType: 'general'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setResponse(result);
+        toast({
+          title: "✅ Подключение успешно!",
+          description: `Grok AI отвечает. Использовано ${result.tokensUsed} токенов.`,
+        });
+      } else {
+        throw new Error(result.error || result.details);
+      }
+    } catch (error) {
+      toast({
+        title: "❌ Ошибка подключения",
+        description: error instanceof Error ? error.message : "Не удалось подключиться к Grok API",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const compareWithAI = async () => {
     if (!prompt.trim()) {
       toast({
@@ -338,9 +391,65 @@ export function GrokTestDashboard() {
               <br />
               Получить API ключ можно на <a href="https://x.ai" target="_blank" rel="noopener noreferrer" className="underline">x.ai</a>
             </div>
+            <div className="mt-3">
+              <Button 
+                onClick={testGrokConnection} 
+                disabled={loading === 'testing-connection'}
+                variant="outline" 
+                size="sm"
+              >
+                {loading === 'testing-connection' ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Тестирование...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 mr-2" />
+                    Тест подключения
+                  </>
+                )}
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
-      )}
+      )}</div>
+
+      {/* Тест подключения */}
+      <Card className="border-purple-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-purple-600" />
+            Тест реального подключения к Grok
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">
+                Проверить реальное подключение к Grok API и выполнить тестовый запрос
+              </p>
+            </div>
+            <Button 
+              onClick={testGrokConnection} 
+              disabled={loading === 'testing-connection'}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {loading === 'testing-connection' ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Тестирование...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-4 h-4 mr-2" />
+                  Тест подключения
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {grokStatus?.available && (
         <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">

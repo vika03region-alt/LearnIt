@@ -18,6 +18,13 @@ class GrokService {
   private initializeGrok(): void {
     const grokApiKey = process.env.GROK_API_KEY;
     
+    console.log('🔍 Проверка Grok API Key:', {
+      exists: !!grokApiKey,
+      length: grokApiKey?.length || 0,
+      starts_with_grok: grokApiKey?.startsWith('grok-') || false,
+      preview: grokApiKey ? `${grokApiKey.substring(0, 8)}...` : 'отсутствует'
+    });
+    
     if (grokApiKey && grokApiKey.startsWith('grok-')) {
       try {
         // Grok использует OpenAI-совместимый API
@@ -26,13 +33,19 @@ class GrokService {
           baseURL: "https://api.x.ai/v1", // xAI API endpoint
         });
         this.isGrokAvailable = true;
-        console.log('🤖 Grok API инициализирован');
+        console.log('🤖 Grok API успешно инициализирован');
+        console.log('🔗 API Endpoint: https://api.x.ai/v1');
       } catch (error) {
-        console.error('Ошибка инициализации Grok API:', error);
+        console.error('❌ Ошибка инициализации Grok API:', error);
         this.isGrokAvailable = false;
       }
     } else {
-      console.log('⚠️ Grok API key не найден или неверный формат');
+      if (!grokApiKey) {
+        console.log('⚠️ GROK_API_KEY не найден в переменных окружения');
+      } else {
+        console.log('⚠️ GROK_API_KEY имеет неверный формат. Должен начинаться с "grok-"');
+        console.log('📝 Текущий формат:', grokApiKey.substring(0, 10) + '...');
+      }
       this.isGrokAvailable = false;
     }
   }
@@ -181,7 +194,15 @@ class GrokService {
     available: boolean;
     model: string;
     features: string[];
+    diagnostics?: {
+      apiKeyExists: boolean;
+      apiKeyFormat: boolean;
+      endpoint: string;
+      initialized: boolean;
+    };
   } {
+    const grokApiKey = process.env.GROK_API_KEY;
+    
     return {
       available: this.isAvailable(),
       model: this.isAvailable() ? "grok-beta" : "unavailable",
@@ -191,7 +212,13 @@ class GrokService {
         "Вирусный контент",
         "Образовательные материалы",
         "Сравнительный анализ"
-      ] : []
+      ] : [],
+      diagnostics: {
+        apiKeyExists: !!grokApiKey,
+        apiKeyFormat: grokApiKey?.startsWith('grok-') || false,
+        endpoint: "https://api.x.ai/v1",
+        initialized: this.grok !== null
+      }
     };
   }
 }
