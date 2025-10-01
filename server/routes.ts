@@ -227,6 +227,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === AI АССИСТЕНТ ===
 
+  // Получить доступные AI провайдеры
+  app.get('/api/ai/providers', isAuthenticated, async (req: any, res) => {
+    try {
+      const providers = aiAssistantService.getAvailableProviders();
+      res.json(providers);
+    } catch (error) {
+      console.error("Error fetching AI providers:", error);
+      res.status(500).json({ message: "Failed to fetch AI providers" });
+    }
+  });
+
   // Получить все разговоры пользователя
   app.get('/api/ai/conversations', isAuthenticated, async (req: any, res) => {
     try {
@@ -243,8 +254,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/ai/conversations', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { title } = req.body;
-      const conversation = await aiAssistantService.createConversation(userId, title);
+      const { title, provider } = req.body;
+      const conversation = await aiAssistantService.createConversation(userId, title, provider);
       res.json(conversation);
     } catch (error) {
       console.error("Error creating conversation:", error);
@@ -275,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const result = await aiAssistantService.sendMessage(conversationId, message.trim());
-
+      
       // Логируем активность
       const userId = req.user.claims.sub;
       await storage.createActivityLog({
@@ -322,9 +333,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
-
+      
       const success = await aiAssistantService.deleteConversation(conversationId, userId);
-
+      
       if (success) {
         await storage.createActivityLog({
           userId,
@@ -349,14 +360,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = parseInt(req.params.id);
       const title = await aiAssistantService.generateConversationTitle(conversationId);
-
+      
       const userId = req.user.claims.sub;
       const updatedConversation = await aiAssistantService.updateConversationTitle(
         conversationId, 
         userId, 
         title
       );
-
+      
       res.json({ title, conversation: updatedConversation });
     } catch (error) {
       console.error("Error generating title:", error);
@@ -1467,7 +1478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { niche, platform, targetEmotion } = req.body;
       const viralContent = await viralGrowthEngine.generateViralContent(niche, platform, targetEmotion);
-
+      
       res.json({
         content: viralContent,
         message: 'Вирусный контент создан с высоким потенциалом',
@@ -1483,9 +1494,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { campaignType, niche } = req.body;
-
+      
       const campaign = await viralGrowthEngine.launchViralCampaign(userId, campaignType, niche);
-
+      
       await storage.createActivityLog({
         userId,
         action: 'Viral Campaign Launched',
@@ -1509,7 +1520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { audience, goal } = req.body;
       const triggers = await viralGrowthEngine.generatePsychologicalTriggers(audience, goal);
-
+      
       res.json({
         triggers,
         message: 'Психологические триггеры сгенерированы',
@@ -1525,7 +1536,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { emotion, niche, platform } = req.body;
       const emotionalContent = await viralGrowthEngine.createEmotionalContent(emotion, niche, platform);
-
+      
       res.json({
         content: emotionalContent,
         emotion,
@@ -1542,7 +1553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { content } = req.body;
       const enhancedContent = await viralGrowthEngine.applyNeuroMarketingPrinciples(content);
-
+      
       res.json({
         original: content,
         enhanced: enhancedContent,
@@ -1561,9 +1572,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { niche } = req.body;
-
+      
       const intelligence = await competitorSurveillance.monitorCompetitors(niche);
-
+      
       await storage.createActivityLog({
         userId,
         action: 'Competitor Intelligence',
@@ -1587,7 +1598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitors } = req.body;
       const strategies = await competitorSurveillance.analyzeCompetitorStrategies(competitors);
-
+      
       res.json({
         strategies,
         message: 'Стратегии конкурентов проанализированы',
@@ -1603,7 +1614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitorHandle, theirStrategy } = req.body;
       const counterStrategy = await competitorSurveillance.createCounterStrategy(competitorHandle, theirStrategy);
-
+      
       res.json({
         counterStrategy,
         message: 'Контр-стратегия создана',
@@ -1619,7 +1630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitorData, marketTrends } = req.body;
       const predictions = await competitorSurveillance.predictCompetitorMoves(competitorData, marketTrends);
-
+      
       res.json({
         predictions,
         message: 'Действия конкурентов спрогнозированы',
@@ -1635,9 +1646,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { competitors } = req.body;
-
+      
       await competitorSurveillance.setupAutomaticMonitoring(userId, competitors);
-
+      
       res.json({
         message: 'Автоматический мониторинг конкурентов настроен',
         competitors: competitors.length,
@@ -1648,6 +1659,209 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === АВТОНОМНАЯ AI СИСТЕМА ===
+
+  // Запуск автономной разработки
+  app.post('/api/autonomous/start', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const { autonomousAI } = await import('./services/autonomousAI');
+      
+      // Запускаем автономную разработку в фоне
+      autonomousAI.startAutonomousDevelopment().catch(error => {
+        console.error('Ошибка автономной разработки:', error);
+      });
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Autonomous AI Started',
+        description: 'Запущена автономная AI система саморазвития',
+        status: 'success',
+        metadata: { timestamp: new Date() },
+      });
+
+      res.json({
+        message: 'Автономная AI система запущена! Система будет самостоятельно развиваться.',
+        status: 'running',
+      });
+    } catch (error) {
+      console.error('Ошибка запуска автономной AI:', error);
+      res.status(500).json({ error: 'Не удалось запустить автономную AI систему' });
+    }
+  });
+
+  // Остановка автономной разработки
+  app.post('/api/autonomous/stop', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const { autonomousAI } = await import('./services/autonomousAI');
+      autonomousAI.stopAutonomousDevelopment();
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Autonomous AI Stopped',
+        description: 'Остановлена автономная AI система',
+        status: 'success',
+        metadata: { timestamp: new Date() },
+      });
+
+      res.json({
+        message: 'Автономная AI система остановлена',
+        status: 'stopped',
+      });
+    } catch (error) {
+      console.error('Ошибка остановки автономной AI:', error);
+      res.status(500).json({ error: 'Не удалось остановить автономную AI систему' });
+    }
+  });
+
+  // Статус автономной системы
+  app.get('/api/autonomous/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const { autonomousAI } = await import('./services/autonomousAI');
+      const status = autonomousAI.getStatus();
+
+      res.json({
+        status,
+        message: 'Статус автономной AI системы получен',
+      });
+    } catch (error) {
+      console.error('Ошибка получения статуса автономной AI:', error);
+      res.status(500).json({ error: 'Не удалось получить статус' });
+    }
+  });
+
+  // Принудительное улучшение AI возможностей
+  app.post('/api/autonomous/enhance-ai', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const { autonomousAI } = await import('./services/autonomousAI');
+      
+      // Запускаем улучшение AI в фоне
+      autonomousAI.enhanceAICapabilities().catch(error => {
+        console.error('Ошибка улучшения AI:', error);
+      });
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Enhancement Started',
+        description: 'Запущено улучшение AI возможностей системы',
+        status: 'success',
+        metadata: { timestamp: new Date() },
+      });
+
+      res.json({
+        message: 'Запущено улучшение AI возможностей системы',
+        status: 'enhancing',
+      });
+    } catch (error) {
+      console.error('Ошибка улучшения AI:', error);
+      res.status(500).json({ error: 'Не удалось запустить улучшение AI' });
+    }
+  });
+
+  // Проверка системных секретов
+  app.get('/api/system/check-secrets', isAuthenticated, async (req: any, res) => {
+    try {
+      const secrets = [
+        {
+          name: 'OPENAI_API_KEY',
+          displayName: 'OpenAI GPT-5 API',
+          status: process.env.OPENAI_API_KEY ? 'present' : 'missing',
+          description: 'Ключ для доступа к OpenAI GPT-5 (основной AI)',
+          priority: 'critical'
+        },
+        {
+          name: 'GROK_API_KEY',
+          displayName: 'xAI Grok API',
+          status: process.env.GROK_API_KEY ? 'present' : 'missing',
+          description: 'Ключ для доступа к Grok AI от xAI',
+          priority: 'important'
+        },
+        {
+          name: 'XAI_API_KEY',
+          displayName: 'xAI Alternative Key',
+          status: process.env.XAI_API_KEY ? 'present' : 'missing',
+          description: 'Альтернативный ключ xAI',
+          priority: 'optional'
+        },
+        {
+          name: 'INSTAGRAM_API_KEY',
+          displayName: 'Instagram API',
+          status: process.env.INSTAGRAM_API_KEY ? 'present' : 'missing',
+          description: 'Ключ для интеграции с Instagram',
+          priority: 'important'
+        },
+        {
+          name: 'TIKTOK_API_KEY',
+          displayName: 'TikTok API',
+          status: process.env.TIKTOK_API_KEY ? 'present' : 'missing',
+          description: 'Ключ для интеграции с TikTok',
+          priority: 'important'
+        }
+      ];
+
+      res.json({
+        secrets,
+        summary: {
+          total: secrets.length,
+          present: secrets.filter(s => s.status === 'present').length,
+          missing: secrets.filter(s => s.status === 'missing').length,
+          critical_missing: secrets.filter(s => s.status === 'missing' && s.priority === 'critical').length
+        }
+      });
+    } catch (error) {
+      console.error('Ошибка проверки секретов:', error);
+      res.status(500).json({ error: 'Не удалось проверить секреты' });
+    }
+  });
+
+  // Быстрый тест Grok API
+  app.post('/api/grok/test', isAuthenticated, async (req: any, res) => {
+    try {
+      const { prompt } = req.body;
+      
+      if (!process.env.GROK_API_KEY && !process.env.XAI_API_KEY) {
+        return res.status(400).json({ 
+          error: 'GROK_API_KEY или XAI_API_KEY не найдены в секретах' 
+        });
+      }
+
+      // Тестируем Grok API
+      const grokKey = process.env.GROK_API_KEY || process.env.XAI_API_KEY;
+      const openai = new (await import('openai')).default({
+        apiKey: grokKey,
+        baseURL: 'https://api.x.ai/v1'
+      });
+
+      const response = await openai.chat.completions.create({
+        model: 'grok-2-012',
+        messages: [
+          { role: 'user', content: prompt || 'Тестовый запрос к Grok AI' }
+        ],
+        max_tokens: 200
+      });
+
+      const result = response.choices[0]?.message?.content || 'Пустой ответ от Grok';
+
+      res.json({
+        success: true,
+        result,
+        message: 'Grok API работает корректно',
+        tokens_used: response.usage?.total_tokens || 0
+      });
+    } catch (error) {
+      console.error('Ошибка тестирования Grok API:', error);
+      res.status(500).json({ 
+        error: `Ошибка Grok API: ${error.message}`,
+        details: 'Проверьте правильность API ключа в секретах'
+      });
+    }
+  });
+
   // === СИСТЕМА ДОМИНИРОВАНИЯ БРЕНДА ===
 
   // Создание плана доминирования
@@ -1655,7 +1869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientProfile, targetMarketShare } = req.body;
       const dominationPlan = await brandDominationEngine.createDominationPlan(clientProfile, targetMarketShare);
-
+      
       res.json({
         plan: dominationPlan,
         message: 'План доминирования создан',
@@ -1671,7 +1885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientProfile } = req.body;
       const empire = await brandDominationEngine.buildBrandEmpire(clientProfile);
-
+      
       res.json({
         empire,
         message: 'Брендовая империя создана',
@@ -1687,9 +1901,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { clientProfile } = req.body;
-
+      
       const results = await brandDominationEngine.executeAggressiveGrowth(userId, clientProfile);
-
+      
       await storage.createActivityLog({
         userId,
         action: 'Aggressive Growth Launched',
@@ -1713,7 +1927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { targetAudience, competitorWeaknesses } = req.body;
       const campaign = await brandDominationEngine.launchPsychologicalCampaign(targetAudience, competitorWeaknesses);
-
+      
       res.json({
         campaign,
         message: 'Психологическая кампания запущена',
@@ -1729,7 +1943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { niche } = req.body;
       const monopolizationPlan = await brandDominationEngine.createMonopolizationPlan(niche);
-
+      
       res.json({
         plan: monopolizationPlan,
         message: 'План монополизации рынка создан',
@@ -1742,52 +1956,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup advanced promotion strategy routes
   setupPromotionStrategyRoutes(app);
-
-  // AI Chat API endpoints
-  app.post('/api/ai/chat', isAuthenticated, async (req, res) => {
-    try {
-      const { message, userId, context } = req.body;
-
-      if (!message || !userId) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-
-      // Simple AI response logic
-      let response = "Понял ваш запрос! ";
-      let type = 'text';
-
-      if (message.toLowerCase().includes('анализ') || message.toLowerCase().includes('контент')) {
-        response = "Анализирую ваш контент... Рекомендую использовать больше визуального контента и оптимизировать время публикации для лучшего охвата.";
-        type = 'analysis';
-      } else if (message.toLowerCase().includes('стратег') || message.toLowerCase().includes('продвиж')) {
-        response = "Для эффективного продвижения рекомендую: 1) Увеличить частоту постов до 3-4 в день, 2) Использовать актуальные хештеги, 3) Взаимодействовать с аудиторией в комментариях.";
-        type = 'suggestion';
-      } else if (message.toLowerCase().includes('оптимиз')) {
-        response = "Для оптимизации постов: используйте качественные изображения, добавляйте call-to-action, публикуйте в пиковые часы активности вашей аудитории.";
-        type = 'suggestion';
-      } else {
-        response = "Готов помочь с анализом контента, стратегиями продвижения и оптимизацией. Задайте более конкретный вопрос!";
-      }
-
-      res.json({ response, type });
-    } catch (error) {
-      console.error('AI chat error:', error);
-      res.status(500).json({ error: 'Failed to process chat message' });
-    }
-  });
-
-  app.get('/api/ai/status', isAuthenticated, async (req, res) => {
-    try {
-      res.json({
-        status: 'online',
-        features: ['chat', 'content-generation', 'analysis'],
-        version: '1.0.0'
-      });
-    } catch (error) {
-      console.error('AI status error:', error);
-      res.status(500).json({ error: 'Failed to get AI status' });
-    }
-  });
 
   const httpServer = createServer(app);
   return httpServer;

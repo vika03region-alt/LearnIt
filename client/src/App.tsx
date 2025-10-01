@@ -11,7 +11,8 @@ import AIContent from "@/pages/AIContent";
 import SafetyCenter from "@/pages/SafetyCenter";
 import Scheduler from "@/pages/Scheduler";
 import Settings from "@/pages/Settings";
-import AIAssistant from "@/pages/AIAssistant";
+import SecretsCheck from "@/pages/SecretsCheck";
+import AutonomousAI from "@/pages/AutonomousAI";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -28,8 +29,9 @@ function Router() {
           <Route path="/ai-content" component={AIContent} />
           <Route path="/safety" component={SafetyCenter} />
           <Route path="/scheduler" component={Scheduler} />
+          <Route path="/secrets-check" component={SecretsCheck} />
+          <Route path="/autonomous-ai" component={AutonomousAI} />
           <Route path="/settings" component={Settings} />
-          <Route path="/ai-assistant" component={AIAssistant} />
         </>
       )}
       <Route component={NotFound} />

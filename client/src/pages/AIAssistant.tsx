@@ -1,99 +1,90 @@
-import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
-import Sidebar from "@/components/Sidebar";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Send, Bot, User, Sparkles, Brain, Zap } from "lucide-react";
-import { Link } from "wouter";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { MessageCircle, Send, Plus, Trash2, Edit2, Sparkles, Bot, User } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import Layout from "@/components/Layout";
+
+interface Conversation {
+  id: number;
+  title: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface Message {
-  id: string;
-  role: 'user' | 'assistant';
+  id: number;
+  role: "user" | "assistant";
   content: string;
-  timestamp: Date;
-  type?: 'text' | 'analysis' | 'suggestion';
+  createdAt: string;
 }
 
 export default function AIAssistant() {
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [messageText, setMessageText] = useState("");
+  const [isEditing, setIsEditing] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
   const { toast } = useToast();
-  const { isAuthenticated, isLoading, user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: 'Привет! Я ваш AI помощник по продвижению. Могу помочь с анализом контента, стратегиями продвижения и оптимизацией постов. О чем хотите поговорить?',
-      timestamp: new Date(),
-      type: 'text'
-    }
-  ]);
-  const [newMessage, setNewMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
-    }
-  }, [isAuthenticated, isLoading, toast]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const { data: aiStatus } = useQuery({
-    queryKey: ['/api/ai/status'],
-    retry: false,
+  // Получение всех разговоров
+  const { data: conversations = [], isLoading: loadingConversations } = useQuery({
+    queryKey: ["/api/ai/conversations"],
   });
 
-  const sendMessageMutation = useMutation({
-    mutationFn: async (message: string) => {
-      const response = await apiRequest('POST', '/api/ai/chat', {
-        message,
-        userId: user?.id,
-        context: 'assistant'
-      });
-      return await response.json();
-    },
+  // Получение сообщений выбранного разговора
+  const { data: messages = [], isLoading: loadingMessages } = useQuery({
+    queryKey: ["/api/ai/conversations", selectedConversationId, "messages"],
+    enabled: !!selectedConversationId,
+  });
+
+  // Создание нового разговора
+  const createConversation = useMutation({
+    mutationFn: (title?: string) => apiRequest("/api/ai/conversations", {
+      method: "POST",
+      body: { title: title || "Новый разговор" },
+    }),
     onSuccess: (data) => {
-      const assistantMessage: Message = {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: data.response || 'Понял! Работаю над вашим запросом...',
-        timestamp: new Date(),
-        type: data.type || 'text'
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-      setIsTyping(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/conversations"] });
+      setSelectedConversationId(data.id);
+      toast({
+        title: "Разговор создан",
+        description: "Новый разговор с AI-ассистентом успешно создан",
+      });
     },
     onError: () => {
-      const errorMessage: Message = {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: 'Извините, произошла ошибка. Попробуйте еще раз.',
-        timestamp: new Date(),
-        type: 'text'
-      };
-      setMessages(prev => [...prev, errorMessage]);
-      setIsTyping(false);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось создать разговор",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Отправка сообщения
+  const sendMessage = useMutation({
+    mutationFn: ({ conversationId, message }: { conversationId: number; message: string }) =>
+      apiRequest(`/api/ai/conversations/${conversationId}/messages`, {
+        method: "POST",
+        body: { message },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/ai/conversations", selectedConversationId, "messages"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/conversations"] });
+      setMessageText("");
+    },
+    onError: () => {
       toast({
         title: "Ошибка",
         description: "Не удалось отправить сообщение",
@@ -102,195 +93,302 @@ export default function AIAssistant() {
     },
   });
 
+  // Обновление заголовка разговора
+  const updateTitle = useMutation({
+    mutationFn: ({ conversationId, title }: { conversationId: number; title: string }) =>
+      apiRequest(`/api/ai/conversations/${conversationId}`, {
+        method: "PUT",
+        body: { title },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/conversations"] });
+      setIsEditing(null);
+      setEditTitle("");
+      toast({
+        title: "Заголовок обновлен",
+        description: "Заголовок разговора успешно изменен",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить заголовок",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Удаление разговора
+  const deleteConversation = useMutation({
+    mutationFn: (conversationId: number) =>
+      apiRequest(`/api/ai/conversations/${conversationId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/conversations"] });
+      if (selectedConversationId === selectedConversationId) {
+        setSelectedConversationId(null);
+      }
+      toast({
+        title: "Разговор удален",
+        description: "Разговор успешно удален",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить разговор",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: newMessage,
-      timestamp: new Date(),
-      type: 'text'
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setIsTyping(true);
-    sendMessageMutation.mutate(newMessage);
-    setNewMessage('');
+    if (!messageText.trim() || !selectedConversationId) return;
+    
+    sendMessage.mutate({
+      conversationId: selectedConversationId,
+      message: messageText.trim(),
+    });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
-  const quickActions = [
-    { id: 'analyze', label: 'Анализ контента', icon: <Brain className="w-4 h-4" /> },
-    { id: 'strategy', label: 'Стратегия продвижения', icon: <Sparkles className="w-4 h-4" /> },
-    { id: 'optimize', label: 'Оптимизация постов', icon: <Zap className="w-4 h-4" /> },
-  ];
-
-  const handleQuickAction = (actionId: string) => {
-    let message = '';
-    switch (actionId) {
-      case 'analyze':
-        message = 'Проанализируй мой последний контент и дай рекомендации по улучшению';
-        break;
-      case 'strategy':
-        message = 'Предложи стратегию продвижения для следующей недели';
-        break;
-      case 'optimize':
-        message = 'Как можно оптимизировать мои посты для лучшего охвата?';
-        break;
-    }
-    setNewMessage(message);
+  const handleUpdateTitle = (conversationId: number) => {
+    if (!editTitle.trim()) return;
+    updateTitle.mutate({ conversationId, title: editTitle.trim() });
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading AI Assistant...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar />
-
-      <main className="ml-64 transition-all duration-300">
-        <header className="bg-card border-b border-border px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Link href="/">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Button>
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <Bot className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-foreground">AI Assistant</h2>
-                <p className="text-muted-foreground">
-                  Intelligent promotion assistance
-                </p>
-              </div>
-            </div>
-            <div className="ml-auto">
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
-                AI Online
-              </Badge>
-            </div>
+    <Layout>
+      <div className="container mx-auto p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-2">
+            <Bot className="h-8 w-8 text-blue-600" />
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AI Ассистент</h1>
           </div>
-        </header>
-
-        <div className="flex flex-col h-[calc(100vh-80px)]">
-          {/* Quick Actions */}
-          <div className="p-4 border-b border-border">
-            <div className="flex gap-2">
-              {quickActions.map((action) => (
-                <Button
-                  key={action.id}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuickAction(action.id)}
-                  className="flex items-center gap-2"
-                >
-                  {action.icon}
-                  {action.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {message.role === 'assistant' && (
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Bot className="w-4 h-4 text-white" />
-                  </div>
-                )}
-
-                <div
-                  className={`max-w-md p-3 rounded-lg ${
-                    message.role === 'user'
-                      ? 'bg-blue-600 text-white ml-auto'
-                      : 'bg-muted text-foreground'
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  <p className={`text-xs mt-1 ${
-                    message.role === 'user' ? 'text-blue-100' : 'text-muted-foreground'
-                  }`}>
-                    {message.timestamp.toLocaleTimeString()}
-                  </p>
-                </div>
-
-                {message.role === 'user' && (
-                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-white" />
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {isTyping && (
-              <div className="flex gap-3 justify-start">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-4 h-4 text-white" />
-                </div>
-                <div className="bg-muted p-3 rounded-lg">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Message Input */}
-          <div className="p-4 border-t border-border bg-card">
-            <div className="flex gap-2">
-              <Textarea
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Напишите ваш вопрос..."
-                className="min-h-[40px] max-h-[120px] resize-none"
-                disabled={sendMessageMutation.isPending}
-              />
-              <Button
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim() || sendMessageMutation.isPending}
-                size="sm"
-                className="px-3"
-              >
-                {sendMessageMutation.isPending ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-          </div>
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+            <Sparkles className="w-4 h-4 mr-1" />
+            Умный помощник
+          </Badge>
         </div>
-      </main>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
+          {/* Sidebar с разговорами */}
+          <Card className="lg:col-span-1">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Разговоры</CardTitle>
+                <Button
+                  size="sm"
+                  onClick={() => createConversation.mutate()}
+                  disabled={createConversation.isPending}
+                  data-testid="button-new-conversation"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[500px]">
+                <div className="p-4 space-y-2">
+                  {loadingConversations ? (
+                    <div className="text-center text-gray-500 py-4">Загрузка...</div>
+                  ) : conversations.length === 0 ? (
+                    <div className="text-center text-gray-500 py-4">
+                      Нет разговоров.
+                      <br />
+                      Создайте новый!
+                    </div>
+                  ) : (
+                    conversations.map((conversation: Conversation) => (
+                      <div
+                        key={conversation.id}
+                        className={`p-3 rounded-lg cursor-pointer transition-colors group ${
+                          selectedConversationId === conversation.id
+                            ? "bg-blue-100 dark:bg-blue-900"
+                            : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                        }`}
+                        onClick={() => setSelectedConversationId(conversation.id)}
+                        data-testid={`conversation-${conversation.id}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          {isEditing === conversation.id ? (
+                            <div className="flex-1 flex gap-1">
+                              <Input
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                onKeyPress={(e) => {
+                                  if (e.key === "Enter") {
+                                    handleUpdateTitle(conversation.id);
+                                  }
+                                }}
+                                className="h-6 text-sm"
+                                data-testid={`input-edit-title-${conversation.id}`}
+                              />
+                              <Button
+                                size="sm"
+                                className="h-6 px-2"
+                                onClick={() => handleUpdateTitle(conversation.id)}
+                                data-testid={`button-save-title-${conversation.id}`}
+                              >
+                                ✓
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium truncate">{conversation.title}</p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(conversation.updatedAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsEditing(conversation.id);
+                                    setEditTitle(conversation.title);
+                                  }}
+                                  data-testid={`button-edit-${conversation.id}`}
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 text-red-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteConversation.mutate(conversation.id);
+                                  }}
+                                  data-testid={`button-delete-${conversation.id}`}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Основная область чата */}
+          <Card className="lg:col-span-3 flex flex-col">
+            {!selectedConversationId ? (
+              <CardContent className="flex-1 flex items-center justify-center">
+                <div className="text-center text-gray-500">
+                  <MessageCircle className="w-16 h-16 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Выберите разговор</h3>
+                  <p>Выберите существующий разговор или создайте новый</p>
+                </div>
+              </CardContent>
+            ) : (
+              <>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bot className="w-5 h-5 text-blue-600" />
+                    Чат с AI-ассистентом
+                    <Badge variant="outline" className="ml-auto">
+                      ID: {selectedConversationId}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                
+                <CardContent className="flex-1 flex flex-col p-0">
+                  {/* Сообщения */}
+                  <ScrollArea className="flex-1 p-4">
+                    {loadingMessages ? (
+                      <div className="text-center text-gray-500 py-4">Загрузка сообщений...</div>
+                    ) : messages.length === 0 ? (
+                      <div className="text-center text-gray-500 py-8">
+                        <Bot className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                        <p className="mb-2">Начните разговор с AI-ассистентом</p>
+                        <p className="text-sm">Задайте любой вопрос о контенте, аналитике или платформе</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {messages.map((message: Message) => (
+                          <div
+                            key={message.id}
+                            className={`flex gap-3 ${
+                              message.role === "user" ? "flex-row-reverse" : "flex-row"
+                            }`}
+                            data-testid={`message-${message.id}`}
+                          >
+                            <Avatar className="w-8 h-8">
+                              <AvatarFallback className={message.role === "user" ? "bg-blue-100" : "bg-green-100"}>
+                                {message.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div
+                              className={`flex-1 max-w-[80%] p-3 rounded-lg ${
+                                message.role === "user"
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap">{message.content}</p>
+                              <p className={`text-xs mt-2 ${
+                                message.role === "user" ? "text-blue-100" : "text-gray-500"
+                              }`}>
+                                {new Date(message.createdAt).toLocaleTimeString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+
+                  <Separator />
+
+                  {/* Ввод сообщения */}
+                  <div className="p-4">
+                    <div className="flex gap-2">
+                      <Textarea
+                        placeholder="Напишите ваш вопрос..."
+                        value={messageText}
+                        onChange={(e) => setMessageText(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        className="flex-1 min-h-[80px] resize-none"
+                        disabled={sendMessage.isPending}
+                        data-testid="input-message"
+                      />
+                      <Button
+                        onClick={handleSendMessage}
+                        disabled={!messageText.trim() || sendMessage.isPending}
+                        className="px-4"
+                        data-testid="button-send"
+                      >
+                        {sendMessage.isPending ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          )}
+        </Card>
+      </div>
     </div>
+  </Layout>
   );
 }
