@@ -20,7 +20,7 @@ import {
   AlertTriangle,
   CheckCircle
 } from 'lucide-react';
-import { useToast } from './ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export function ViralGrowthDashboard() {
   const [isLaunching, setIsLaunching] = useState(false);

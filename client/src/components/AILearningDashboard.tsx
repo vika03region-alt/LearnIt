@@ -18,7 +18,7 @@ import {
   AlertCircle,
   Crown
 } from 'lucide-react';
-import { useToast } from './ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface LearningMetrics {
   learning_progress: {

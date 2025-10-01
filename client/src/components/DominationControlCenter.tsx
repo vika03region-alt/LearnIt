@@ -20,7 +20,7 @@ import {
   CheckCircle,
   DollarSign
 } from 'lucide-react';
-import { useToast } from './ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export function DominationControlCenter() {
   const [dominationMode, setDominationMode] = useState('strategic');
