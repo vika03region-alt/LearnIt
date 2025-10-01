@@ -171,6 +171,21 @@ export default function Sidebar() {
               </a>
             </Link>
 
+            <Link href="/ai-assistant">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/ai-assistant"
+                    ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-ai-assistant"
+              >
+                <Brain className="w-5 h-5" />
+                {!collapsed && <span>AI Ассистент</span>}
+              </a>
+            </Link>
+
             <Link href="/safety">
               <a 
                 className={cn(

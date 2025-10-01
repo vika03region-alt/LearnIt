@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "../hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageCircle, Send, Plus, Trash2, Edit2, Sparkles, Bot, User } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
@@ -382,11 +382,10 @@ export default function AIAssistant() {
                       </Button>
                     </div>
                   </div>
-                </>
-              )}
-            </CardContent>
-          )}
-        </Card>
+                </CardContent>
+              </>
+            )}
+          </Card>
       </div>
     </div>
   </Layout>
