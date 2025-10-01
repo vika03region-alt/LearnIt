@@ -102,9 +102,9 @@ export default function Sidebar() {
 
         <nav className="space-y-2">
           <Link href="/">
-            <a 
+            <div 
               className={cn(
-                "flex items-center gap-3 px-3 py-3 rounded-lg transition-colors",
+                "flex items-center gap-3 px-3 py-3 rounded-lg transition-colors cursor-pointer",
                 location === "/" 
                   ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm" 
                   : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
@@ -113,7 +113,7 @@ export default function Sidebar() {
             >
               <Gauge className="w-5 h-5" />
               {!collapsed && <span className="font-medium">Главная Панель</span>}
-            </a>
+            </div>
           </Link>
 
           {/* Раздел платформы */}
@@ -127,9 +127,9 @@ export default function Sidebar() {
 
           {platforms?.map((platform: any) => (
             <Link key={platform.id} href={`/platform/${platform.id}`}>
-              <a 
+              <div 
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
                   location === `/platform/${platform.id}`
                     ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm"
                     : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
@@ -143,7 +143,7 @@ export default function Sidebar() {
                     {getStatusIndicator(getPlatformStatus(platform.name))}
                   </span>
                 )}
-              </a>
+              </div>
             </Link>
           ))}
 
@@ -157,9 +157,9 @@ export default function Sidebar() {
             )}
 
             <Link href="/ai-content">
-              <a 
+              <div 
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
                   location === "/ai-content"
                     ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-sm"
                     : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
@@ -168,13 +168,13 @@ export default function Sidebar() {
               >
                 <Brain className="w-5 h-5" />
                 {!collapsed && <span>AI Контент</span>}
-              </a>
+              </div>
             </Link>
 
             <Link href="/ai-assistant">
-              <a 
+              <div 
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
                   location === "/ai-assistant"
                     ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-sm"
                     : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
@@ -183,13 +183,13 @@ export default function Sidebar() {
               >
                 <Brain className="w-5 h-5" />
                 {!collapsed && <span>AI Ассистент</span>}
-              </a>
+              </div>
             </Link>
 
             <Link href="/telegram-test">
-              <a 
+              <div 
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
                   location === "/telegram-test"
                     ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-sm"
                     : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
@@ -198,13 +198,13 @@ export default function Sidebar() {
               >
                 <MessageCircle className="w-5 h-5" />
                 {!collapsed && <span>Telegram Test</span>}
-              </a>
+              </div>
             </Link>
 
             <Link href="/safety">
-              <a 
+              <div 
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
                   location === "/safety"
                     ? "bg-gradient-to-r from-green-500 to-blue-600 text-white shadow-sm"
                     : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
@@ -213,13 +213,13 @@ export default function Sidebar() {
               >
                 <Shield className="w-5 h-5" />
                 {!collapsed && <span>Безопасность</span>}
-              </a>
+              </div>
             </Link>
 
             <Link href="/scheduler">
-              <a 
+              <div 
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
                   location === "/scheduler"
                     ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-sm"
                     : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
@@ -228,13 +228,13 @@ export default function Sidebar() {
               >
                 <Calendar className="w-5 h-5" />
                 {!collapsed && <span>Планировщик</span>}
-              </a>
+              </div>
             </Link>
 
             <Link href="/settings">
-              <a 
+              <div 
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
                   location === "/settings"
                     ? "bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-sm"
                     : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
@@ -243,7 +243,7 @@ export default function Sidebar() {
               >
                 <Settings className="w-5 h-5" />
                 {!collapsed && <span>Настройки</span>}
-              </a>
+              </div>
             </Link>
           </div>
         </nav>

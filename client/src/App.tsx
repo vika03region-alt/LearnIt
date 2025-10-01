@@ -1,3 +1,4 @@
+import React from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -27,7 +28,16 @@ function Router() {
           <Route path="/platform/:platformId" component={PlatformDetails} />
           <Route path="/ai-content" component={AIContent} />
           <Route path="/ai-assistant" component={AIAssistant} />
-          <Route path="/telegram-test" component={() => import('./components/TelegramTestDashboard').then(m => m.TelegramTestDashboard)} />
+          <Route path="/telegram-test">
+            {() => {
+              const TelegramTestDashboard = React.lazy(() => import('./components/TelegramTestDashboard').then(m => ({ default: m.TelegramTestDashboard })));
+              return (
+                <React.Suspense fallback={<div>Loading...</div>}>
+                  <TelegramTestDashboard />
+                </React.Suspense>
+              );
+            }}
+          </Route>
           <Route path="/safety" component={SafetyCenter} />
           <Route path="/scheduler" component={Scheduler} />
           <Route path="/settings" component={Settings} />
