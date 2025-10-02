@@ -275,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const result = await aiAssistantService.sendMessage(conversationId, message.trim());
-      
+
       // Логируем активность
       const userId = req.user.claims.sub;
       await storage.createActivityLog({
@@ -322,9 +322,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
-      
+
       const success = await aiAssistantService.deleteConversation(conversationId, userId);
-      
+
       if (success) {
         await storage.createActivityLog({
           userId,
@@ -349,14 +349,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = parseInt(req.params.id);
       const title = await aiAssistantService.generateConversationTitle(conversationId);
-      
+
       const userId = req.user.claims.sub;
       const updatedConversation = await aiAssistantService.updateConversationTitle(
         conversationId, 
         userId, 
         title
       );
-      
+
       res.json({ title, conversation: updatedConversation });
     } catch (error) {
       console.error("Error generating title:", error);
@@ -1851,7 +1851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { niche, platform, targetEmotion } = req.body;
       const viralContent = await viralGrowthEngine.generateViralContent(niche, platform, targetEmotion);
-      
+
       res.json({
         content: viralContent,
         message: 'Вирусный контент создан с высоким потенциалом',
@@ -1867,9 +1867,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { campaignType, niche } = req.body;
-      
+
       const campaign = await viralGrowthEngine.launchViralCampaign(userId, campaignType, niche);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'Viral Campaign Launched',
@@ -1893,7 +1893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { audience, goal } = req.body;
       const triggers = await viralGrowthEngine.generatePsychologicalTriggers(audience, goal);
-      
+
       res.json({
         triggers,
         message: 'Психологические триггеры сгенерированы',
@@ -1909,7 +1909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { emotion, niche, platform } = req.body;
       const emotionalContent = await viralGrowthEngine.createEmotionalContent(emotion, niche, platform);
-      
+
       res.json({
         content: emotionalContent,
         emotion,
@@ -1926,7 +1926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { content } = req.body;
       const enhancedContent = await viralGrowthEngine.applyNeuroMarketingPrinciples(content);
-      
+
       res.json({
         original: content,
         enhanced: enhancedContent,
@@ -1945,9 +1945,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { niche } = req.body;
-      
+
       const intelligence = await competitorSurveillance.monitorCompetitors(niche);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'Competitor Intelligence',
@@ -1971,7 +1971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitors } = req.body;
       const strategies = await competitorSurveillance.analyzeCompetitorStrategies(competitors);
-      
+
       res.json({
         strategies,
         message: 'Стратегии конкурентов проанализированы',
@@ -1987,7 +1987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitorHandle, theirStrategy } = req.body;
       const counterStrategy = await competitorSurveillance.createCounterStrategy(competitorHandle, theirStrategy);
-      
+
       res.json({
         counterStrategy,
         message: 'Контр-стратегия создана',
@@ -2003,7 +2003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitorData, marketTrends } = req.body;
       const predictions = await competitorSurveillance.predictCompetitorMoves(competitorData, marketTrends);
-      
+
       res.json({
         predictions,
         message: 'Действия конкурентов спрогнозированы',
@@ -2019,9 +2019,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { competitors } = req.body;
-      
+
       await competitorSurveillance.setupAutomaticMonitoring(userId, competitors);
-      
+
       res.json({
         message: 'Автоматический мониторинг конкурентов настроен',
         competitors: competitors.length,
@@ -2039,7 +2039,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientProfile, targetMarketShare } = req.body;
       const dominationPlan = await brandDominationEngine.createDominationPlan(clientProfile, targetMarketShare);
-      
+
       res.json({
         plan: dominationPlan,
         message: 'План доминирования создан',
@@ -2055,7 +2055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientProfile } = req.body;
       const empire = await brandDominationEngine.buildBrandEmpire(clientProfile);
-      
+
       res.json({
         empire,
         message: 'Брендовая империя создана',
@@ -2071,9 +2071,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { clientProfile } = req.body;
-      
+
       const results = await brandDominationEngine.executeAggressiveGrowth(userId, clientProfile);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'Aggressive Growth Launched',
@@ -2097,7 +2097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { targetAudience, competitorWeaknesses } = req.body;
       const campaign = await brandDominationEngine.launchPsychologicalCampaign(targetAudience, competitorWeaknesses);
-      
+
       res.json({
         campaign,
         message: 'Психологическая кампания запущена',
@@ -2113,7 +2113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { niche } = req.body;
       const monopolizationPlan = await brandDominationEngine.createMonopolizationPlan(niche);
-      
+
       res.json({
         plan: monopolizationPlan,
         message: 'План монополизации рынка создан',
@@ -2126,6 +2126,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup advanced promotion strategy routes
   setupPromotionStrategyRoutes(app);
+
+  // === TELEGRAM PROMO BOT ROUTES ===
+
+  // Запуск промо-бота
+  app.post('/api/promo-bot/start', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { channelId } = req.body;
+
+      if (!channelId) {
+        return res.status(400).json({ error: 'Channel ID обязателен' });
+      }
+
+      const { TelegramPromoBot } = await import('./services/telegramPromoBot');
+      const bot = new TelegramPromoBot(userId, channelId);
+      const result = await bot.initialize();
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Promo Bot Started',
+        description: `Telegram промо-бот запущен для канала ${channelId}`,
+        status: 'success',
+        metadata: { channelId },
+      });
+
+      res.json({
+        success: true,
+        message: 'Промо-бот успешно запущен',
+        channelId,
+      });
+    } catch (error) {
+      console.error('Ошибка запуска промо-бота:', error);
+      res.status(500).json({ error: 'Не удалось запустить промо-бот' });
+    }
+  });
+
+  // Статус промо-бота
+  app.get('/api/promo-bot/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const { isActive } = await import('./services/telegramPromoBot');
+
+      res.json({
+        active: isActive,
+        features: [
+          'Вирусный контент с AI',
+          'Автоматические публикации 3x/день',
+          'Анализ конкурентов',
+          'Персональные рекомендации',
+          'Трендовый анализ',
+          'Режим автопилота'
+        ],
+        cost: '$0.01/день (~$0.30/месяц)',
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Не удалось получить статус' });
+    }
+  });
+
+  // Остановка промо-бота
+  app.post('/api/promo-bot/stop', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { promoBot } = await import('./services/telegramPromoBot');
+
+      if (promoBot) {
+        await promoBot.stopPolling({ cancel: true });
+      }
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Promo Bot Stopped',
+        description: 'Telegram промо-бот остановлен',
+        status: 'success',
+        metadata: {},
+      });
+
+      res.json({ success: true, message: 'Промо-бот остановлен' });
+    } catch (error) {
+      res.status(500).json({ error: 'Не удалось остановить промо-бот' });
+    }
+  });
 
   // === ОПТИМИЗАЦИЯ КОНТЕНТА ===
 
