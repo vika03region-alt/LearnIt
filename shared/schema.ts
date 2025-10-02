@@ -92,8 +92,42 @@ export const posts = pgTable("posts", {
   status: varchar("status", { length: 20 }).notNull().default('draft'), // draft, scheduled, published, failed
   externalPostId: varchar("external_post_id"),
   aiGenerated: boolean("ai_generated").default(false),
+  aiVideoId: integer("ai_video_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AI Video Generation
+export const aiVideos = pgTable("ai_videos", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  postId: integer("post_id").references(() => posts.id),
+  provider: varchar("provider", { length: 20 }).notNull(), // 'heygen', 'synthesia'
+  videoId: varchar("video_id").notNull(), // External video ID from provider
+  script: text("script").notNull(),
+  scenes: json("scenes").$type<{
+    text: string;
+    duration: number;
+    visualCue: string;
+    avatarId?: string;
+    voiceId?: string;
+  }[]>(),
+  config: json("config").$type<{
+    avatarId: string;
+    voiceId: string;
+    language: string;
+    dimension?: { width: number; height: number };
+    background?: string;
+  }>(),
+  status: varchar("status", { length: 20 }).notNull().default('queued'), // queued, processing, completed, failed
+  videoUrl: text("video_url"),
+  thumbnailUrl: text("thumbnail_url"),
+  duration: integer("duration"), // in seconds
+  cost: real("cost").default(0),
+  estimatedTime: varchar("estimated_time"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
 });
 
 // Analytics data
@@ -172,12 +206,19 @@ export const insertPostSchema = createInsertSchema(posts).pick({
   content: true,
   mediaUrls: true,
   scheduledAt: true,
+  aiVideoId: true,
 });
 
 export const insertAIContentLogSchema = createInsertSchema(aiContentLogs).pick({
   prompt: true,
   contentType: true,
   targetPlatforms: true,
+});
+
+export const insertAIVideoSchema = createInsertSchema(aiVideos).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
 });
 
 // Types
@@ -191,6 +232,8 @@ export type InsertPost = z.infer<typeof insertPostSchema>;
 export type Analytics = typeof analytics.$inferSelect;
 export type AIContentLog = typeof aiContentLogs.$inferSelect;
 export type InsertAIContentLog = z.infer<typeof insertAIContentLogSchema>;
+export type AIVideo = typeof aiVideos.$inferSelect;
+export type InsertAIVideo = z.infer<typeof insertAIVideoSchema>;
 export type SafetyLog = typeof safetyLogs.$inferSelect;
 export type RateLimit = typeof rateLimits.$inferSelect;
 export type ActivityLog = typeof activityLogs.$inferSelect;
