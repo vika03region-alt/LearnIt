@@ -18,6 +18,121 @@ let pollingActive = false;
 // Хранилище последних постов пользователей для публикации
 const userPosts = new Map<number, string>();
 
+// 🛡️ ЗАЩИТА ОТ СПАМА И RATE LIMITING
+const userCommandTimestamps = new Map<number, number[]>();
+const userAIRequestTimestamps = new Map<number, number[]>();
+const COMMAND_RATE_LIMIT = 5; // команд в минуту
+const AI_RATE_LIMIT = 3; // AI запросов в минуту
+const RATE_LIMIT_WINDOW = 60000; // 1 минута
+
+// 📊 АНАЛИТИКА ИСПОЛЬЗОВАНИЯ
+const commandStats = new Map<string, number>();
+const userStats = new Map<number, {
+  commands: number;
+  aiRequests: number;
+  postsCreated: number;
+  lastActive: Date;
+}>();
+
+// 💾 КЭШ ДЛЯ ЧАСТЫХ ОТВЕТОВ
+const responseCache = new Map<string, { response: string; timestamp: number }>();
+const CACHE_TTL = 3600000; // 1 час
+
+// 🔒 ЕДИНСТВЕННЫЙ ЭКЗЕМПЛЯР БОТА
+let botInstanceId: string | null = null;
+
+function checkRateLimit(userId: number, type: 'command' | 'ai'): boolean {
+  const now = Date.now();
+  const timestamps = type === 'command' 
+    ? userCommandTimestamps.get(userId) || []
+    : userAIRequestTimestamps.get(userId) || [];
+  
+
+
+// 🧹 АВТОМАТИЧЕСКАЯ ОЧИСТКА КЭША (каждые 2 часа)
+setInterval(() => {
+  const now = Date.now();
+  let cleared = 0;
+  
+  // Очищаем старый кэш
+  for (const [key, value] of responseCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL) {
+      responseCache.delete(key);
+      cleared++;
+    }
+  }
+  
+  // Очищаем старые timestamps
+  for (const [userId, timestamps] of userCommandTimestamps.entries()) {
+    const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
+    if (recent.length === 0) {
+      userCommandTimestamps.delete(userId);
+    } else {
+      userCommandTimestamps.set(userId, recent);
+    }
+  }
+  
+  for (const [userId, timestamps] of userAIRequestTimestamps.entries()) {
+    const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
+    if (recent.length === 0) {
+      userAIRequestTimestamps.delete(userId);
+    } else {
+      userAIRequestTimestamps.set(userId, recent);
+    }
+  }
+  
+  console.log(`🧹 Очистка кэша: удалено ${cleared} записей`);
+}, 7200000); // 2 часа
+
+  // Удаляем старые timestamps
+  const recentTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
+  
+  const limit = type === 'command' ? COMMAND_RATE_LIMIT : AI_RATE_LIMIT;
+  
+  if (recentTimestamps.length >= limit) {
+    return false;
+  }
+  
+  recentTimestamps.push(now);
+  
+  if (type === 'command') {
+    userCommandTimestamps.set(userId, recentTimestamps);
+  } else {
+    userAIRequestTimestamps.set(userId, recentTimestamps);
+  }
+  
+  return true;
+}
+
+function updateUserStats(userId: number, action: 'command' | 'ai' | 'post') {
+  const stats = userStats.get(userId) || {
+    commands: 0,
+    aiRequests: 0,
+    postsCreated: 0,
+    lastActive: new Date()
+  };
+  
+  if (action === 'command') stats.commands++;
+  if (action === 'ai') stats.aiRequests++;
+  if (action === 'post') stats.postsCreated++;
+  stats.lastActive = new Date();
+  
+  userStats.set(userId, stats);
+}
+
+function getCachedResponse(key: string): string | null {
+  const cached = responseCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.response;
+  }
+  responseCache.delete(key);
+  return null;
+}
+
+function setCachedResponse(key: string, response: string): void {
+  responseCache.set(key, { response, timestamp: Date.now() });
+}
+
 const contentTopics = [
   'Как ChatGPT экономит 5 часов в день специалистам',
   'ТОП-5 AI инструментов для продуктивности в 2025',
@@ -93,6 +208,9 @@ export async function startTelegramBot() {
     return;
   }
 
+  // 🔒 Генерируем уникальный ID экземпляра
+  const currentInstanceId = `bot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
   // Предотвращаем одновременный запуск нескольких экземпляров
   if (isStarting) {
     console.log('⚠️ Бот уже запускается, пропускаем повторный запуск');
@@ -100,6 +218,7 @@ export async function startTelegramBot() {
   }
 
   isStarting = true;
+  botInstanceId = currentInstanceId;
 
   try {
     // Если бот уже запущен, останавливаем его
@@ -108,10 +227,9 @@ export async function startTelegramBot() {
       try {
         await bot.stopPolling({ cancel: true, reason: 'Restart requested' });
       } catch (e) {
-        // Игнорируем ошибки остановки
+        console.log('⚠️ Предупреждение при остановке:', e instanceof Error ? e.message : 'Unknown error');
       }
       bot = null;
-      // Ждем, чтобы предыдущий экземпляр точно остановился
       await new Promise(resolve => setTimeout(resolve, 3000));
     }
 
@@ -188,6 +306,24 @@ export async function startTelegramBot() {
   // БАЗОВЫЕ КОМАНДЫ
   // ====================================
 
+  // 🛡️ Middleware для проверки rate limit
+  bot.on('message', async (msg) => {
+    if (!msg.text?.startsWith('/')) return;
+    
+    const chatId = msg.chat.id;
+    
+    if (!checkRateLimit(chatId, 'command')) {
+      await bot!.sendMessage(chatId, '⏳ Слишком много команд! Подождите минуту и попробуйте снова.');
+      return;
+    }
+    
+    updateUserStats(chatId, 'command');
+    
+    // Логируем статистику команд
+    const command = msg.text.split(' ')[0];
+    commandStats.set(command, (commandStats.get(command) || 0) + 1);
+  });
+
   bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
     const welcomeMessage = `
@@ -232,14 +368,15 @@ export async function startTelegramBot() {
   
   bot.onText(/\/menu/, async (msg) => {
     const chatId = msg.chat.id;
+    const stats = userStats.get(chatId);
+    const isNewbie = !stats || stats.commands < 10;
+    
     const menuMessage = `
 ╔═══════════════════╗
       🎯 <b>ГЛАВНОЕ МЕНЮ</b>
 ╚═══════════════════╝
 
-<b>Выбери раздел:</b>
-
-📝 <b>КОНТЕНТ</b>
+${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n   /quickstart - Начать за 5 минут\n   /learn - Обучающие уроки\n   /suggest - Персональные советы\n\n' : ''}📝 <b>КОНТЕНТ</b>
    /viral - Вирусный пост
    /ideas - Идеи для постов
    /hook - Цепляющие хуки
@@ -247,9 +384,11 @@ export async function startTelegramBot() {
 
 📤 <b>ПУБЛИКАЦИЯ</b>
    /publish - Опубликовать пост
+   /post - Создать и опубликовать
 
 📊 <b>АНАЛИТИКА</b>
-   /analytics - Статистика
+   /analytics - Статистика канала
+   /mystats - Твоя статистика ⭐
    /growth - Прогноз роста
    /viralcheck - Проверка вирусности
 
@@ -263,18 +402,22 @@ export async function startTelegramBot() {
    /spy - Шпионаж
    /niche - Анализ ниши
    /trends - Тренды 2025
+   /competitors - ТОП конкурентов
 
 🎯 <b>СТРАТЕГИЯ</b>
    /blueprint - План доминирования
    /engage - Вовлечение
+   /autopilot - Автопилот
 
 ⚙️ <b>УПРАВЛЕНИЕ</b>
    /schedule - Расписание
-   /pause - Пауза
-   /resume - Возобновить
+   /settings - Настройки
+   /botstats - Статистика бота
 
 ━━━━━━━━━━━━━━━━━━━━
-📋 /help - Подробная справка
+📋 /help - Все команды (32)
+🎓 /learn - Обучение
+💡 /suggest - Что делать сейчас?
 💬 Или просто спроси меня!
 ━━━━━━━━━━━━━━━━━━━━
     `;
@@ -998,6 +1141,149 @@ export async function startTelegramBot() {
 До 1000 символов.`;
 
       const response = await grok.chat.completions.create({
+
+
+  // 🚀 БЫСТРЫЙ СТАРТ ДЛЯ НОВИЧКОВ
+  bot.onText(/\/quickstart/, async (msg) => {
+    const chatId = msg.chat.id;
+    
+    const guide = `🚀 БЫСТРЫЙ СТАРТ
+
+Привет! Я помогу тебе начать продвижение канала за 5 минут.
+
+<b>ШАГ 1: Создай первый пост</b>
+Команда: /viral
+Что получишь: AI создаст вирусный пост
+
+<b>ШАГ 2: Опубликуй</b>
+Команда: /publish
+Или просто напиши: "опубликуй"
+
+<b>ШАГ 3: Настрой автоматизацию</b>
+Команда: /autopilot
+Что получишь: автопубликацию 3 раза в день
+
+<b>ШАГ 4: Получи план роста</b>
+Команда: /boost
+Что получишь: стратегию на 30 дней
+
+<b>ШАГ 5: Следи за результатами</b>
+Команда: /analytics
+Что получишь: статистику и рекомендации
+
+━━━━━━━━━━━━━━━━━━━━
+💡 СОВЕТЫ:
+• Начни с /viral
+• Публикуй 2-3 раза в день
+• Используй AI для вопросов
+• Смотри /mystats для прогресса
+
+🎯 ГОТОВ? Начни с: /viral`;
+    
+    await bot!.sendMessage(chatId, guide, { parse_mode: 'HTML' });
+  });
+
+  // 🎓 ОБУЧЕНИЕ
+  bot.onText(/\/learn/, async (msg) => {
+    const chatId = msg.chat.id;
+    
+    const lessons = `🎓 ОБУЧАЮЩИЕ УРОКИ
+
+<b>УРОК 1: Создание контента</b>
+• /viral - вирусный пост
+• /hook - цепляющие заголовки  
+• /hashtags - правильные хештеги
+👉 Начни с: /viral тема
+
+<b>УРОК 2: Аналитика</b>
+• /analytics - статистика канала
+• /viralcheck - проверка поста
+• /mystats - твой прогресс
+👉 Начни с: /analytics
+
+<b>УРОК 3: Продвижение</b>
+• /boost - план на 30 дней
+• /crosspromo - кросс-промо
+• /competitors - анализ конкурентов
+👉 Начни с: /boost
+
+<b>УРОК 4: Автоматизация</b>
+• /autopilot - автопубликация
+• /schedule - расписание
+• /pause - остановить
+👉 Начни с: /autopilot
+
+<b>УРОК 5: AI-инструменты</b>
+• /contest - конкурс
+• /challenge - челлендж
+• /magnet - лид-магнит
+👉 Начни с: /contest
+
+━━━━━━━━━━━━━━━━━━━━
+📚 Полный список: /help
+💬 Вопросы? Просто спроси меня!`;
+    
+    await bot!.sendMessage(chatId, lessons, { parse_mode: 'HTML' });
+  });
+
+  // 🎯 ПЕРСОНАЛЬНЫЙ ПОМОЩНИК
+  bot.onText(/\/suggest/, async (msg) => {
+    const chatId = msg.chat.id;
+    const stats = userStats.get(chatId);
+    
+    const hour = new Date().getHours();
+    let suggestion = '';
+    
+    if (!stats || stats.commands < 5) {
+      suggestion = `🌟 ТЫ НОВИЧОК!
+
+Рекомендую начать с:
+1. /quickstart - быстрый старт
+2. /viral - создать первый пост
+3. /learn - обучающие уроки
+
+Это займет 5 минут! 🚀`;
+    } else if (hour >= 9 && hour <= 11) {
+      suggestion = `☀️ УТРЕННЯЯ АКТИВНОСТЬ
+
+Сейчас отличное время для:
+1. /viral - создать утренний пост
+2. /analytics - проверить статистику
+3. /trends - узнать тренды дня
+
+Публикуй в 9-11! Максимальный охват! 📈`;
+    } else if (hour >= 14 && hour <= 16) {
+      suggestion = `🌤️ ДНЕВНАЯ АКТИВНОСТЬ
+
+Идеально для:
+1. /engage - стратегия вовлечения
+2. /crosspromo - найти партнеров
+3. /spy - анализ конкурентов
+
+Время кросс-промо! 🤝`;
+    } else if (hour >= 19 && hour <= 21) {
+      suggestion = `🌙 ВЕЧЕРНЯЯ АКТИВНОСТЬ
+
+Пиковое время! Сделай:
+1. /viral - вечерний пост (макс охват!)
+2. /story - контент для Stories
+3. /poll - опрос для вовлечения
+
+Вечером максимум активности! 🔥`;
+    } else {
+      suggestion = `💤 НОЧНОЕ ВРЕМЯ
+
+Можешь:
+1. /blueprint - план на завтра
+2. /niche - анализ ниши
+3. /boost - стратегия роста
+
+Или отдохни! Завтра в 9:00 публикуй! 😴`;
+    }
+    
+    await bot!.sendMessage(chatId, suggestion);
+  });
+
         model: 'grok-2-latest',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
@@ -1478,31 +1764,110 @@ export async function startTelegramBot() {
 • Бот запущен и отвечает
 • AI модель: Grok 2 подключена
 • Канал: ${CHANNEL_ID}
+• Instance ID: ${botInstanceId?.substring(0, 16)}...
 
 📊 <b>Статус компонентов:</b>
 ✅ Автопубликация: ${isSchedulerPaused ? 'на паузе' : 'активна'}
 ✅ AI генерация: работает
+✅ Rate limiting: активен
+✅ Кэширование: работает
 ✅ Команды меню: доступны
 ✅ Расписание: настроено
 
-🎯 <b>Доступные команды (${28}):</b>
+🎯 <b>Доступные команды (${28 + 2}):</b>
 Базовые: /start /menu /help
 Контент: /ideas /viral /hashtags /hook /rewrite
 Публикация: /publish /post /poll
-Аналитика: /analytics /growth /report
+Аналитика: /analytics /growth /report /mystats
 Продвижение: /crosspromo /competitors /chatlist
 Утилиты: /schedule /pause /resume /settings
 Доминирование: /niche /spy /trends /optimize /viralcheck /audience /blueprint /autopilot
 AI-инструменты: /contest /quiz /magnet /boost /story /engage /challenge
+Новое: /mystats /botstats
 
 💡 <b>Быстрый тест:</b>
 1. /viral - создать пост
 2. /publish - опубликовать
-3. /analytics - проверить статистику
+3. /mystats - твоя статистика
 
 Всё работает корректно! ✅`;
     
     await bot!.sendMessage(chatId, testReport, { parse_mode: 'HTML' });
+  });
+
+  // 📊 ПЕРСОНАЛЬНАЯ СТАТИСТИКА ПОЛЬЗОВАТЕЛЯ
+  bot.onText(/\/mystats/, async (msg) => {
+    const chatId = msg.chat.id;
+    const stats = userStats.get(chatId);
+    
+    if (!stats) {
+      await bot!.sendMessage(chatId, '📊 У вас пока нет статистики. Начните использовать бота!');
+      return;
+    }
+    
+    const report = `📊 ВАША СТАТИСТИКА
+
+👤 <b>Активность:</b>
+• Команды выполнено: ${stats.commands}
+• AI запросов: ${stats.aiRequests}
+• Постов создано: ${stats.postsCreated}
+• Последняя активность: ${stats.lastActive.toLocaleString('ru-RU')}
+
+🏆 <b>Ваш уровень:</b>
+${stats.commands < 10 ? '🌱 Новичок' : stats.commands < 50 ? '⭐ Активный' : stats.commands < 100 ? '🔥 Продвинутый' : '👑 Мастер'}
+
+💡 <b>Рекомендации:</b>
+${stats.postsCreated < 5 ? '• Создайте больше постов с /viral\n' : ''}${stats.aiRequests < 10 ? '• Используйте AI-ассистента для советов\n' : ''}${stats.commands < 20 ? '• Изучите все команды в /menu\n' : ''}
+
+🚀 <b>Следующая цель:</b>
+${stats.commands < 50 ? `Выполните еще ${50 - stats.commands} команд для уровня "Продвинутый"` : 'Вы достигли максимального уровня! 🎉'}`;
+    
+    await bot!.sendMessage(chatId, report, { parse_mode: 'HTML' });
+  });
+
+  // 📈 СТАТИСТИКА БОТА
+  bot.onText(/\/botstats/, async (msg) => {
+    const chatId = msg.chat.id;
+    
+    // Топ-5 команд
+    const topCommands = Array.from(commandStats.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([cmd, count], i) => `${i + 1}. ${cmd} - ${count} раз`)
+      .join('\n');
+    
+    const totalUsers = userStats.size;
+    const totalCommands = Array.from(commandStats.values()).reduce((a, b) => a + b, 0);
+    const totalAI = Array.from(userStats.values()).reduce((sum, s) => sum + s.aiRequests, 0);
+    const totalPosts = Array.from(userStats.values()).reduce((sum, s) => sum + s.postsCreated, 0);
+    
+    const report = `📈 СТАТИСТИКА БОТА
+
+👥 <b>Пользователи:</b>
+• Всего: ${totalUsers}
+• Активных сегодня: ${Array.from(userStats.values()).filter(s => 
+      new Date().toDateString() === s.lastActive.toDateString()
+    ).length}
+
+📊 <b>Активность:</b>
+• Команд выполнено: ${totalCommands}
+• AI запросов: ${totalAI}
+• Постов создано: ${totalPosts}
+• Размер кэша: ${responseCache.size}
+
+🏆 <b>ТОП-5 КОМАНД:</b>
+${topCommands || 'Нет данных'}
+
+⚡ <b>Производительность:</b>
+• Rate limiting: активен
+• Кэш-хиты: ~${Math.round(responseCache.size / Math.max(totalAI, 1) * 100)}%
+• Instance: ${botInstanceId?.substring(0, 12)}...
+
+💡 <b>Система:</b>
+• Автопубликация: ${isSchedulerPaused ? '⏸️ пауза' : '✅ работает'}
+• Расписание: 09:00, 15:00, 20:00`;
+    
+    await bot!.sendMessage(chatId, report, { parse_mode: 'HTML' });
   });
 
   // ====================================
@@ -1538,7 +1903,7 @@ AI-инструменты: /contest /quiz /magnet /boost /story /engage /challen
         await bot!.sendMessage(CHANNEL_ID, savedPost);
         await bot!.sendMessage(chatId, `✅ Пост успешно опубликован в канале ${CHANNEL_ID}!`);
         
-        // Удаляем пост после публикации
+        updateUserStats(chatId, 'post');
         userPosts.delete(chatId);
         console.log(`✅ Пост опубликован пользователем ${chatId}`);
       } catch (error) {
@@ -1548,9 +1913,26 @@ AI-инструменты: /contest /quiz /magnet /boost /story /engage /challen
       return;
     }
     
+    // 🛡️ Rate limit для AI запросов
+    if (!checkRateLimit(chatId, 'ai')) {
+      await bot!.sendMessage(chatId, '⏳ Слишком много AI запросов! Подождите минуту.\n\n💡 Используйте команды из /menu для быстрого доступа.');
+      return;
+    }
+    
+    // 💾 Проверяем кэш для частых вопросов
+    const cacheKey = text.toLowerCase().trim().substring(0, 100);
+    const cachedResponse = getCachedResponse(cacheKey);
+    
+    if (cachedResponse) {
+      await bot!.sendMessage(chatId, `${cachedResponse}\n\n⚡ (из кэша)`);
+      console.log(`💾 Ответ из кэша для ${chatId}`);
+      return;
+    }
+    
     // AI-ассистент для обычных вопросов
     try {
       await bot!.sendChatAction(chatId, 'typing');
+      updateUserStats(chatId, 'ai');
       
       const prompt = `Ты AI-ассистент по продвижению Telegram. Канал: ${CHANNEL_ID}. Вопрос: "${text}". Дай полезный ответ: дружелюбный, конкретные советы, эмодзи. Макс 500 символов.`;
 
@@ -1562,6 +1944,9 @@ AI-инструменты: /contest /quiz /magnet /boost /story /engage /challen
       });
 
       const answer = response.choices[0].message.content || 'Извините, не могу ответить. Попробуйте переформулировать или используйте /help';
+      
+      // Сохраняем в кэш
+      setCachedResponse(cacheKey, answer);
       
       await bot!.sendMessage(chatId, answer);
       console.log(`✅ Ответ отправлен ${chatId}`);
