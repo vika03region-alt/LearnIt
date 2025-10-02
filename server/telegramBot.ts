@@ -13,6 +13,19 @@ const grok = new OpenAI({
 let bot: TelegramBot | null = null;
 let isSchedulerPaused = false;
 
+// Реферальная система
+const referralStats = new Map<string, { invites: number; rewards: number }>();
+const userReferrals = new Map<string, string[]>();
+
+// Автоматические приветствия
+const welcomeMessages = [
+  '👋 Добро пожаловать! Рад видеть тебя в нашем сообществе AI-энтузиастов!',
+  '🎉 Привет! Ты присоединился к самому активному AI-каналу! Погнали учиться!',
+  '🚀 Welcome! Здесь ты узнаешь всё про нейросети и AI. Задавай вопросы!',
+  '💡 Привет! Каждый день публикуем полезный контент про AI. Не пропусти!',
+  '🔥 Добро пожаловать! Тут вся магия нейросетей. Погружаемся вместе!'
+];
+
 const contentTopics = [
   'Как ChatGPT экономит 5 часов в день специалистам',
   'ТОП-5 AI инструментов для продуктивности в 2025',
@@ -119,60 +132,100 @@ export function startTelegramBot() {
   // БАЗОВЫЕ КОМАНДЫ
   // ====================================
 
-  bot.onText(/\/start/, async (msg) => {
+  bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
-    const welcomeMessage = `
-👋 Привет! Я твой AI-помощник
+    const userId = msg.from?.id.toString() || '';
+    const referrerId = match && match[1] ? match[1] : null;
+    
+    // Обработка реферальной ссылки
+    if (referrerId && referrerId !== userId) {
+      if (!referralStats.has(referrerId)) {
+        referralStats.set(referrerId, { invites: 0, rewards: 0 });
+      }
+      if (!userReferrals.has(referrerId)) {
+        userReferrals.set(referrerId, []);
+      }
+      
+      const referrerData = referralStats.get(referrerId)!;
+      const invitedUsers = userReferrals.get(referrerId)!;
+      
+      if (!invitedUsers.includes(userId)) {
+        invitedUsers.push(userId);
+        referrerData.invites++;
+        
+        if (referrerData.invites % 5 === 0) {
+          referrerData.rewards++;
+          await bot!.sendMessage(referrerId, `🎁 НАГРАДА! Ты пригласил ${referrerData.invites} друзей!\n\n🏆 Получена награда #${referrerData.rewards}\n\n💡 Продолжай приглашать друзей!`);
+        } else {
+          await bot!.sendMessage(referrerId, `✅ По твоей ссылке присоединился новый участник!\n\nВсего приглашений: ${referrerData.invites}\n🎁 До награды: ${5 - (referrerData.invites % 5)} друзей`);
+        }
+        
+        const randomWelcome = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+        await bot!.sendMessage(chatId, `${randomWelcome}\n\n💝 Тебя пригласил друг, так держать!`);
+      }
+    }
+    
+    const welcomeMessage = `👋 <b>Привет! Я твой AI-помощник по Telegram</b>
 
-💡 ЧТО Я УМЕЮ:
+🤖 Помогу автоматизировать канал, создавать вирусный контент и привлекать аудиторию!
 
-1️⃣ ПОМОГАЮ С КОНТЕНТОМ
-   /ideas - дам идеи для постов
-   /viral - создам вирусный пост
-
-2️⃣ ПОКАЗЫВАЮ СТАТИСТИКУ
-   /analytics - статистика канала
-   /growth - прогноз роста
-
-3️⃣ АНАЛИЗИРУЮ КОНКУРЕНТОВ
-   /spy - что делают другие
-   /niche - анализ рынка
-
-4️⃣ ДАЮ СОВЕТЫ
-   /trends - что сейчас работает
-   /blueprint - план развития
-
-💬 ПРОСТО СПРОСИ:
-Можешь писать обычные вопросы
-без команд - я отвечу!
-
-Например: "Как увеличить подписчиков?"
-
-🎯 Главное меню: /menu
-📋 Все команды: /help
-📢 Канал: ${CHANNEL_ID}
-    `;
-    await bot!.sendMessage(chatId, welcomeMessage);
+💬 <b>Выбери что тебе нужно:</b>`;
+    
+    await bot!.sendMessage(chatId, welcomeMessage, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '✍️ Создать контент', callback_data: 'menu_content' },
+            { text: '📊 Статистика', callback_data: 'menu_analytics' }
+          ],
+          [
+            { text: '🚀 AI-Продвижение', callback_data: 'menu_promo' },
+            { text: '🎁 Вирусный рост', callback_data: 'menu_viral' }
+          ],
+          [
+            { text: '🔍 Конкуренты', callback_data: 'menu_spy' },
+            { text: '💡 Советы', callback_data: 'menu_advice' }
+          ],
+          [
+            { text: '📋 Все команды', callback_data: 'show_help' }
+          ]
+        ]
+      }
+    });
   });
   
   bot.onText(/\/menu/, async (msg) => {
     const chatId = msg.chat.id;
-    const menuMessage = `
-🎯 ГЛАВНОЕ МЕНЮ
+    const menuMessage = `🎯 <b>ГЛАВНОЕ МЕНЮ</b>
 
-Выбери что тебе нужно:
-
-1️⃣ Создать контент → /ideas
-2️⃣ Посмотреть статистику → /analytics
-3️⃣ Узнать про конкурентов → /spy
-4️⃣ Получить советы → /trends
-5️⃣ План развития → /blueprint
-
-💬 Или просто напиши вопрос!
-
-📋 Все команды: /help
-    `;
-    await bot!.sendMessage(chatId, menuMessage);
+💬 Выбери категорию или просто напиши вопрос!`;
+    
+    await bot!.sendMessage(chatId, menuMessage, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '✍️ Контент', callback_data: 'menu_content' },
+            { text: '📊 Статистика', callback_data: 'menu_analytics' }
+          ],
+          [
+            { text: '🚀 Продвижение', callback_data: 'menu_promo' },
+            { text: '🎁 Вирусный рост', callback_data: 'menu_viral' }
+          ],
+          [
+            { text: '🔍 Конкуренты', callback_data: 'menu_spy' },
+            { text: '💡 Советы', callback_data: 'menu_advice' }
+          ],
+          [
+            { text: '⚙️ Настройки', callback_data: 'menu_settings' }
+          ],
+          [
+            { text: '📋 Все команды', callback_data: 'show_help' }
+          ]
+        ]
+      }
+    });
   });
 
   bot.onText(/\/help/, async (msg) => {
@@ -1265,16 +1318,322 @@ export function startTelegramBot() {
     if (!chatId) return;
 
     try {
-      if (data === 'publish_contest') {
+      // Меню: Контент
+      if (data === 'menu_content') {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        await bot!.sendMessage(chatId, `✍️ <b>СОЗДАНИЕ КОНТЕНТА</b>
+
+Выбери что тебе нужно:`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '💡 Идеи для постов', callback_data: 'cmd_ideas' },
+                { text: '🔥 Вирусный пост', callback_data: 'cmd_viral' }
+              ],
+              [
+                { text: '🪝 Цепляющие хуки', callback_data: 'cmd_hook' },
+                { text: '#️⃣ Хештеги', callback_data: 'cmd_hashtags' }
+              ],
+              [
+                { text: '📝 Опубликовать пост', callback_data: 'cmd_post' }
+              ],
+              [
+                { text: '◀️ Назад в меню', callback_data: 'back_menu' }
+              ]
+            ]
+          }
+        });
+      }
+      
+      // Меню: Статистика
+      else if (data === 'menu_analytics') {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        await bot!.sendMessage(chatId, `📊 <b>АНАЛИТИКА И СТАТИСТИКА</b>
+
+Выбери что посмотреть:`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '📈 Статистика канала', callback_data: 'cmd_analytics' },
+                { text: '🚀 Прогноз роста', callback_data: 'cmd_growth' }
+              ],
+              [
+                { text: '📋 Полный отчет', callback_data: 'cmd_report' }
+              ],
+              [
+                { text: '◀️ Назад в меню', callback_data: 'back_menu' }
+              ]
+            ]
+          }
+        });
+      }
+      
+      // Меню: AI-Продвижение
+      else if (data === 'menu_promo') {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        await bot!.sendMessage(chatId, `🚀 <b>AI-ИНСТРУМЕНТЫ ПРОДВИЖЕНИЯ</b>
+
+Мощные инструменты для роста:`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '🎁 Конкурс', callback_data: 'cmd_contest' },
+                { text: '🎯 Викторина', callback_data: 'cmd_quiz' }
+              ],
+              [
+                { text: '🧲 Лид-магнит', callback_data: 'cmd_magnet' },
+                { text: '📱 Stories', callback_data: 'cmd_story' }
+              ],
+              [
+                { text: '🚀 План роста (30д)', callback_data: 'cmd_boost' },
+                { text: '🏆 Челлендж', callback_data: 'cmd_challenge' }
+              ],
+              [
+                { text: '💬 Стратегия вовлечения', callback_data: 'cmd_engage' }
+              ],
+              [
+                { text: '◀️ Назад в меню', callback_data: 'back_menu' }
+              ]
+            ]
+          }
+        });
+      }
+      
+      // Меню: Вирусный рост
+      else if (data === 'menu_viral') {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        await bot!.sendMessage(chatId, `🎁 <b>ВИРУСНЫЙ РОСТ</b>
+
+Привлекай друзей и получай награды!`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '🔗 Моя реферальная ссылка', callback_data: 'cmd_referral' }
+              ],
+              [
+                { text: '📊 Статистика приглашений', callback_data: 'referral_stats' }
+              ],
+              [
+                { text: '◀️ Назад в меню', callback_data: 'back_menu' }
+              ]
+            ]
+          }
+        });
+      }
+      
+      // Меню: Конкуренты
+      else if (data === 'menu_spy') {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        await bot!.sendMessage(chatId, `🔍 <b>АНАЛИЗ КОНКУРЕНТОВ</b>
+
+Узнай что делают другие:`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '🕵️ Шпионаж', callback_data: 'cmd_spy' },
+                { text: '📊 Анализ ниши', callback_data: 'cmd_niche' }
+              ],
+              [
+                { text: '🎯 Обзор конкурентов', callback_data: 'cmd_competitors' }
+              ],
+              [
+                { text: '◀️ Назад в меню', callback_data: 'back_menu' }
+              ]
+            ]
+          }
+        });
+      }
+      
+      // Меню: Советы
+      else if (data === 'menu_advice') {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        await bot!.sendMessage(chatId, `💡 <b>СОВЕТЫ И РЕКОМЕНДАЦИИ</b>
+
+Получи экспертные советы:`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '📈 Тренды 2025', callback_data: 'cmd_trends' },
+                { text: '⏰ Когда публиковать', callback_data: 'cmd_optimize' }
+              ],
+              [
+                { text: '👥 Профиль аудитории', callback_data: 'cmd_audience' },
+                { text: '🎯 План доминирования', callback_data: 'cmd_blueprint' }
+              ],
+              [
+                { text: '◀️ Назад в меню', callback_data: 'back_menu' }
+              ]
+            ]
+          }
+        });
+      }
+      
+      // Меню: Настройки
+      else if (data === 'menu_settings') {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        await bot!.sendMessage(chatId, `⚙️ <b>НАСТРОЙКИ БОТА</b>
+
+Управление автоматизацией:`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '📅 Расписание', callback_data: 'cmd_schedule' },
+                { text: '⚙️ Настройки', callback_data: 'cmd_settings' }
+              ],
+              [
+                { text: '⏸️ Пауза', callback_data: 'cmd_pause' },
+                { text: '▶️ Возобновить', callback_data: 'cmd_resume' }
+              ],
+              [
+                { text: '◀️ Назад в меню', callback_data: 'back_menu' }
+              ]
+            ]
+          }
+        });
+      }
+      
+      // Показать help
+      else if (data === 'show_help') {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        const helpMessage = `📚 <b>ВСЕ КОМАНДЫ БОТА</b>
+
+<b>✍️ КОНТЕНТ:</b>
+/ideas - идеи для постов
+/viral - вирусный пост
+/hook - цепляющие хуки
+/hashtags - подбор хештегов
+/post - опубликовать пост
+
+<b>🚀 ПРОДВИЖЕНИЕ:</b>
+/contest - конкурс
+/quiz - викторина
+/magnet - лид-магнит
+/boost - план роста (30д)
+/story - контент для Stories
+/engage - вовлечение
+/challenge - челлендж
+
+<b>📊 АНАЛИТИКА:</b>
+/analytics - статистика
+/growth - прогноз роста
+/report - полный отчет
+
+<b>🔍 КОНКУРЕНТЫ:</b>
+/spy - шпионаж
+/niche - анализ ниши
+/competitors - обзор
+
+<b>💡 СОВЕТЫ:</b>
+/trends - тренды 2025
+/optimize - время публикаций
+/audience - профиль ЦА
+/blueprint - план доминирования
+
+<b>🎁 ВИРУСНЫЙ РОСТ:</b>
+/referral - реферальная ссылка
+
+<b>⚙️ НАСТРОЙКИ:</b>
+/schedule - расписание
+/pause - пауза
+/resume - возобновить
+
+💬 Или просто напиши вопрос!`;
+
+        await bot!.sendMessage(chatId, helpMessage, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '◀️ Назад в меню', callback_data: 'back_menu' }
+              ]
+            ]
+          }
+        });
+      }
+      
+      // Назад в меню
+      else if (data === 'back_menu') {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        const menuMessage = `🎯 <b>ГЛАВНОЕ МЕНЮ</b>
+
+💬 Выбери категорию или просто напиши вопрос!`;
+        
+        await bot!.sendMessage(chatId, menuMessage, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '✍️ Контент', callback_data: 'menu_content' },
+                { text: '📊 Статистика', callback_data: 'menu_analytics' }
+              ],
+              [
+                { text: '🚀 Продвижение', callback_data: 'menu_promo' },
+                { text: '🎁 Вирусный рост', callback_data: 'menu_viral' }
+              ],
+              [
+                { text: '🔍 Конкуренты', callback_data: 'menu_spy' },
+                { text: '💡 Советы', callback_data: 'menu_advice' }
+              ],
+              [
+                { text: '⚙️ Настройки', callback_data: 'menu_settings' }
+              ]
+            ]
+          }
+        });
+      }
+      
+      // Команды (запуск функций через кнопки)
+      else if (data?.startsWith('cmd_')) {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        const command = data.replace('cmd_', '');
+        
+        // Направляем пользователя использовать команду напрямую
+        await bot!.sendMessage(chatId, `💡 Используй команду /${command} для запуска этой функции!`);
+      }
+      
+      // Старые callback (конкурсы и т.д.)
+      else if (data === 'publish_contest') {
         await bot!.answerCallbackQuery(callbackQuery.id, {
           text: '✅ Конкурс будет опубликован!'
         });
         await bot!.sendMessage(chatId, '📝 Публикую конкурс в канале...');
-        // Здесь можно добавить логику публикации
       } else if (data === 'regenerate_contest') {
         await bot!.answerCallbackQuery(callbackQuery.id);
         await bot!.sendMessage(chatId, '🔄 Генерирую новый вариант...');
-        // Повторная генерация
+      } else if (data === 'referral_stats') {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        
+        const userId = callbackQuery.from?.id.toString() || '';
+        const stats = referralStats.get(userId) || { invites: 0, rewards: 0 };
+        const invitedUsers = userReferrals.get(userId) || [];
+        
+        const statsMessage = `📊 <b>ДЕТАЛЬНАЯ СТАТИСТИКА</b>
+
+👥 Всего приглашено: ${stats.invites} ${stats.invites === 1 ? 'друг' : 'друзей'}
+🏆 Получено наград: ${stats.rewards}
+📈 Активных рефералов: ${invitedUsers.length}
+
+🎯 ПРОГРЕСС ДО НАГРАДЫ:
+${stats.invites % 5}/5 друзей
+${Array(stats.invites % 5).fill('🟢').join('')}${Array(5 - (stats.invites % 5)).fill('⚪️').join('')}
+
+💎 СЛЕДУЮЩАЯ НАГРАДА:
+${stats.invites < 5 ? '🎁 Награда #1 (5 друзей)' : 
+  stats.invites < 10 ? '🎁 Награда #2 (10 друзей)' : 
+  stats.invites < 15 ? '🎁 Награда #3 (15 друзей)' : 
+  stats.invites < 20 ? '🎁 VIP статус (20 друзей)' : 
+  '👑 VIP статус получен!'}
+
+🚀 Продолжай приглашать друзей!`;
+
+        await bot!.sendMessage(chatId, statsMessage, { parse_mode: 'HTML' });
       }
     } catch (error) {
       console.error('Ошибка обработки callback:', error);
