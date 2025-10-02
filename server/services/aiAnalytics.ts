@@ -55,7 +55,7 @@ class AIAnalyticsService {
       `;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 800,
@@ -111,7 +111,7 @@ class AIAnalyticsService {
       `;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.2,
         max_tokens: 1000,
@@ -158,7 +158,7 @@ class AIAnalyticsService {
       `;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.4,
         max_tokens: 1500,
@@ -207,7 +207,7 @@ class AIAnalyticsService {
       `;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 1200,
@@ -259,7 +259,7 @@ class AIAnalyticsService {
       `;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.2,
         max_tokens: 800,
@@ -302,7 +302,7 @@ class AIAnalyticsService {
         `;
 
         const completion = await this.openai.chat.completions.create({
-          model: 'gpt-4',
+          model: 'gpt-4o',
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.3,
           max_tokens: 1000,

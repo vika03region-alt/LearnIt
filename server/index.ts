@@ -69,6 +69,7 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     
+    // Запускаем Telegram бота
     if (process.env.BOTTG) {
       try {
         startTelegramBot();

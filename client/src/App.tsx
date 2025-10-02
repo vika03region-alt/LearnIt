@@ -8,10 +8,12 @@ import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import PlatformDetails from "@/pages/PlatformDetails";
 import AIContent from "@/pages/AIContent";
-import AIAssistant from "@/pages/AIAssistant";
 import SafetyCenter from "@/pages/SafetyCenter";
 import Scheduler from "@/pages/Scheduler";
 import Settings from "@/pages/Settings";
+import AIAssistant from "@/pages/AIAssistant";
+import AutonomousAI from "@/pages/AutonomousAI";
+import SecretsCheck from "@/pages/SecretsCheck";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -26,10 +28,12 @@ function Router() {
           <Route path="/" component={Dashboard} />
           <Route path="/platform/:platformId" component={PlatformDetails} />
           <Route path="/ai-content" component={AIContent} />
-          <Route path="/ai-assistant" component={AIAssistant} />
           <Route path="/safety" component={SafetyCenter} />
           <Route path="/scheduler" component={Scheduler} />
           <Route path="/settings" component={Settings} />
+          <Route path="/ai-assistant" component={AIAssistant} />
+          <Route path="/autonomous-ai" component={AutonomousAI} />
+          <Route path="/secrets-check" component={SecretsCheck} />
         </>
       )}
       <Route component={NotFound} />

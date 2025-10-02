@@ -5,13 +5,16 @@ import OpenAI from 'openai';
 const TELEGRAM_TOKEN = process.env.BOTTG || '';
 const CHANNEL_ID = '@IIPRB';
 
+// Инициализация AI
 const grok = new OpenAI({
   apiKey: process.env.XAI_API_KEY || '',
   baseURL: 'https://api.x.ai/v1'
 });
 
-let bot: TelegramBot | null = null;
+// Создаем бота
+const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
 
+// Темы для постов
 const contentTopics = [
   'Как ChatGPT экономит 5 часов в день специалистам',
   'ТОП-5 AI инструментов для продуктивности в 2025',
@@ -25,6 +28,7 @@ const contentTopics = [
   'Нейрохакинг: как улучшить мышление с помощью AI'
 ];
 
+// Генерация поста с помощью AI
 async function generatePost(topic: string): Promise<string> {
   try {
     const prompt = `
@@ -60,11 +64,8 @@ async function generatePost(topic: string): Promise<string> {
   }
 }
 
-export async function publishPost() {
-  if (!bot) {
-    throw new Error('Бот не инициализирован');
-  }
-  
+// Публикация поста
+async function publishPost() {
   try {
     const randomTopic = contentTopics[Math.floor(Math.random() * contentTopics.length)];
     const postText = await generatePost(randomTopic);
@@ -72,22 +73,19 @@ export async function publishPost() {
     await bot.sendMessage(CHANNEL_ID, postText);
     console.log(`✅ Пост опубликован: ${new Date().toLocaleString()}`);
     console.log(`📝 Тема: ${randomTopic}`);
-    return { success: true, topic: randomTopic, text: postText };
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ Ошибка публикации:', error);
-    throw error;
   }
 }
 
+// Публикация опроса
 async function publishPoll() {
-  if (!bot) return;
-  
   try {
     const question = 'Какой AI инструмент вы используете чаще всего?';
     const options = ['ChatGPT', 'Claude', 'Midjourney', 'Другой'];
     
     await bot.sendPoll(CHANNEL_ID, question, options, {
-      is_anonymous: true,
+      is_anonymous: false,
       allows_multiple_answers: false
     });
     
@@ -97,18 +95,13 @@ async function publishPoll() {
   }
 }
 
+// Расписание публикаций
 export function startTelegramBot() {
-  if (!TELEGRAM_TOKEN) {
-    console.log('⚠️ BOTTG токен не найден - Telegram бот не запущен');
-    return;
-  }
-
-  bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
-  
   console.log('🤖 Telegram бот запущен!');
   console.log(`📢 Канал: ${CHANNEL_ID}`);
   console.log('');
   
+  // Публикация постов 3 раза в день: 9:00, 15:00, 20:00 (Moscow time)
   cron.schedule('0 9 * * *', () => {
     console.log('⏰ Утренний пост (9:00)');
     publishPost();
@@ -124,30 +117,33 @@ export function startTelegramBot() {
     publishPost();
   });
   
+  // Опрос каждый понедельник и четверг в 12:00
   cron.schedule('0 12 * * 1,4', () => {
     console.log('⏰ Публикация опроса');
     publishPoll();
   });
   
+  // Приветствие новых подписчиков
   bot.on('message', async (msg) => {
     if (msg.new_chat_members) {
       const chatId = msg.chat.id;
-      await bot!.sendMessage(
+      await bot.sendMessage(
         chatId,
         '👋 Добро пожаловать! Здесь вы найдете лучшие инсайты про AI и нейросети для вашей работы!'
       );
     }
   });
   
+  // Команды бота
   bot.onText(/\/post/, async (msg) => {
     const chatId = msg.chat.id;
-    await bot!.sendMessage(chatId, '📝 Генерирую пост...');
+    await bot.sendMessage(chatId, '📝 Генерирую пост...');
     await publishPost();
   });
   
   bot.onText(/\/poll/, async (msg) => {
     const chatId = msg.chat.id;
-    await bot!.sendMessage(chatId, '📊 Создаю опрос...');
+    await bot.sendMessage(chatId, '📊 Создаю опрос...');
     await publishPoll();
   });
   
@@ -167,20 +163,7 @@ export function startTelegramBot() {
 • 20:00 - вечерний пост
 • 12:00 (Пн, Чт) - опрос
     `;
-    await bot!.sendMessage(chatId, stats);
-  });
-
-  bot.onText(/\/roll(?:\s+(\d+))?/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const maxNumber = match && match[1] ? parseInt(match[1]) : 6;
-    
-    if (maxNumber < 2 || maxNumber > 1000) {
-      await bot!.sendMessage(chatId, '❌ Укажите число от 2 до 1000!\nПример: /roll 100');
-      return;
-    }
-    
-    const result = Math.floor(Math.random() * maxNumber) + 1;
-    await bot!.sendMessage(chatId, `🎲 Бросок кубика (1-${maxNumber}):\n\n🎯 Выпало: ${result}`);
+    await bot.sendMessage(chatId, stats);
   });
   
   console.log('📅 Расписание настроено:');
@@ -193,5 +176,10 @@ export function startTelegramBot() {
   console.log('   • /post - опубликовать пост сейчас');
   console.log('   • /poll - создать опрос');
   console.log('   • /stats - показать статистику');
-  console.log('   • /roll [число] - бросок кубика (по умолчанию 1-6)');
+}
+
+// Тестовая публикация при запуске (опционально)
+export async function testPost() {
+  console.log('🧪 Тестовая публикация...');
+  await publishPost();
 }
