@@ -9,6 +9,7 @@ This is a comprehensive social media automation platform called "Lucifer Trading
 - **Database Enhancement**: Added `title` field to posts table for video titles alongside content
 - **Storage Methods**: Added `getPlatformByName`, `getPostsByPlatformAndStatus`, `updatePostStatus` methods for bot integration
 - **Bot Publishing**: Telegram bot now checks database for scheduled posts with media, publishes videos with captions combining title + content, and automatically updates post status
+- **Bot Commands**: Added `/uploadvideo` command that provides web interface link and instructions for uploading videos with proper URL fallback chain
 - **Bug Fixes**: Fixed critical setInterval bug in telegramBot.ts (cache cleanup was incorrectly placed inside checkRateLimit function)
 - **UI Components**: TelegramMediaUploader component for video/cover uploads, TelegramPost page for scheduling posts with media
 
