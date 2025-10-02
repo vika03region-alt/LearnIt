@@ -2,6 +2,16 @@
 
 This is a comprehensive social media automation platform called "Lucifer Trading" designed for trading professionals. The application features AI-powered content generation, multi-platform social media management (Instagram, TikTok, YouTube, Telegram), advanced safety controls, and analytics. Built with modern web technologies, it provides a unified interface for automating social media presence while maintaining platform-specific rate limits and safety measures.
 
+## Recent Changes (October 2025)
+
+### Telegram Video Upload Integration
+- **Video & Cover Upload**: Full support for uploading videos (up to 500MB) and cover images to Telegram posts using Replit Object Storage with presigned URLs
+- **Database Enhancement**: Added `title` field to posts table for video titles alongside content
+- **Storage Methods**: Added `getPlatformByName`, `getPostsByPlatformAndStatus`, `updatePostStatus` methods for bot integration
+- **Bot Publishing**: Telegram bot now checks database for scheduled posts with media, publishes videos with captions combining title + content, and automatically updates post status
+- **Bug Fixes**: Fixed critical setInterval bug in telegramBot.ts (cache cleanup was incorrectly placed inside checkRateLimit function)
+- **UI Components**: TelegramMediaUploader component for video/cover uploads, TelegramPost page for scheduling posts with media
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
