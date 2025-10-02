@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageCircle, Send, Plus, Trash2, Edit2, Sparkles, Bot, User } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import Sidebar from "@/components/Sidebar";
+import Layout from "@/components/Layout";
 
 interface Conversation {
   id: number;
@@ -165,22 +165,20 @@ export default function AIAssistant() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="container mx-auto p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex items-center gap-2">
-              <Bot className="h-8 w-8 text-blue-600" />
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AI Ассистент</h1>
-            </div>
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-              <Sparkles className="w-4 h-4 mr-1" />
-              Умный помощник
-            </Badge>
+    <Layout>
+      <div className="container mx-auto p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-2">
+            <Bot className="h-8 w-8 text-blue-600" />
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AI Ассистент</h1>
           </div>
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+            <Sparkles className="w-4 h-4 mr-1" />
+            Умный помощник
+          </Badge>
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
           {/* Sidebar с разговорами */}
           <Card className="lg:col-span-1">
             <CardHeader className="pb-3">
@@ -384,13 +382,13 @@ export default function AIAssistant() {
                       </Button>
                     </div>
                   </div>
-                </CardContent>
-              </>
-            )}
-          </Card>
-        </div>
+                </>
+              )}
+            </CardContent>
+          )}
+        </Card>
       </div>
-      </main>
     </div>
+  </Layout>
   );
 }
