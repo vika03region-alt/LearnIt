@@ -34,6 +34,10 @@ externalPort = 3001
 localPort = 41763
 externalPort = 3002
 
+[[ports]]
+localPort = 42097
+externalPort = 5000
+
 [env]
 PORT = "5000"
 
@@ -42,7 +46,7 @@ integrations = ["javascript_database:1.0.0", "javascript_openai:1.0.0", "javascr
 expertMode = true
 
 [workflows]
-runButton = "Start Application"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -61,6 +65,9 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[workflows.workflow]]
 name = "Start Application"

@@ -11,6 +11,7 @@ import AIContent from "@/pages/AIContent";
 import SafetyCenter from "@/pages/SafetyCenter";
 import Scheduler from "@/pages/Scheduler";
 import Settings from "@/pages/Settings";
+import TelegramPost from "@/pages/TelegramPost";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -28,6 +29,7 @@ function Router() {
           <Route path="/safety" component={SafetyCenter} />
           <Route path="/scheduler" component={Scheduler} />
           <Route path="/settings" component={Settings} />
+          <Route path="/telegram-post" component={TelegramPost} />
         </>
       )}
       <Route component={NotFound} />
