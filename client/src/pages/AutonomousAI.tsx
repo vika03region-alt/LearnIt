@@ -1,6 +1,7 @@
 
 import Sidebar from "@/components/Sidebar";
 import AutonomousAIControl from "@/components/AutonomousAIControl";
+import AutonomousMonitoring from "@/components/AutonomousMonitoring";
 
 export default function AutonomousAI() {
   return (
@@ -19,7 +20,14 @@ export default function AutonomousAI() {
           </div>
         </header>
 
-        <div className="p-6">
+        <div className="p-6 space-y-6">
+          <AutonomousAIControl />
+          <AutonomousMonitoring />
+        </div>
+      </main>
+    </div>
+  );
+}Name="p-6">
           <AutonomousAIControl />
         </div>
       </main>

@@ -17,6 +17,8 @@ import { aiLearningEngine } from "./services/aiLearningEngine";
 import { viralGrowthEngine } from "./services/viralGrowthEngine";
 import { competitorSurveillance } from "./services/competitorSurveillance";
 import { brandDominationEngine } from "./services/brandDominationEngine";
+import { autonomousAI } from './services/autonomousAI';
+import { autonomousMonitoring } from './services/autonomousMonitoring';
 import type { Platform, UserAccount } from "@shared/schema";
 import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
 import { z } from "zod";
@@ -306,8 +308,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const conversation = await aiAssistantService.updateConversationTitle(
-        conversationId, 
-        userId, 
+        conversationId,
+        userId,
         title.trim()
       );
       res.json(conversation);
@@ -352,8 +354,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const userId = req.user.claims.sub;
       const updatedConversation = await aiAssistantService.updateConversationTitle(
-        conversationId, 
-        userId, 
+        conversationId,
+        userId,
         title
       );
 
@@ -1188,9 +1190,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userAccounts = await storage.getUserAccounts(userId);
 
         for (const platformId of platformIds) {
-          const account = userAccounts.find(acc => 
-            acc.platformId === platformId && 
-            acc.isActive && 
+          const account = userAccounts.find(acc =>
+            acc.platformId === platformId &&
+            acc.isActive &&
             acc.authStatus === 'connected'
           );
 
@@ -1237,8 +1239,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await socialMediaManager.validateAllTokens(userId);
 
       const updatedAccounts = await storage.getUserAccounts(userId);
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         accounts: updatedAccounts.map(acc => ({
           id: acc.id,
           platformId: acc.platformId,
@@ -1786,6 +1788,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('AI status error:', error);
       res.status(500).json({ error: 'Failed to get AI status' });
+    }
+  });
+
+  // === АВТОНОМНАЯ AI ===
+
+  // Запуск автономной AI
+  app.post('/api/autonomous/start', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Запускаем автономную разработку в фоновом режиме
+      autonomousAI.startAutonomousDevelopment().catch(error => {
+        console.error('Ошибка автономной AI:', error);
+      });
+
+      // Запускаем мониторинг
+      autonomousMonitoring.startMonitoring().catch(error => {
+        console.error('Ошибка мониторинга:', error);
+      });
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Autonomous AI Started',
+        description: 'Запущена автономная AI система',
+        status: 'success',
+      });
+
+      res.json({
+        message: 'Автономная AI запущена успешно',
+        status: autonomousAI.getStatus(),
+      });
+    } catch (error) {
+      console.error('Ошибка запуска автономной AI:', error);
+      res.status(500).json({ error: 'Не удалось запустить автономную AI' });
+    }
+  });
+
+  // Остановка автономной AI
+  app.post('/api/autonomous/stop', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      autonomousAI.stopAutonomousDevelopment();
+      autonomousMonitoring.stopMonitoring();
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Autonomous AI Stopped',
+        description: 'Остановлена автономная AI система',
+        status: 'success',
+      });
+
+      res.json({
+        message: 'Автономная AI остановлена',
+        status: autonomousAI.getStatus(),
+      });
+    } catch (error) {
+      console.error('Ошибка остановки автономной AI:', error);
+      res.status(500).json({ error: 'Не удалось остановить автономную AI' });
+    }
+  });
+
+  // Статус автономной AI
+  app.get('/api/autonomous/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const status = autonomousAI.getStatus();
+      const systemReport = await autonomousMonitoring.getSystemReport();
+
+      res.json({
+        status,
+        systemReport,
+      });
+    } catch (error) {
+      console.error('Ошибка получения статуса:', error);
+      res.status(500).json({ error: 'Не удалось получить статус' });
+    }
+  });
+
+  // Улучшение AI возможностей
+  app.post('/api/autonomous/enhance-ai', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      autonomousAI.enhanceAICapabilities().catch(error => {
+        console.error('Ошибка улучшения AI:', error);
+      });
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Enhancement Started',
+        description: 'Запущено улучшение AI возможностей',
+        status: 'success',
+      });
+
+      res.json({
+        message: 'Улучшение AI запущено',
+      });
+    } catch (error) {
+      console.error('Ошибка улучшения AI:', error);
+      res.status(500).json({ error: 'Не удалось запустить улучшение AI' });
     }
   });
 
