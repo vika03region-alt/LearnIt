@@ -1697,6 +1697,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === TELEGRAM БЫСТРОЕ ТЕСТИРОВАНИЕ ===
+  app.post('/api/telegram/quick-test', isAuthenticated, async (req: any, res) => {
+    try {
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      const channelId = process.env.TELEGRAM_CHANNEL_ID || '@IIPRB';
+
+      if (!botToken) {
+        return res.status(400).json({
+          botTokenValid: false,
+          channelAccessible: false,
+          messageSent: false,
+          error: 'TELEGRAM_BOT_TOKEN не найден в секретах',
+        });
+      }
+
+      // Проверка бота
+      const botResponse = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+      const botData = await botResponse.json();
+
+      if (!botData.ok) {
+        return res.json({
+          botTokenValid: false,
+          channelAccessible: false,
+          messageSent: false,
+          error: 'Неверный TELEGRAM_BOT_TOKEN',
+        });
+      }
+
+      // Отправка тестового сообщения
+      const testMessage = `🤖 Система тестирования активна!\n\n✅ Бот: @${botData.result.username}\n⏰ ${new Date().toLocaleString('ru-RU')}\n\n🚀 Telegram интеграция работает корректно!`;
+
+      const sendResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: channelId,
+          text: testMessage,
+          parse_mode: 'HTML',
+        }),
+      });
+
+      const sendData = await sendResponse.json();
+
+      if (sendData.ok) {
+        // Логируем успешный тест
+        const userId = req.user.claims.sub;
+        await storage.createActivityLog({
+          userId,
+          action: 'Telegram Test Success',
+          description: `Успешно отправлено тестовое сообщение в канал ${channelId}`,
+          status: 'success',
+          metadata: { channelId, messageId: sendData.result.message_id },
+        });
+
+        return res.json({
+          botTokenValid: true,
+          channelAccessible: true,
+          messageSent: true,
+          botUsername: botData.result.username,
+          channelId,
+          messageId: sendData.result.message_id,
+        });
+      } else {
+        return res.json({
+          botTokenValid: true,
+          channelAccessible: false,
+          messageSent: false,
+          error: sendData.description || 'Не удалось отправить сообщение. Проверьте, что бот добавлен в канал как администратор.',
+        });
+      }
+    } catch (error: any) {
+      console.error('Ошибка тестирования Telegram:', error);
+      return res.status(500).json({
+        botTokenValid: false,
+        channelAccessible: false,
+        messageSent: false,
+        error: error.message || 'Произошла ошибка при тестировании',
+      });
+    }
+  });
+
   // Setup advanced promotion strategy routes
   setupPromotionStrategyRoutes(app);
 
