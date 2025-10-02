@@ -18,12 +18,12 @@ export default function PlatformDetails() {
   });
 
   const { data: posts } = useQuery({
-    queryKey: ['/api/posts', { platformId }],
+    queryKey: [`/api/posts?platformId=${platformId}`],
     retry: false,
   });
 
   const { data: analytics } = useQuery({
-    queryKey: ['/api/analytics', { platformId }],
+    queryKey: [`/api/analytics?platformId=${platformId}`],
     retry: false,
   });
 
