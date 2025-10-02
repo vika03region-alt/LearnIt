@@ -364,6 +364,240 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === ВИЗУАЛЬНЫЙ AI-КОНТЕНТ ===
+
+  // Генерация обложки канала
+  app.post('/api/ai/channel-cover', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { niche, style } = req.body;
+
+      if (!niche || !style) {
+        return res.status(400).json({ message: "Niche and style are required" });
+      }
+
+      const result = await (await import('./services/visualContentAI')).visualContentAI.generateChannelCover(niche, style);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Channel Cover Generated',
+        description: `Generated channel cover for ${niche} in ${style} style`,
+        platformId: null,
+        status: 'success',
+        metadata: { niche, style, cost: result.cost },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating channel cover:", error);
+      res.status(500).json({ message: "Failed to generate channel cover" });
+    }
+  });
+
+  // Генерация иллюстрации для поста
+  app.post('/api/ai/post-illustration', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { topic, mood } = req.body;
+
+      if (!topic || !mood) {
+        return res.status(400).json({ message: "Topic and mood are required" });
+      }
+
+      const result = await (await import('./services/visualContentAI')).visualContentAI.generatePostIllustration(topic, mood);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Post Illustration Generated',
+        description: `Generated illustration for ${topic}`,
+        platformId: null,
+        status: 'success',
+        metadata: { topic, mood, cost: result.cost },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating illustration:", error);
+      res.status(500).json({ message: "Failed to generate illustration" });
+    }
+  });
+
+  // Генерация мема
+  app.post('/api/ai/meme', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { scenario, humor } = req.body;
+
+      if (!scenario || !humor) {
+        return res.status(400).json({ message: "Scenario and humor type are required" });
+      }
+
+      const result = await (await import('./services/visualContentAI')).visualContentAI.generateMeme(scenario, humor);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Meme Generated',
+        description: `Generated meme about ${scenario}`,
+        platformId: null,
+        status: 'success',
+        metadata: { scenario, humor, cost: result.cost },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating meme:", error);
+      res.status(500).json({ message: "Failed to generate meme" });
+    }
+  });
+
+  // Генерация инфографики
+  app.post('/api/ai/infographic', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title, keyPoints, statistics } = req.body;
+
+      if (!title || !keyPoints || !statistics) {
+        return res.status(400).json({ message: "Title, key points and statistics are required" });
+      }
+
+      const result = await (await import('./services/visualContentAI')).visualContentAI.generateInfographic({
+        title,
+        keyPoints,
+        statistics
+      });
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Infographic Generated',
+        description: `Generated infographic: ${title}`,
+        platformId: null,
+        status: 'success',
+        metadata: { title, cost: result.cost },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating infographic:", error);
+      res.status(500).json({ message: "Failed to generate infographic" });
+    }
+  });
+
+  // Генерация озвучки
+  app.post('/api/ai/voiceover', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { text, voice, speed } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ message: "Text is required" });
+      }
+
+      const result = await (await import('./services/visualContentAI')).visualContentAI.generateVoiceover(text, voice, speed);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Voiceover Generated',
+        description: `Generated voiceover (${text.length} chars)`,
+        platformId: null,
+        status: 'success',
+        metadata: { voice, speed, cost: result.cost },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating voiceover:", error);
+      res.status(500).json({ message: "Failed to generate voiceover" });
+    }
+  });
+
+  // Генерация видео-скрипта
+  app.post('/api/ai/video-script', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { topic, duration, tone } = req.body;
+
+      if (!topic) {
+        return res.status(400).json({ message: "Topic is required" });
+      }
+
+      const result = await (await import('./services/visualContentAI')).visualContentAI.generateVideoScript(topic, duration, tone);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Video Script Generated',
+        description: `Generated video script for ${topic}`,
+        platformId: null,
+        status: 'success',
+        metadata: { topic, duration, tone },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating video script:", error);
+      res.status(500).json({ message: "Failed to generate video script" });
+    }
+  });
+
+  // Генерация дизайн-шаблона
+  app.post('/api/ai/design-template', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { platform, content } = req.body;
+
+      if (!platform || !content) {
+        return res.status(400).json({ message: "Platform and content are required" });
+      }
+
+      const result = await (await import('./services/visualContentAI')).visualContentAI.generateDesignTemplate(platform, content);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Design Template Generated',
+        description: `Generated design template for ${platform}`,
+        platformId: null,
+        status: 'success',
+        metadata: { platform, content },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating design template:", error);
+      res.status(500).json({ message: "Failed to generate design template" });
+    }
+  });
+
+  // Массовая генерация контент-пака
+  app.post('/api/ai/content-pack', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { niche, posts, style } = req.body;
+
+      if (!niche || !posts) {
+        return res.status(400).json({ message: "Niche and posts count are required" });
+      }
+
+      const result = await (await import('./services/visualContentAI')).visualContentAI.generateContentPack({
+        niche,
+        posts,
+        style: style || 'профессионал'
+      });
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Content Pack Generated',
+        description: `Generated content pack: ${result.covers.length} covers, ${result.illustrations.length} illustrations, ${result.memes.length} memes`,
+        platformId: null,
+        status: 'success',
+        metadata: { niche, posts, totalCost: result.totalCost },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating content pack:", error);
+      res.status(500).json({ message: "Failed to generate content pack" });
+    }
+  });
+
   // === ПРОФЕССИОНАЛЬНЫЕ AI ТРЕЙДИНГ МАРШРУТЫ ===
 
   // Генерация viral TikTok контента

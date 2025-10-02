@@ -1160,6 +1160,169 @@ export async function startTelegramBot() {
     }
   });
 
+  // 🎨 ВИЗУАЛЬНЫЙ AI-КОНТЕНТ
+  bot.onText(/\/visual/, async (msg) => {
+    const chatId = msg.chat.id;
+    const menu = `
+🎨 ВИЗУАЛЬНЫЙ AI-КОНТЕНТ
+
+Выберите тип контента:
+
+/cover - 🖼️ Обложка для канала
+/illustration - 🎨 Иллюстрация для поста
+/meme - 😂 Мем для вовлечения
+/infographic - 📊 Инфографика с данными
+/voiceover - 🎙️ Озвучка текста
+/videoscript - 🎬 Скрипт для видео
+/designtemplate - 🎭 Дизайн-шаблон
+/contentpack - 📦 Массовый контент-пак
+
+💡 Примеры:
+/cover минимализм - создать обложку
+/meme "когда стоп-лосс сработал" - мем
+/voiceover "Привет, трейдеры!" - озвучка`;
+
+    await bot!.sendMessage(chatId, menu);
+  });
+
+  // Генерация обложки
+  bot.onText(/\/cover (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const style = match?.[1] || 'профессионал';
+    
+    await bot!.sendMessage(chatId, '🎨 Генерирую обложку для канала...');
+    
+    try {
+      const { visualContentAI } = await import('./services/visualContentAI');
+      const result = await visualContentAI.generateChannelCover('trading', style as any);
+      
+      await bot!.sendPhoto(chatId, result.url!, {
+        caption: `✅ Обложка создана!\n\n💰 Стоимость: $${result.cost.toFixed(3)}\n📝 Стиль: ${style}`
+      });
+    } catch (error) {
+      await bot!.sendMessage(chatId, '❌ Ошибка генерации обложки');
+    }
+  });
+
+  // Генерация мема
+  bot.onText(/\/meme (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const scenario = match?.[1] || 'trader problems';
+    
+    await bot!.sendMessage(chatId, '😂 Создаю мем...');
+    
+    try {
+      const { visualContentAI } = await import('./services/visualContentAI');
+      const result = await visualContentAI.generateMeme(scenario, 'relatable');
+      
+      await bot!.sendPhoto(chatId, result.url!, {
+        caption: `✅ Мем готов!\n\n📝 ${scenario}\n💰 $${result.cost.toFixed(3)}`
+      });
+    } catch (error) {
+      await bot!.sendMessage(chatId, '❌ Ошибка создания мема');
+    }
+  });
+
+  // Генерация озвучки
+  bot.onText(/\/voiceover (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const text = match?.[1];
+    
+    if (!text) {
+      await bot!.sendMessage(chatId, '❌ Укажите текст для озвучки: /voiceover ваш текст');
+      return;
+    }
+    
+    await bot!.sendMessage(chatId, '🎙️ Генерирую озвучку...');
+    
+    try {
+      const { visualContentAI } = await import('./services/visualContentAI');
+      const result = await visualContentAI.generateVoiceover(text, 'onyx', 1.0);
+      
+      // Конвертируем base64 в Buffer для отправки
+      const base64Data = result.url!.replace('data:audio/mp3;base64,', '');
+      const audioBuffer = Buffer.from(base64Data, 'base64');
+      
+      await bot!.sendVoice(chatId, audioBuffer, {
+        caption: `✅ Озвучка готова!\n\n📝 ${text.substring(0, 100)}...\n💰 $${result.cost.toFixed(3)}`
+      });
+    } catch (error) {
+      await bot!.sendMessage(chatId, '❌ Ошибка генерации озвучки');
+    }
+  });
+
+  // Генерация видео-скрипта
+  bot.onText(/\/videoscript (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const topic = match?.[1];
+    
+    if (!topic) {
+      await bot!.sendMessage(chatId, '❌ Укажите тему: /videoscript тема видео');
+      return;
+    }
+    
+    await bot!.sendMessage(chatId, '🎬 Создаю скрипт для видео...');
+    
+    try {
+      const { visualContentAI } = await import('./services/visualContentAI');
+      const result = await visualContentAI.generateVideoScript(topic, 60, 'professional');
+      
+      let response = `🎬 ВИДЕО-СКРИПТ\n\nТема: ${topic}\n\n`;
+      response += `📝 ПОЛНЫЙ СКРИПТ:\n${result.script}\n\n`;
+      response += `🎭 СЦЕНЫ:\n`;
+      
+      result.scenes.forEach((scene, i) => {
+        response += `${i + 1}. ${scene.text} (${scene.duration}с)\n   💡 ${scene.visual_cue}\n\n`;
+      });
+      
+      response += `🎙️ ИНСТРУКЦИИ:\n${result.voiceover_instructions}`;
+      
+      await bot!.sendMessage(chatId, response);
+    } catch (error) {
+      await bot!.sendMessage(chatId, '❌ Ошибка создания скрипта');
+    }
+  });
+
+  // Массовая генерация контента
+  bot.onText(/\/contentpack/, async (msg) => {
+    const chatId = msg.chat.id;
+    
+    await bot!.sendMessage(chatId, '📦 Генерирую контент-пак (это займет 1-2 минуты)...');
+    
+    try {
+      const { visualContentAI } = await import('./services/visualContentAI');
+      const result = await visualContentAI.generateContentPack({
+        niche: 'crypto trading',
+        posts: 5,
+        style: 'футуризм'
+      });
+      
+      let response = `✅ КОНТЕНТ-ПАК ГОТОВ!\n\n`;
+      response += `🖼️ Обложек: ${result.covers.length}\n`;
+      response += `🎨 Иллюстраций: ${result.illustrations.length}\n`;
+      response += `😂 Мемов: ${result.memes.length}\n\n`;
+      response += `💰 Общая стоимость: $${result.totalCost.toFixed(2)}\n\n`;
+      response += `📥 Контент готов к использованию!`;
+      
+      await bot!.sendMessage(chatId, response);
+      
+      // Отправляем обложки
+      for (const cover of result.covers) {
+        await bot!.sendPhoto(chatId, cover.url!, { caption: '🖼️ Обложка канала' });
+      }
+      
+      // Отправляем пару иллюстраций
+      for (let i = 0; i < Math.min(2, result.illustrations.length); i++) {
+        await bot!.sendPhoto(chatId, result.illustrations[i].url!, { 
+          caption: `🎨 Иллюстрация #${i + 1}` 
+        });
+      }
+      
+    } catch (error) {
+      await bot!.sendMessage(chatId, '❌ Ошибка генерации контент-пака');
+    }
+  });
+
   // 🚀 БЫСТРЫЙ СТАРТ ДЛЯ НОВИЧКОВ
   bot.onText(/\/quickstart/, async (msg) => {
     const chatId = msg.chat.id;
