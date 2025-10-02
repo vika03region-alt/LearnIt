@@ -284,45 +284,6 @@ export function startTelegramBot() {
   });
   
   // ====================================
-  // ДЕЙСТВИЯ
-  // ====================================
-  
-  bot.onText(/\/post/, async (msg) => {
-    const chatId = msg.chat.id;
-    await bot!.sendMessage(chatId, '📝 Генерирую AI пост...');
-    try {
-      await publishPost();
-      await bot!.sendMessage(chatId, '✅ Пост успешно опубликован в канале!');
-    } catch (error) {
-      await bot!.sendMessage(chatId, '❌ Ошибка публикации. Проверьте права бота.');
-    }
-  });
-  
-  bot.onText(/\/poll/, async (msg) => {
-    const chatId = msg.chat.id;
-    await bot!.sendMessage(chatId, '📊 Создаю опрос...');
-    try {
-      await publishPoll();
-      await bot!.sendMessage(chatId, '✅ Опрос опубликован в канале!');
-    } catch (error) {
-      await bot!.sendMessage(chatId, '❌ Ошибка публикации опроса.');
-    }
-  });
-
-  bot.onText(/\/roll(?:\s+(\d+))?/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const maxNumber = match && match[1] ? parseInt(match[1]) : 6;
-    
-    if (maxNumber < 2 || maxNumber > 1000) {
-      await bot!.sendMessage(chatId, '❌ Укажите число от 2 до 1000!\nПример: /roll 100');
-      return;
-    }
-    
-    const result = Math.floor(Math.random() * maxNumber) + 1;
-    await bot!.sendMessage(chatId, `🎲 Бросок кубика (1-${maxNumber}):\n\n🎯 Выпало: ${result}`);
-  });
-
-  // ====================================
   // ГЕНЕРАЦИЯ КОНТЕНТА
   // ====================================
   
@@ -395,34 +356,6 @@ export function startTelegramBot() {
     }
   });
 
-  bot.onText(/\/rewrite\s+(.+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const text = match && match[1] ? match[1] : '';
-    
-    if (!text) {
-      await bot!.sendMessage(chatId, '❌ Укажите текст!\n\nПример: /rewrite Ваш текст');
-      return;
-    }
-    
-    await bot!.sendMessage(chatId, '✍️ Переписываю текст...');
-    
-    try {
-      const prompt = `Переписать текст: живой стиль, эмодзи, структура. Текст: "${text}"`;
-
-      const response = await grok.chat.completions.create({
-        model: 'grok-2-latest',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.8,
-        max_tokens: 500
-      });
-
-      const rewritten = response.choices[0].message.content || 'Ошибка';
-      await bot!.sendMessage(chatId, `✍️ ПЕРЕПИСАННЫЙ ТЕКСТ:\n\n${rewritten}`);
-    } catch (error) {
-      await bot!.sendMessage(chatId, '❌ Ошибка переписывания текста.');
-    }
-  });
-
   // ====================================
   // АНАЛИТИКА
   // ====================================
@@ -479,119 +412,8 @@ export function startTelegramBot() {
     }
   });
 
-  bot.onText(/\/report/, async (msg) => {
-    const chatId = msg.chat.id;
-    const date = new Date().toLocaleDateString('ru-RU');
-    
-    const report = `📋 ОТЧЕТ ЗА ${date}
-
-📊 ПУБЛИКАЦИИ:
-✅ Постов: 3/день
-✅ Опросов: 2/неделю
-✅ AI генерация: Grok 2
-✅ Стоимость: $0.0003/день
-
-💰 ЭКОНОМИКА:
-• Затраты на AI: $0.01/месяц
-• Экономия vs GPT-4: 90%
-• ROI: отличный
-
-🎯 РЕКОМЕНДАЦИИ:
-1. Продолжайте текущую стратегию
-2. Используйте /spy для анализа конкурентов
-3. Тестируйте /viralcheck перед публикацией
-4. Следите за /trends
-
-✅ Все показатели в норме!
-Статус: ${isSchedulerPaused ? '⏸️ На паузе' : '✅ Активен'}`;
-    
-    await bot!.sendMessage(chatId, report);
-  });
-
   // ====================================
-  // ПРОДВИЖЕНИЕ
-  // ====================================
-  
-  bot.onText(/\/crosspromo/, async (msg) => {
-    const chatId = msg.chat.id;
-    
-    const crossPromo = `🤝 КРОСС-ПРОМО
-
-Взаимный пиар - эффективный способ роста!
-
-📊 Как работает:
-1. Найдите каналы вашей ниши (500-5К)
-2. Договоритесь об обмене постами
-3. Публикуйте про канал партнера
-4. Получайте подписчиков
-
-🎯 Где искать:
-• @tgchannels
-• @PR_Baza
-• Тематические комьюнити
-
-💡 Эффективность:
-✅ Конверсия: 5-15%
-✅ Целевая аудитория
-✅ Бесплатно
-
-📝 Шаблон:
-"Привет! У меня канал про AI (${CHANNEL_ID}). Предлагаю взаимный пост. Аудитория близкая!"
-
-/spy для анализа каналов`;
-    
-    await bot!.sendMessage(chatId, crossPromo);
-  });
-
-  bot.onText(/\/competitors/, async (msg) => {
-    const chatId = msg.chat.id;
-    await bot!.sendMessage(chatId, '🔍 Анализирую конкурентов...');
-    
-    try {
-      const prompt = `ТОП-3 Telegram канала про AI: название, подписчики, что делают хорошо, что плохо. До 400 символов.`;
-
-      const response = await grok.chat.completions.create({
-        model: 'grok-2-latest',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 500
-      });
-
-      const competitors = response.choices[0].message.content || 'Ошибка';
-      await bot!.sendMessage(chatId, `🔍 АНАЛИЗ КОНКУРЕНТОВ\n\n${competitors}\n\n💡 Используйте /spy для детального анализа`);
-    } catch (error) {
-      await bot!.sendMessage(chatId, '❌ Ошибка анализа.');
-    }
-  });
-
-  bot.onText(/\/chatlist/, async (msg) => {
-    const chatId = msg.chat.id;
-    
-    const chatList = `💬 ЧАТЫ ДЛЯ ПРОДВИЖЕНИЯ
-
-🎯 AI/Tech чаты:
-• @ai_chat_ru
-• @chatgpt_community
-• @neural_networks_chat
-
-📢 Промо-чаты:
-• @prbartertg
-• @channel_promo
-• @free_pr_chat
-
-💡 Правила:
-❌ НЕ спамьте
-✅ Давайте ценность
-✅ Будьте экспертом
-
-📊 Результат:
-+30-50 подписчиков/месяц`;
-    
-    await bot!.sendMessage(chatId, chatList);
-  });
-
-  // ====================================
-  // УТИЛИТЫ
+  // УПРАВЛЕНИЕ
   // ====================================
   
   bot.onText(/\/schedule/, async (msg) => {
@@ -772,36 +594,6 @@ export function startTelegramBot() {
     }
   });
 
-  bot.onText(/\/optimize/, async (msg) => {
-    const chatId = msg.chat.id;
-    
-    await bot!.sendMessage(chatId, '⏰ Рассчитываю оптимальное время...');
-    await bot!.sendChatAction(chatId, 'typing');
-    
-    try {
-      const prompt = `Оптимальное время публикаций для Telegram канала про AI:
-1. Активность по часам (утро/день/вечер)
-2. Активность по дням
-3. Типы контента по времени
-4. Топ-3 временных слота
-5. A/B тестирование
-
-До 800 символов.`;
-
-      const response = await grok.chat.completions.create({
-        model: 'grok-2-latest',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 1000
-      });
-
-      const optimization = response.choices[0].message.content || 'Ошибка';
-      await bot!.sendMessage(chatId, `⏰ ОПТИМИЗАЦИЯ ВРЕМЕНИ\n\n${optimization}\n\n💡 Текущее: 09:00, 15:00, 20:00`);
-    } catch (error) {
-      await bot!.sendMessage(chatId, '❌ Ошибка оптимизации.');
-    }
-  });
-
   bot.onText(/\/viralcheck\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const content = match && match[1] ? match[1] : '';
@@ -846,38 +638,6 @@ export function startTelegramBot() {
     }
   });
 
-  bot.onText(/\/audience/, async (msg) => {
-    const chatId = msg.chat.id;
-    
-    await bot!.sendMessage(chatId, '👥 Анализирую аудиторию...');
-    await bot!.sendChatAction(chatId, 'typing');
-    
-    try {
-      const prompt = `Профиль ЦА для канала про AI:
-1. Демография (возраст, пол, города)
-2. Профессии (% психологов/IT/преподавателей)
-3. Боли и потребности (топ-5)
-4. Поведение в Telegram
-5. Уровень экспертизы (новички/эксперты)
-6. Контент-стратегия для каждой группы
-7. Монетизация (что купят, средний чек)
-
-До 1000 символов.`;
-
-      const response = await grok.chat.completions.create({
-        model: 'grok-2-latest',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 1200
-      });
-
-      const audienceProfile = response.choices[0].message.content || 'Ошибка';
-      await bot!.sendMessage(chatId, `👥 ПРОФИЛЬ АУДИТОРИИ\n\n${audienceProfile}`);
-    } catch (error) {
-      await bot!.sendMessage(chatId, '❌ Ошибка анализа аудитории.');
-    }
-  });
-
   bot.onText(/\/blueprint/, async (msg) => {
     const chatId = msg.chat.id;
     
@@ -910,42 +670,6 @@ export function startTelegramBot() {
     } catch (error) {
       await bot!.sendMessage(chatId, '❌ Ошибка создания плана.');
     }
-  });
-
-  bot.onText(/\/autopilot/, async (msg) => {
-    const chatId = msg.chat.id;
-    
-    const autopilotInfo = `🤖 РЕЖИМ АВТОПИЛОТА
-
-✅ ЧТО РАБОТАЕТ АВТОМАТИЧЕСКИ:
-• 3 поста в день (09:00, 15:00, 20:00)
-• AI генерация через Grok 2
-• Опросы 2 раза в неделю
-• Адаптация под тренды
-
-📊 СТАТИСТИКА:
-• Постов в месяц: ~90
-• Стоимость AI: $0.01/месяц
-• Экономия времени: 15 часов/месяц
-• Качество: стабильно высокое
-
-🎯 ЧТО ДЕЛАТЬ ВАМ:
-1. Мониторить /analytics
-2. Отвечать на комментарии
-3. Корректировать /blueprint
-4. Тестировать /viralcheck
-
-💡 ПРОДВИНУТЫЕ ФИЧИ:
-• /niche - анализ ниши
-• /spy - шпионаж
-• /trends - тренды
-• /optimize - оптимизация
-• /audience - профиль ЦА
-
-✅ Автопилот ${isSchedulerPaused ? '⏸️ НА ПАУЗЕ' : 'АКТИВЕН'}!
-Бот работает 24/7.`;
-    
-    await bot!.sendMessage(chatId, autopilotInfo);
   });
 
   // ====================================
