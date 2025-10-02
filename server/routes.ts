@@ -1977,6 +1977,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup advanced promotion strategy routes
   setupPromotionStrategyRoutes(app);
 
+  // === ОПТИМИЗАЦИЯ КОНТЕНТА ===
+
+  // Проверка грамматики и стиля
+  app.post('/api/content/check-grammar', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { text, targetAudience } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ error: 'Текст обязателен' });
+      }
+
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.checkGrammarAndStyle(text, targetAudience);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Grammar Check',
+        description: 'Проверка грамматики и стиля контента',
+        status: 'success',
+        metadata: { issuesFound: result.grammarIssues.length },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('Ошибка проверки грамматики:', error);
+      res.status(500).json({ error: 'Не удалось проверить грамматику' });
+    }
+  });
+
+  // SEO оптимизация
+  app.post('/api/content/optimize-seo', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, targetKeywords, platform } = req.body;
+
+      if (!content || !targetKeywords) {
+        return res.status(400).json({ error: 'Контент и ключевые слова обязательны' });
+      }
+
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.optimizeForSEO(
+        content,
+        targetKeywords,
+        platform || 'telegram'
+      );
+
+      await storage.createActivityLog({
+        userId,
+        action: 'SEO Optimization',
+        description: 'SEO оптимизация контента',
+        status: 'success',
+        metadata: { score: result.score },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('Ошибка SEO оптимизации:', error);
+      res.status(500).json({ error: 'Не удалось оптимизировать для SEO' });
+    }
+  });
+
+  // Генерация TLDR
+  app.post('/api/content/generate-tldr', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { text, maxLength } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ error: 'Текст обязателен' });
+      }
+
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.generateTLDR(text, maxLength);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'TLDR Generated',
+        description: 'Создано краткое содержание',
+        status: 'success',
+        metadata: { originalLength: text.length, summaryLength: result.summary.length },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('Ошибка генерации TLDR:', error);
+      res.status(500).json({ error: 'Не удалось создать краткое содержание' });
+    }
+  });
+
+  // Анализ тональности
+  app.post('/api/content/analyze-sentiment', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { text } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ error: 'Текст обязателен' });
+      }
+
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.analyzeSentiment(text);
+
+      res.json(result);
+    } catch (error) {
+      console.error('Ошибка анализа тональности:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать тональность' });
+    }
+  });
+
+  // Генерация геймификационного контента
+  app.post('/api/content/generate-game', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { type, topic, difficulty } = req.body;
+
+      if (!type || !topic) {
+        return res.status(400).json({ error: 'Тип и тема обязательны' });
+      }
+
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.generateGameContent(
+        type,
+        topic,
+        difficulty || 'medium'
+      );
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Game Content Generated',
+        description: `Создан ${type} контент для геймификации`,
+        status: 'success',
+        metadata: { type, topic, difficulty },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('Ошибка генерации игрового контента:', error);
+      res.status(500).json({ error: 'Не удалось создать игровой контент' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

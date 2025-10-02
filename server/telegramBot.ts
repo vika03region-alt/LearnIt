@@ -2320,6 +2320,137 @@ ${stats.commands < 50 ? `Выполните еще ${50 - stats.commands} ком
     await bot!.sendMessage(chatId, report, { parse_mode: 'HTML' });
   });
 
+  // ✍️ ПРОВЕРКА ГРАММАТИКИ (Grammarly-подобная функция)
+  bot.onText(/\/grammar (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const text = match?.[1];
+
+    if (!text) {
+      await bot!.sendMessage(chatId, '❌ Укажите текст для проверки!\n\nПример: /grammar ваш текст');
+      return;
+    }
+
+    if (!checkRateLimit(chatId, 'ai')) {
+      await bot!.sendMessage(chatId, '⏳ Слишком много AI запросов! Подождите минуту.');
+      return;
+    }
+
+    await bot!.sendMessage(chatId, '✍️ Проверяю грамматику и стиль...');
+    await bot!.sendChatAction(chatId, 'typing');
+
+    try {
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.checkGrammarAndStyle(text);
+
+      updateUserStats(chatId, 'ai');
+
+      let response = `✍️ ПРОВЕРКА ГРАММАТИКИ\n\n`;
+      response += `📊 <b>Оценки:</b>\n`;
+      response += `• Читаемость: ${result.readabilityScore}/100\n`;
+      response += `• SEO: ${result.seoScore}/100\n\n`;
+
+      if (result.grammarIssues.length > 0) {
+        response += `❌ <b>Найдено ${result.grammarIssues.length} проблем:</b>\n\n`;
+        result.grammarIssues.slice(0, 5).forEach((issue, i) => {
+          response += `${i + 1}. ${issue.type}: "${issue.text}"\n`;
+          response += `   ✅ Исправление: "${issue.suggestion}"\n\n`;
+        });
+      } else {
+        response += `✅ <b>Грамматических ошибок не найдено!</b>\n\n`;
+      }
+
+      if (result.optimized !== text) {
+        response += `📝 <b>Оптимизированная версия:</b>\n"${result.optimized}"\n\n`;
+      }
+
+      if (result.suggestions.length > 0) {
+        response += `💡 <b>Рекомендации:</b>\n`;
+        result.suggestions.forEach(s => response += `• ${s}\n`);
+      }
+
+      await bot!.sendMessage(chatId, response, { parse_mode: 'HTML' });
+    } catch (error) {
+      await bot!.sendMessage(chatId, '❌ Ошибка проверки грамматики.');
+    }
+  });
+
+  // 📝 TLDR - краткое содержание
+  bot.onText(/\/tldr (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const text = match?.[1];
+
+    if (!text) {
+      await bot!.sendMessage(chatId, '❌ Укажите текст для сокращения!\n\nПример: /tldr длинный текст...');
+      return;
+    }
+
+    if (!checkRateLimit(chatId, 'ai')) {
+      await bot!.sendMessage(chatId, '⏳ Слишком много AI запросов! Подождите минуту.');
+      return;
+    }
+
+    await bot!.sendMessage(chatId, '📝 Создаю краткое содержание...');
+    await bot!.sendChatAction(chatId, 'typing');
+
+    try {
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.generateTLDR(text);
+
+      updateUserStats(chatId, 'ai');
+
+      let response = `📝 <b>КРАТКОЕ СОДЕРЖАНИЕ (TLDR)</b>\n\n`;
+      response += `${result.summary}\n\n`;
+      response += `📌 <b>Ключевые пункты:</b>\n`;
+      result.keyPoints.forEach((point, i) => {
+        response += `${i + 1}. ${point}\n`;
+      });
+      response += `\n⏱ Время чтения полного текста: ${result.readingTime}`;
+
+      await bot!.sendMessage(chatId, response, { parse_mode: 'HTML' });
+    } catch (error) {
+      await bot!.sendMessage(chatId, '❌ Ошибка создания краткого содержания.');
+    }
+  });
+
+  // 🎮 ГЕЙМИФИКАЦИЯ - генерация викторин
+  bot.onText(/\/gamify(?:\s+(.+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const topic = match && match[1] ? match[1] : 'AI и нейросети';
+
+    if (!checkRateLimit(chatId, 'ai')) {
+      await bot!.sendMessage(chatId, '⏳ Слишком много AI запросов! Подождите минуту.');
+      return;
+    }
+
+    await bot!.sendMessage(chatId, '🎮 Создаю интерактивную викторину...');
+    await bot!.sendChatAction(chatId, 'typing');
+
+    try {
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.generateGameContent('quiz', topic, 'medium');
+
+      updateUserStats(chatId, 'ai');
+
+      let response = `🎮 <b>ВИКТОРИНА: ${topic}</b>\n\n`;
+      
+      if (result.questions) {
+        result.questions.slice(0, 3).forEach((q, i) => {
+          response += `<b>${i + 1}. ${q.question}</b>\n`;
+          q.options.forEach((opt, idx) => {
+            response += `${idx === q.correctAnswer ? '✅' : '❌'} ${opt}\n`;
+          });
+          response += `💡 ${q.explanation}\n\n`;
+        });
+      }
+
+      response += `🎁 <b>Награда:</b> ${result.reward}`;
+
+      await bot!.sendMessage(chatId, response, { parse_mode: 'HTML' });
+    } catch (error) {
+      await bot!.sendMessage(chatId, '❌ Ошибка создания викторины.');
+    }
+  });
+
   // 📈 СТАТИСТИКА БОТА
   bot.onText(/\/botstats/, async (msg) => {
     const chatId = msg.chat.id;
