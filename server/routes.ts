@@ -2127,6 +2127,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup advanced promotion strategy routes
   setupPromotionStrategyRoutes(app);
 
+  // === АВТОМАТИЧЕСКАЯ ГЕНЕРАЦИЯ ВИЗУАЛА ===
+
+  // Автоматическая генерация визуала для поста
+  app.post('/api/auto-visual/generate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { postText, platform } = req.body;
+
+      if (!postText || !platform) {
+        return res.status(400).json({ error: 'Post text and platform are required' });
+      }
+
+      const { autoVisualGenerator } = await import('./services/autoVisualGenerator');
+      const result = await autoVisualGenerator.generateVisualForPost(
+        postText,
+        platform,
+        userId
+      );
+
+      res.json({
+        success: true,
+        visual: result,
+        message: 'Визуал автоматически создан'
+      });
+    } catch (error) {
+      console.error('Ошибка автогенерации визуала:', error);
+      res.status(500).json({ error: 'Не удалось создать визуал' });
+    }
+  });
+
+  // Пакетная генерация визуалов
+  app.post('/api/auto-visual/batch', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { posts } = req.body;
+
+      if (!posts || !Array.isArray(posts)) {
+        return res.status(400).json({ error: 'Posts array is required' });
+      }
+
+      const { autoVisualGenerator } = await import('./services/autoVisualGenerator');
+      const results = await autoVisualGenerator.generateVisualsForMultiplePosts(
+        posts,
+        userId
+      );
+
+      res.json({
+        success: true,
+        visuals: results,
+        count: results.length,
+        totalCost: results.reduce((sum, r) => sum + r.cost, 0)
+      });
+    } catch (error) {
+      console.error('Ошибка пакетной генерации:', error);
+      res.status(500).json({ error: 'Не удалось создать визуалы' });
+    }
+  });
+
+  // Генерация вирусного визуала
+  app.post('/api/auto-visual/viral', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { contentType, topic, platform } = req.body;
+
+      if (!contentType || !topic || !platform) {
+        return res.status(400).json({ error: 'Content type, topic, and platform are required' });
+      }
+
+      const { autoVisualGenerator } = await import('./services/autoVisualGenerator');
+      const result = await autoVisualGenerator.generateViralVisual(
+        contentType,
+        topic,
+        platform,
+        userId
+      );
+
+      res.json({
+        success: true,
+        visual: result,
+        message: `Вирусный ${contentType} визуал создан`
+      });
+    } catch (error) {
+      console.error('Ошибка создания вирусного визуала:', error);
+      res.status(500).json({ error: 'Не удалось создать вирусный визуал' });
+    }
+  });
+
   // === TELEGRAM PROMO BOT ROUTES ===
 
   // Запуск промо-бота

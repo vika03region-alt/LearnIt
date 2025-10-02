@@ -355,6 +355,7 @@ class TelegramPromoBot {
 • Автоматическая генерация контента
 • Публикации 3 раза в день
 • AI-оптимизация постов
+• Автоматические визуалы (DALL-E 3)
 • Анализ эффективности
 
 📊 <b>РЕЗУЛЬТАТЫ:</b>
@@ -375,6 +376,34 @@ class TelegramPromoBot {
 ✅ Автопилот активен!`;
 
       await this.bot!.sendMessage(chatId, info, { parse_mode: 'HTML' });
+    });
+
+    // === ГЕНЕРАЦИЯ ВИЗУАЛА К ПОСТУ ===
+    this.bot.onText(/\/visual(?:\s+(.+))?/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const text = match && match[1] ? match[1] : 'продвижение в Telegram';
+
+      await this.bot!.sendMessage(chatId, '🎨 Создаю визуал для поста...');
+
+      try {
+        const { autoVisualGenerator } = await import('./autoVisualGenerator');
+        const visual = await autoVisualGenerator.generateVisualForPost(
+          text,
+          'telegram',
+          this.userId
+        );
+
+        if (visual.imageUrl) {
+          await this.bot!.sendPhoto(chatId, visual.imageUrl, {
+            caption: `🎨 <b>АВТОВИЗУАЛ ГОТОВ!</b>\n\n📝 Текст: ${text}\n\n🖼️ Промпт: ${visual.prompt.substring(0, 150)}...\n\n💰 Стоимость: $${visual.cost}\n\n✅ Готов к публикации!`,
+            parse_mode: 'HTML'
+          });
+        }
+
+        this.updateUserStats(chatId, 'visual');
+      } catch (error) {
+        await this.bot!.sendMessage(chatId, '❌ Ошибка генерации визуала. Попробуйте еще раз');
+      }
     });
 
     // === AI ПОМОЩНИК (обработка текста) ===
@@ -461,12 +490,33 @@ class TelegramPromoBot {
       const content = response.choices[0].message.content || '';
       
       if (this.bot && this.channelId) {
-        await this.bot.sendMessage(this.channelId, content);
+        // Генерируем визуал автоматически
+        try {
+          const { autoVisualGenerator } = await import('./autoVisualGenerator');
+          const visual = await autoVisualGenerator.generateVisualForPost(
+            content,
+            'telegram',
+            this.userId
+          );
+
+          // Отправляем пост с изображением
+          if (visual.imageUrl) {
+            await this.bot.sendPhoto(this.channelId, visual.imageUrl, {
+              caption: content,
+              parse_mode: 'HTML'
+            });
+          } else {
+            await this.bot.sendMessage(this.channelId, content);
+          }
+        } catch (visualError) {
+          console.error('Ошибка генерации визуала, публикуем без него:', visualError);
+          await this.bot.sendMessage(this.channelId, content);
+        }
         
         await storage.createActivityLog({
           userId: this.userId,
           action: 'Auto Post Published',
-          description: `Автопост: ${topic}`,
+          description: `Автопост с визуалом: ${topic}`,
           status: 'success',
           metadata: { topic, content: content.substring(0, 100) },
         });
