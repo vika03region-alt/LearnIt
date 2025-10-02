@@ -92,55 +92,71 @@ export async function startTelegramBot() {
     return;
   }
 
-  // Если бот уже запущен, останавливаем его
-  if (bot) {
-    console.log('🔄 Остановка предыдущего экземпляра бота...');
-    await bot.stopPolling();
-    bot = null;
+  // Предотвращаем одновременный запуск нескольких экземпляров
+  if (isStarting) {
+    console.log('⚠️ Бот уже запускается, пропускаем повторный запуск');
+    return;
   }
 
-  // Создаём временный экземпляр для очистки webhook
-  const tempBot = new TelegramBot(TELEGRAM_TOKEN, { polling: false });
-  
+  isStarting = true;
+
   try {
-    // Удаляем webhook, если был установлен
-    await tempBot.deleteWebHook();
-    console.log('✅ Webhook очищен');
+    // Если бот уже запущен, останавливаем его
+    if (bot) {
+      console.log('🔄 Остановка предыдущего экземпляра бота...');
+      try {
+        await bot.stopPolling({ cancel: true, reason: 'Restart requested' });
+      } catch (e) {
+        // Игнорируем ошибки остановки
+      }
+      bot = null;
+      // Ждем, чтобы предыдущий экземпляр точно остановился
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+
+    // Создаём временный экземпляр для очистки webhook
+    const tempBot = new TelegramBot(TELEGRAM_TOKEN, { polling: false });
     
-    // Даем время серверам Telegram обработать удаление webhook
-    await new Promise(resolve => setTimeout(resolve, 2000));
-  } catch (error) {
-    console.log('⚠️ Ошибка очистки webhook (возможно, его не было)');
-  }
-
-  // Запускаем бот с polling
-  bot = new TelegramBot(TELEGRAM_TOKEN, { 
-    polling: {
-      interval: 1000,
-      autoStart: true,
-      params: {
-        timeout: 30
-      }
+    try {
+      // Удаляем webhook, если был установлен
+      await tempBot.deleteWebHook();
+      console.log('✅ Webhook очищен');
+      
+      // Даем время серверам Telegram обработать удаление webhook
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    } catch (error) {
+      console.log('⚠️ Ошибка очистки webhook (возможно, его не было)');
     }
-  });
 
-  // Обработка ошибок polling
-  let conflict409Count = 0;
-  bot.on('polling_error', (error) => {
-    if (error.message.includes('409')) {
-      conflict409Count++;
-      if (conflict409Count === 1) {
-        console.error('⚠️ Ошибка 409: Другой экземпляр бота уже запущен!');
-        console.error('💡 Решение: остановите другие экземпляры бота с этим токеном');
-        console.error('   - Проверьте другие Replit deployments');
-        console.error('   - Проверьте внешние серверы');
-        console.error('   - Используйте /setWebhook для удаления webhook');
+    // Запускаем бот с polling
+    bot = new TelegramBot(TELEGRAM_TOKEN, { 
+      polling: {
+        interval: 1000,
+        autoStart: true,
+        params: {
+          timeout: 30
+        }
       }
-      // Не перезапускаем бот при 409 - это только ухудшит ситуацию
-      return;
-    }
-    console.error('⚠️ Polling error:', error.message);
-  });
+    });
+
+    // Обработка ошибок polling
+    let conflict409Count = 0;
+    bot.on('polling_error', (error) => {
+      if (error.message.includes('409')) {
+        conflict409Count++;
+        if (conflict409Count === 1) {
+          console.error('❌ ОШИБКА 409: Обнаружен другой экземпляр бота!');
+          console.error('📌 РЕШЕНИЕ:');
+          console.error('   1. Остановите другие запущенные экземпляры этого бота');
+          console.error('   2. Проверьте, не запущен ли бот на другом сервере/компьютере');
+          console.error('   3. Если используете несколько Replit deployments, остановите их');
+          console.error('   4. Подождите 1-2 минуты и перезапустите сервер');
+        }
+        // Не перезапускаем бот при 409 - это только ухудшит ситуацию
+        return;
+      }
+      console.error('⚠️ Polling error:', error.message);
+    });
   
   console.log('🤖 Telegram бот запущен!');
   console.log(`📢 Канал: ${CHANNEL_ID}`);
