@@ -85,13 +85,54 @@ async function publishPoll() {
   }
 }
 
-export function startTelegramBot() {
+export async function startTelegramBot() {
   if (!TELEGRAM_TOKEN) {
     console.log('⚠️ BOTTG токен не найден - Telegram бот не запущен');
     return;
   }
 
-  bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+  // Если бот уже запущен, останавливаем его
+  if (bot) {
+    console.log('🔄 Остановка предыдущего экземпляра бота...');
+    await bot.stopPolling();
+    bot = null;
+  }
+
+  // Создаём временный экземпляр для очистки webhook
+  const tempBot = new TelegramBot(TELEGRAM_TOKEN, { polling: false });
+  
+  try {
+    // Удаляем webhook, если был установлен
+    await tempBot.deleteWebHook();
+    console.log('✅ Webhook очищен');
+  } catch (error) {
+    console.log('⚠️ Ошибка очистки webhook (возможно, его не было)');
+  }
+
+  // Запускаем бот с polling
+  bot = new TelegramBot(TELEGRAM_TOKEN, { 
+    polling: {
+      interval: 300,
+      autoStart: true,
+      params: {
+        timeout: 10
+      }
+    }
+  });
+
+  // Обработка ошибок polling
+  bot.on('polling_error', (error) => {
+    console.error('⚠️ Polling error:', error.message);
+    if (error.message.includes('409')) {
+      console.log('🔄 Конфликт 409 - останавливаю polling и перезапускаю...');
+      setTimeout(async () => {
+        if (bot) {
+          await bot.stopPolling();
+          bot.startPolling();
+        }
+      }, 5000);
+    }
+  });
   
   console.log('🤖 Telegram бот запущен!');
   console.log(`📢 Канал: ${CHANNEL_ID}`);

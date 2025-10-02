@@ -66,16 +66,16 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
     
     // Запуск Telegram бота
     if (process.env.BOTTG) {
       try {
-        startTelegramBot();
+        await startTelegramBot();
         log('🤖 Telegram бот запущен и готов к работе!');
       } catch (error) {
-        log('⚠️ Ошибка запуска Telegram бота:', error);
+        console.error('⚠️ Ошибка запуска Telegram бота:', error);
       }
     } else {
       log('⚠️ BOTTG токен не найден - Telegram бот не запущен');
