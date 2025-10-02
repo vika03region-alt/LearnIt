@@ -1135,7 +1135,18 @@ export async function startTelegramBot() {
 До 1000 символов.`;
 
       const response = await grok.chat.completions.create({
+        model: 'grok-2-latest',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 1200
+      });
 
+      const audienceProfile = response.choices[0].message.content || 'Ошибка';
+      await bot!.sendMessage(chatId, `👥 ПРОФИЛЬ АУДИТОРИИ\n\n${audienceProfile}`);
+    } catch (error) {
+      await bot!.sendMessage(chatId, '❌ Ошибка анализа аудитории.');
+    }
+  });
 
   // 🚀 БЫСТРЫЙ СТАРТ ДЛЯ НОВИЧКОВ
   bot.onText(/\/quickstart/, async (msg) => {
