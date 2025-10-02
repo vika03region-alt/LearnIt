@@ -39,7 +39,7 @@ import {
   type InsertAIMessage,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, sql, isNotNull } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import * as crypto from 'crypto';
 
 // Encryption utilities for sensitive data
@@ -145,10 +145,6 @@ export interface IStorage {
   createAIMessage(message: InsertAIMessage): Promise<AIMessage>;
   getAIConversationMessages(conversationId: number): Promise<AIMessage[]>;
   updateAIConversationMetrics(conversationId: number, tokensUsed: number, cost: number): Promise<void>;
-
-  // Message storage for AI Assistant
-  storeMessage(userId: string, role: 'user' | 'assistant', content: string, type?: string): Promise<void>;
-  getMessages(userId: string, limit?: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -263,16 +259,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getScheduledPosts(userId: string): Promise<Post[]> {
-    const result = await db
+    return await db
       .select()
       .from(posts)
-      .where(and(
-        eq(posts.userId, userId),
-        eq(posts.status, 'scheduled'),
-        isNotNull(posts.scheduledAt)
-      ));
-
-    return result;
+      .where(and(eq(posts.userId, userId), eq(posts.status, 'scheduled')))
+      .orderBy(posts.scheduledAt);
   }
 
   async updatePost(id: number, updates: Partial<Post>): Promise<Post> {
@@ -698,19 +689,6 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(aiConversations.id, conversationId));
-  }
-
-  // Message storage for AI Assistant
-  async storeMessage(userId: string, role: 'user' | 'assistant', content: string, type: string = 'text'): Promise<void> {
-    // In a real implementation, you would store messages in a database
-    // For now, we'll just log them
-    console.log(`Message stored: ${userId} - ${role}: ${content.substring(0, 50)}...`);
-  }
-
-  async getMessages(userId: string, limit: number = 50): Promise<any[]> {
-    // In a real implementation, you would retrieve messages from a database
-    // For now, return empty array
-    return [];
   }
 }
 

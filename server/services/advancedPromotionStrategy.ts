@@ -75,7 +75,7 @@ class AdvancedPromotionStrategy {
       `;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       });
@@ -356,7 +356,7 @@ class AdvancedPromotionStrategy {
       `;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       });
@@ -464,7 +464,7 @@ class AdvancedPromotionStrategy {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       });

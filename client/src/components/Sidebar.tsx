@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
@@ -53,12 +54,12 @@ export default function Sidebar() {
 
   const getPlatformStatus = (platformName: string) => {
     if (!safetyStatus?.platforms) return 'inactive';
-
+    
     const platformData = Object.values(safetyStatus.platforms).find(
       (platform: any, index: number) => index.toString() === platformName || platform.name === platformName
     );
     if (!platformData) return 'inactive';
-
+    
     if (platformData.percentage > 90) return 'critical';
     if (platformData.percentage > 80) return 'warning';
     return 'active';
@@ -99,7 +100,7 @@ export default function Sidebar() {
             </div>
           )}
         </div>
-
+        
         <nav className="space-y-2">
           <Link href="/">
             <a 
@@ -146,7 +147,7 @@ export default function Sidebar() {
               </a>
             </Link>
           ))}
-
+          
           <div className="pt-4 border-t border-slate-200">
             {!collapsed && (
               <div className="px-3 py-2 mb-2">
@@ -171,6 +172,21 @@ export default function Sidebar() {
               </a>
             </Link>
 
+            <Link href="/ai-assistant">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/ai-assistant"
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-ai-assistant"
+              >
+                <Bot className="w-5 h-5" />
+                {!collapsed && <span>AI Ассистент</span>}
+              </a>
+            </Link>
+
             <Link href="/safety">
               <a 
                 className={cn(
@@ -183,21 +199,6 @@ export default function Sidebar() {
               >
                 <Shield className="w-5 h-5" />
                 {!collapsed && <span>Безопасность</span>}
-              </a>
-            </Link>
-
-            <Link href="/ai-assistant">
-              <a 
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                  location === "/ai-assistant"
-                    ? "bg-gradient-to-r from-indigo-500 to-blue-600 text-white shadow-sm"
-                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-                )}
-                data-testid="link-ai-assistant"
-              >
-                <Bot className="w-5 h-5" />
-                {!collapsed && <span>AI Assistant</span>}
               </a>
             </Link>
 
@@ -230,24 +231,10 @@ export default function Sidebar() {
                 {!collapsed && <span>Настройки</span>}
               </a>
             </Link>
-
-            <Link href="/autonomous-ai">
-              <a 
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                  location === "/autonomous-ai"
-                    ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-sm"
-                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-                )}
-              >
-                <Bot className="w-5 h-5" />
-                {!collapsed && <span>Автономная AI</span>}
-              </a>
-            </Link>
           </div>
         </nav>
       </div>
-
+      
       <div className="absolute bottom-6 left-6 right-6">
         <Button
           variant="outline"
