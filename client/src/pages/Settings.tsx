@@ -8,6 +8,7 @@ import Sidebar from "@/components/Sidebar";
 import SocialAccountManager from "@/components/SocialAccountManager";
 import TelegramTester from "@/components/TelegramTester";
 import TelegramQuickTest from "@/components/TelegramQuickTest";
+import TelegramChannelAnalyzer from "@/components/TelegramChannelAnalyzer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -344,6 +345,9 @@ export default function Settings() {
 
           {/* Telegram Quick Test */}
           <TelegramQuickTest />
+
+          {/* Telegram Channel Analyzer */}
+          <TelegramChannelAnalyzer />
 
           {/* Telegram Tester */}
           <TelegramTester />
