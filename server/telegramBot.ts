@@ -13,6 +13,19 @@ const grok = new OpenAI({
 let bot: TelegramBot | null = null;
 let isSchedulerPaused = false;
 
+// Реферальная система
+const referralStats = new Map<string, { invites: number; rewards: number }>();
+const userReferrals = new Map<string, string[]>(); // userId -> [invitedUserIds]
+
+// Автоматические реакции
+const welcomeMessages = [
+  '👋 Добро пожаловать! Рад видеть тебя в нашем сообществе AI-энтузиастов!',
+  '🎉 Привет! Ты присоединился к самому активному AI-каналу! Погнали учиться!',
+  '🚀 Welcome! Здесь ты узнаешь всё про нейросети и AI. Задавай вопросы!',
+  '💡 Привет! Каждый день публикуем полезный контент про AI. Не пропусти!',
+  '🔥 Добро пожаловать! Тут вся магия нейросетей. Погружаемся вместе!'
+];
+
 const contentTopics = [
   'Как ChatGPT экономит 5 часов в день специалистам',
   'ТОП-5 AI инструментов для продуктивности в 2025',
@@ -119,8 +132,44 @@ export function startTelegramBot() {
   // БАЗОВЫЕ КОМАНДЫ
   // ====================================
 
-  bot.onText(/\/start/, async (msg) => {
+  bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || '';
+    const referrerId = match && match[1] ? match[1] : null;
+    
+    // Обработка реферальной ссылки
+    if (referrerId && referrerId !== userId) {
+      // Инициализируем статистику реферера если её нет
+      if (!referralStats.has(referrerId)) {
+        referralStats.set(referrerId, { invites: 0, rewards: 0 });
+      }
+      if (!userReferrals.has(referrerId)) {
+        userReferrals.set(referrerId, []);
+      }
+      
+      // Добавляем приглашенного пользователя
+      const referrerData = referralStats.get(referrerId)!;
+      const invitedUsers = userReferrals.get(referrerId)!;
+      
+      // Проверяем что пользователь еще не был приглашен
+      if (!invitedUsers.includes(userId)) {
+        invitedUsers.push(userId);
+        referrerData.invites++;
+        
+        // Награды за приглашения
+        if (referrerData.invites % 5 === 0) {
+          referrerData.rewards++;
+          await bot!.sendMessage(referrerId, `🎁 НАГРАДА! Ты пригласил ${referrerData.invites} друзей!\n\n🏆 Получена награда #${referrerData.rewards}\n\n💡 Продолжай приглашать друзей!`);
+        } else {
+          await bot!.sendMessage(referrerId, `✅ По твоей ссылке присоединился новый участник!\n\nВсего приглашений: ${referrerData.invites}\n🎁 До награды: ${5 - (referrerData.invites % 5)} друзей`);
+        }
+        
+        // Приветствие приглашенному
+        const randomWelcome = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+        await bot!.sendMessage(chatId, `${randomWelcome}\n\n💝 Тебя пригласил друг, так держать!`);
+      }
+    }
+    
     const welcomeMessage = `
 👋 Привет! Я твой AI-помощник
 
@@ -141,6 +190,10 @@ export function startTelegramBot() {
 4️⃣ ДАЮ СОВЕТЫ
    /trends - что сейчас работает
    /blueprint - план развития
+
+🎁 ПРИГЛАСИ ДРУЗЕЙ:
+   /referral - получи свою ссылку
+   За каждые 5 друзей - награда!
 
 💬 ПРОСТО СПРОСИ:
 Можешь писать обычные вопросы
@@ -211,6 +264,10 @@ export function startTelegramBot() {
 /story - контент для Stories
 /engage - стратегия вовлечения
 /challenge - вирусный челлендж
+
+🎁 ВИРУСНЫЙ РОСТ:
+/referral - твоя реферальная ссылка
+За каждые 5 друзей - награда!
 
 🛠 НАСТРОЙКИ:
 /schedule - расписание постов
@@ -1256,11 +1313,108 @@ export function startTelegramBot() {
     }
   });
 
+  // ====================================
+  // РЕФЕРАЛЬНАЯ СИСТЕМА
+  // ====================================
+
+  bot.onText(/\/referral/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || chatId.toString();
+    const botUsername = (await bot!.getMe()).username;
+    
+    // Инициализируем статистику если её нет
+    if (!referralStats.has(userId)) {
+      referralStats.set(userId, { invites: 0, rewards: 0 });
+    }
+    if (!userReferrals.has(userId)) {
+      userReferrals.set(userId, []);
+    }
+    
+    const stats = referralStats.get(userId)!;
+    const referralLink = `https://t.me/${botUsername}?start=${userId}`;
+    
+    const referralMessage = `🎁 ТВОЯ РЕФЕРАЛЬНАЯ ПРОГРАММА
+
+🔗 ТВОЯ ССЫЛКА:
+${referralLink}
+
+📊 СТАТИСТИКА:
+👥 Приглашено друзей: ${stats.invites}
+🏆 Получено наград: ${stats.rewards}
+🎯 До следующей награды: ${5 - (stats.invites % 5)} друзей
+
+💎 НАГРАДЫ:
+• 5 друзей = 🎁 Награда #1
+• 10 друзей = 🎁 Награда #2  
+• 15 друзей = 🎁 Награда #3
+• 20+ друзей = 🎁 VIP статус!
+
+🚀 КАК РАБОТАЕТ:
+1. Поделись своей ссылкой
+2. Друзья переходят и запускают бота
+3. Ты получаешь уведомления
+4. За каждые 5 друзей - награда!
+
+💡 ПОДЕЛИСЬ В:
+• Telegram Stories
+• Личные сообщения
+• Группы и каналы
+• Соцсети
+
+📈 Чем больше друзей - тем круче награды!`;
+
+    await bot!.sendMessage(chatId, referralMessage, {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '📤 Поделиться ссылкой', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('🔥 Крутой AI-бот для Telegram! Присоединяйся!')}` }
+          ],
+          [
+            { text: '📊 Моя статистика', callback_data: 'referral_stats' }
+          ]
+        ]
+      }
+    });
+  });
+
+  // ====================================
+  // АВТОМАТИЧЕСКИЕ РЕАКЦИИ
+  // ====================================
+
+  bot.on('new_chat_members', async (msg) => {
+    const chatId = msg.chat.id;
+    const newMembers = msg.new_chat_members || [];
+    
+    for (const member of newMembers) {
+      if (member.is_bot) continue;
+      
+      const randomWelcome = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+      const welcomeText = `${randomWelcome}\n\n🎯 Начни с команды /start\n💬 Или просто задай вопрос!`;
+      
+      try {
+        await bot!.sendMessage(chatId, welcomeText);
+        console.log(`👋 Отправлено приветствие для ${member.first_name}`);
+      } catch (error) {
+        console.error('Ошибка отправки приветствия:', error);
+      }
+    }
+  });
+
+  bot.on('left_chat_member', async (msg) => {
+    const chatId = msg.chat.id;
+    const leftMember = msg.left_chat_member;
+    
+    if (leftMember && !leftMember.is_bot) {
+      console.log(`👋 Пользователь ${leftMember.first_name} покинул чат`);
+    }
+  });
+
   // Обработка нажатий на кнопки
   bot.on('callback_query', async (callbackQuery) => {
     const msg = callbackQuery.message;
     const chatId = msg?.chat.id;
     const data = callbackQuery.data;
+    const userId = callbackQuery.from?.id.toString() || '';
     
     if (!chatId) return;
 
@@ -1270,11 +1424,35 @@ export function startTelegramBot() {
           text: '✅ Конкурс будет опубликован!'
         });
         await bot!.sendMessage(chatId, '📝 Публикую конкурс в канале...');
-        // Здесь можно добавить логику публикации
       } else if (data === 'regenerate_contest') {
         await bot!.answerCallbackQuery(callbackQuery.id);
         await bot!.sendMessage(chatId, '🔄 Генерирую новый вариант...');
-        // Повторная генерация
+      } else if (data === 'referral_stats') {
+        await bot!.answerCallbackQuery(callbackQuery.id);
+        
+        const stats = referralStats.get(userId) || { invites: 0, rewards: 0 };
+        const invitedUsers = userReferrals.get(userId) || [];
+        
+        const statsMessage = `📊 ДЕТАЛЬНАЯ СТАТИСТИКА
+
+👥 Всего приглашено: ${stats.invites} ${stats.invites === 1 ? 'друг' : 'друзей'}
+🏆 Получено наград: ${stats.rewards}
+📈 Активных рефералов: ${invitedUsers.length}
+
+🎯 ПРОГРЕСС ДО НАГРАДЫ:
+${stats.invites % 5}/5 друзей
+${Array(stats.invites % 5).fill('🟢').join('')}${Array(5 - (stats.invites % 5)).fill('⚪️').join('')}
+
+💎 СЛЕДУЮЩАЯ НАГРАДА:
+${stats.invites < 5 ? '🎁 Награда #1 (5 друзей)' : 
+  stats.invites < 10 ? '🎁 Награда #2 (10 друзей)' : 
+  stats.invites < 15 ? '🎁 Награда #3 (15 друзей)' : 
+  stats.invites < 20 ? '🎁 VIP статус (20 друзей)' : 
+  '👑 VIP статус получен!'}
+
+🚀 Продолжай приглашать друзей!`;
+
+        await bot!.sendMessage(chatId, statsMessage);
       }
     } catch (error) {
       console.error('Ошибка обработки callback:', error);
