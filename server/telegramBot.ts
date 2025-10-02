@@ -87,7 +87,7 @@ async function publishPoll() {
     const options = ['ChatGPT', 'Claude', 'Midjourney', 'Другой'];
     
     await bot.sendPoll(CHANNEL_ID, question, options, {
-      is_anonymous: false,
+      is_anonymous: true,
       allows_multiple_answers: false
     });
     
@@ -169,6 +169,19 @@ export function startTelegramBot() {
     `;
     await bot!.sendMessage(chatId, stats);
   });
+
+  bot.onText(/\/roll(?:\s+(\d+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const maxNumber = match && match[1] ? parseInt(match[1]) : 6;
+    
+    if (maxNumber < 2 || maxNumber > 1000) {
+      await bot!.sendMessage(chatId, '❌ Укажите число от 2 до 1000!\nПример: /roll 100');
+      return;
+    }
+    
+    const result = Math.floor(Math.random() * maxNumber) + 1;
+    await bot!.sendMessage(chatId, `🎲 Бросок кубика (1-${maxNumber}):\n\n🎯 Выпало: ${result}`);
+  });
   
   console.log('📅 Расписание настроено:');
   console.log('   • 09:00 - утренний пост');
@@ -180,4 +193,5 @@ export function startTelegramBot() {
   console.log('   • /post - опубликовать пост сейчас');
   console.log('   • /poll - создать опрос');
   console.log('   • /stats - показать статистику');
+  console.log('   • /roll [число] - бросок кубика (по умолчанию 1-6)');
 }
