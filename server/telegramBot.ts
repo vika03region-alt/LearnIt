@@ -46,14 +46,14 @@ function checkRateLimit(userId: number, type: 'command' | 'ai'): boolean {
   const timestamps = type === 'command' 
     ? userCommandTimestamps.get(userId) || []
     : userAIRequestTimestamps.get(userId) || [];
-  
+
 
 
 // 🧹 АВТОМАТИЧЕСКАЯ ОЧИСТКА КЭША (каждые 2 часа)
 setInterval(() => {
   const now = Date.now();
   let cleared = 0;
-  
+
   // Очищаем старый кэш
   for (const [key, value] of responseCache.entries()) {
     if (now - value.timestamp > CACHE_TTL) {
@@ -61,7 +61,7 @@ setInterval(() => {
       cleared++;
     }
   }
-  
+
   // Очищаем старые timestamps
   for (const [userId, timestamps] of userCommandTimestamps.entries()) {
     const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
@@ -71,7 +71,7 @@ setInterval(() => {
       userCommandTimestamps.set(userId, recent);
     }
   }
-  
+
   for (const [userId, timestamps] of userAIRequestTimestamps.entries()) {
     const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
     if (recent.length === 0) {
@@ -80,27 +80,27 @@ setInterval(() => {
       userAIRequestTimestamps.set(userId, recent);
     }
   }
-  
+
   console.log(`🧹 Очистка кэша: удалено ${cleared} записей`);
 }, 7200000); // 2 часа
 
   // Удаляем старые timestamps
   const recentTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
-  
+
   const limit = type === 'command' ? COMMAND_RATE_LIMIT : AI_RATE_LIMIT;
-  
+
   if (recentTimestamps.length >= limit) {
     return false;
   }
-  
+
   recentTimestamps.push(now);
-  
+
   if (type === 'command') {
     userCommandTimestamps.set(userId, recentTimestamps);
   } else {
     userAIRequestTimestamps.set(userId, recentTimestamps);
   }
-  
+
   return true;
 }
 
@@ -111,12 +111,12 @@ function updateUserStats(userId: number, action: 'command' | 'ai' | 'post') {
     postsCreated: 0,
     lastActive: new Date()
   };
-  
+
   if (action === 'command') stats.commands++;
   if (action === 'ai') stats.aiRequests++;
   if (action === 'post') stats.postsCreated++;
   stats.lastActive = new Date();
-  
+
   userStats.set(userId, stats);
 }
 
@@ -169,11 +169,11 @@ export async function publishPost() {
     console.log('⏸️ Публикация пропущена (бот на паузе)');
     return;
   }
-  
+
   try {
     const randomTopic = contentTopics[Math.floor(Math.random() * contentTopics.length)];
     const postText = await generatePost(randomTopic);
-    
+
     await bot.sendMessage(CHANNEL_ID, postText);
     console.log(`✅ Пост опубликован: ${new Date().toLocaleString()}`);
     console.log(`📝 Тема: ${randomTopic}`);
@@ -186,16 +186,16 @@ export async function publishPost() {
 
 async function publishPoll() {
   if (!bot || isSchedulerPaused) return;
-  
+
   try {
     const question = 'Какой AI инструмент вы используете чаще всего?';
     const options = ['ChatGPT', 'Claude', 'Midjourney', 'Другой'];
-    
+
     await bot.sendPoll(CHANNEL_ID, question, options, {
       is_anonymous: true,
       allows_multiple_answers: false
     });
-    
+
     console.log(`✅ Опрос опубликован: ${new Date().toLocaleString()}`);
   } catch (error) {
     console.error('❌ Ошибка публикации опроса:', error);
@@ -210,7 +210,7 @@ export async function startTelegramBot() {
 
   // 🔒 Генерируем уникальный ID экземпляра
   const currentInstanceId = `bot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
+
   // Предотвращаем одновременный запуск нескольких экземпляров
   if (isStarting) {
     console.log('⚠️ Бот уже запускается, пропускаем повторный запуск');
@@ -235,12 +235,12 @@ export async function startTelegramBot() {
 
     // Создаём временный экземпляр для очистки webhook
     const tempBot = new TelegramBot(TELEGRAM_TOKEN, { polling: false });
-    
+
     try {
       // Удаляем webhook, если был установлен
       await tempBot.deleteWebHook();
       console.log('✅ Webhook очищен');
-      
+
       // Даем время серверам Telegram обработать удаление webhook
       await new Promise(resolve => setTimeout(resolve, 3000));
     } catch (error) {
@@ -276,32 +276,32 @@ export async function startTelegramBot() {
       }
       console.error('⚠️ Polling error:', error.message);
     });
-  
+
   console.log('🤖 Telegram бот запущен!');
   console.log(`📢 Канал: ${CHANNEL_ID}`);
   console.log('');
-  
+
   // Расписание постов
   cron.schedule('0 9 * * *', () => {
     console.log('⏰ Утренний пост (9:00)');
     publishPost();
   });
-  
+
   cron.schedule('0 15 * * *', () => {
     console.log('⏰ Дневной пост (15:00)');
     publishPost();
   });
-  
+
   cron.schedule('0 20 * * *', () => {
     console.log('⏰ Вечерний пост (20:00)');
     publishPost();
   });
-  
+
   cron.schedule('0 12 * * 1,4', () => {
     console.log('⏰ Публикация опроса');
     publishPoll();
   });
-  
+
   // ====================================
   // БАЗОВЫЕ КОМАНДЫ
   // ====================================
@@ -309,16 +309,16 @@ export async function startTelegramBot() {
   // 🛡️ Middleware для проверки rate limit
   bot.on('message', async (msg) => {
     if (!msg.text?.startsWith('/')) return;
-    
+
     const chatId = msg.chat.id;
-    
+
     if (!checkRateLimit(chatId, 'command')) {
       await bot!.sendMessage(chatId, '⏳ Слишком много команд! Подождите минуту и попробуйте снова.');
       return;
     }
-    
+
     updateUserStats(chatId, 'command');
-    
+
     // Логируем статистику команд
     const command = msg.text.split(' ')[0];
     commandStats.set(command, (commandStats.get(command) || 0) + 1);
@@ -365,70 +365,45 @@ export async function startTelegramBot() {
     `;
     await bot!.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
   });
-  
+
   bot.onText(/\/menu/, async (msg) => {
     const chatId = msg.chat.id;
-    const stats = userStats.get(chatId);
-    const isNewbie = !stats || stats.commands < 10;
-    
+
     const menuMessage = `
 ╔═══════════════════╗
-      🎯 <b>ГЛАВНОЕ МЕНЮ</b>
+   🎯 <b>ГЛАВНОЕ МЕНЮ</b>
 ╚═══════════════════╝
 
-${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n   /quickstart - Начать за 5 минут\n   /learn - Обучающие уроки\n   /suggest - Персональные советы\n\n' : ''}📝 <b>КОНТЕНТ</b>
-   /viral - Вирусный пост
-   /ideas - Идеи для постов
-   /hook - Цепляющие хуки
-   /hashtags - Хештеги
-
-📤 <b>ПУБЛИКАЦИЯ</b>
-   /publish - Опубликовать пост
-   /post - Создать и опубликовать
+📝 <b>ОСНОВНЫЕ КОМАНДЫ</b>
+━━━━━━━━━━━━━━━━━━━━
+/viral - Создать вирусный пост 🔥
+/publish - Опубликовать в канал 📤
+/trends - Актуальные тренды 📈
+/hashtags - Оптимизация хештегов #️⃣
+/viralcheck - Проверить потенциал ✅
 
 📊 <b>АНАЛИТИКА</b>
-   /analytics - Статистика канала
-   /mystats - Твоя статистика ⭐
-   /growth - Прогноз роста
-   /viralcheck - Проверка вирусности
-
-🚀 <b>ПРОДВИЖЕНИЕ</b>
-   /contest - Конкурс
-   /challenge - Челлендж
-   /magnet - Лид-магнит
-   /boost - План роста 30д
-
-🔍 <b>АНАЛИЗ</b>
-   /spy - Шпионаж
-   /niche - Анализ ниши
-   /trends - Тренды 2025
-   /competitors - ТОП конкурентов
-
-🎯 <b>СТРАТЕГИЯ</b>
-   /blueprint - План доминирования
-   /engage - Вовлечение
-   /autopilot - Автопилот
-
-🔥 <b>ИНСТРУМЕНТЫ КОНКУРЕНТОВ</b>
-   🎤 Голосовое → пост автоматически
-   /analyze_comments - Идеи из комментариев
-   /carousel - Карусель для Instagram
-   /testimonials - Система отзывов
-   /voice_answer - Скрипт голосового ответа
-   /multipost - 1 пост → все платформы
-   /audit - Экспресс-аудит канала
+━━━━━━━━━━━━━━━━━━━━
+/analytics - Статистика канала 📊
+/spy - Анализ конкурентов 🔍
+/mystats - Твоя статистика ⭐
 
 ⚙️ <b>УПРАВЛЕНИЕ</b>
-   /schedule - Расписание
-   /settings - Настройки
-   /botstats - Статистика бота
+━━━━━━━━━━━━━━━━━━━━
+/schedule - Расписание постов ⏰
+/help - Помощь 💡
 
 ━━━━━━━━━━━━━━━━━━━━
-📋 /help - Все команды (32)
-🎓 /learn - Обучение
-💡 /suggest - Что делать сейчас?
 💬 Или просто спроси меня!
+Я отвечу на любой вопрос.
 ━━━━━━━━━━━━━━━━━━━━
+
+<b>🚀 БЫСТРЫЙ СТАРТ:</b>
+1. /viral - создай пост
+2. /viralcheck - проверь
+3. /publish - опубликуй
+
+Готов помочь! 💪
     `;
     await bot!.sendMessage(chatId, menuMessage, { parse_mode: 'HTML' });
   });
@@ -526,11 +501,11 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
     `;
     await bot!.sendMessage(chatId, helpMessage, { parse_mode: 'HTML' });
   });
-  
+
   // ====================================
   // ДЕЙСТВИЯ
   // ====================================
-  
+
   // ====================================
   // ГЕНЕРАЦИЯ И ПУБЛИКАЦИЯ
   // ====================================
@@ -545,7 +520,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
       await bot!.sendMessage(chatId, '❌ Ошибка публикации. Проверьте права бота.');
     }
   });
-  
+
   bot.onText(/\/poll/, async (msg) => {
     const chatId = msg.chat.id;
     await bot!.sendMessage(chatId, '📊 Создаю опрос...');
@@ -564,17 +539,17 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/publish/, async (msg) => {
     const chatId = msg.chat.id;
     const savedPost = userPosts.get(chatId);
-    
+
     if (!savedPost) {
       await bot!.sendMessage(chatId, '❌ Нет сохранённого поста!\n\n💡 Сначала создай пост:\n/viral - вирусный пост\n/contest - конкурс\n/challenge - челлендж');
       return;
     }
-    
+
     try {
       await bot!.sendMessage(chatId, '📤 Публикую в канал...');
       await bot!.sendMessage(CHANNEL_ID, savedPost);
       await bot!.sendMessage(chatId, `✅ Пост успешно опубликован в канале ${CHANNEL_ID}!`);
-      
+
       // Удаляем пост после публикации
       userPosts.delete(chatId);
       console.log(`✅ Пост опубликован пользователем ${chatId} по команде /publish`);
@@ -583,13 +558,13 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
       await bot!.sendMessage(chatId, '❌ Ошибка публикации. Проверьте права бота в канале.');
     }
   });
-  
+
   bot.onText(/\/ideas(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const niche = match && match[1] ? match[1] : 'AI и нейросети';
-    
+
     await bot!.sendMessage(chatId, '💡 Генерирую идеи для контента...');
-    
+
     try {
       const prompt = `5 идей для постов в Telegram про "${niche}". Каждая: заголовок + 1 предложение.`;
 
@@ -610,9 +585,9 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/viral(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const topic = match && match[1] ? match[1] : 'AI инструменты';
-    
+
     await bot!.sendMessage(chatId, '🚀 Создаю вирусный пост...');
-    
+
     try {
       const prompt = `Создай ВИРУСНЫЙ пост для Telegram про "${topic}": сильный хук, эмоции, ценность, 350-600 символов, эмодзи.`;
 
@@ -624,10 +599,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
       });
 
       const viralPost = response.choices[0].message.content || 'Ошибка генерации';
-      
+
       // Сохраняем пост для публикации
       userPosts.set(chatId, viralPost);
-      
+
       await bot!.sendMessage(chatId, `🚀 ВИРУСНЫЙ ПОСТ:\n\n${viralPost}\n\n✅ Готов к публикации!\n\n💡 Для публикации:\n• Команда: /publish\n• Или напиши: "опубликуй"`);
     } catch (error) {
       await bot!.sendMessage(chatId, '❌ Ошибка генерации. Попробуйте позже.');
@@ -637,9 +612,9 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/hashtags(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const topic = match && match[1] ? match[1] : contentTopics[0];
-    
+
     await bot!.sendMessage(chatId, '#️⃣ Генерирую хештеги...');
-    
+
     try {
       const prompt = `10 хештегов для поста "${topic}": 5 популярных, 5 нишевых. Формат: #хештег - описание`;
 
@@ -660,14 +635,14 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/rewrite\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const text = match && match[1] ? match[1] : '';
-    
+
     if (!text) {
       await bot!.sendMessage(chatId, '❌ Укажите текст!\n\nПример: /rewrite Ваш текст');
       return;
     }
-    
+
     await bot!.sendMessage(chatId, '✍️ Переписываю текст...');
-    
+
     try {
       const prompt = `Переписать текст: живой стиль, эмодзи, структура. Текст: "${text}"`;
 
@@ -688,11 +663,11 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   // ====================================
   // АНАЛИТИКА
   // ====================================
-  
+
   bot.onText(/\/analytics/, async (msg) => {
     const chatId = msg.chat.id;
     await bot!.sendMessage(chatId, '📊 Получаю аналитику...');
-    
+
     const analytics = `📊 АНАЛИТИКА КАНАЛА
 
 📢 Канал: ${CHANNEL_ID}
@@ -716,14 +691,14 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
 Для детального отчета: /report
 Для прогноза роста: /growth`;
-      
+
     await bot!.sendMessage(chatId, analytics);
   });
 
   bot.onText(/\/growth/, async (msg) => {
     const chatId = msg.chat.id;
     await bot!.sendMessage(chatId, '📈 Анализирую потенциал роста...');
-    
+
     try {
       const prompt = `Прогноз роста подписчиков для Telegram канала про AI: день/неделя/месяц. Источники роста и как ускорить. До 400 символов.`;
 
@@ -744,7 +719,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/report/, async (msg) => {
     const chatId = msg.chat.id;
     const date = new Date().toLocaleDateString('ru-RU');
-    
+
     const report = `📋 ОТЧЕТ ЗА ${date}
 
 📊 ПУБЛИКАЦИИ:
@@ -766,17 +741,17 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
 ✅ Все показатели в норме!
 Статус: ${isSchedulerPaused ? '⏸️ На паузе' : '✅ Активен'}`;
-    
+
     await bot!.sendMessage(chatId, report);
   });
 
   // ====================================
   // ПРОДВИЖЕНИЕ
   // ====================================
-  
+
   bot.onText(/\/crosspromo/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     const crossPromo = `🤝 КРОСС-ПРОМО
 
 Взаимный пиар - эффективный способ роста!
@@ -804,7 +779,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 /spy - шпионаж за каналами
 /niche - анализ ниши
 /competitors - ТОП конкурентов`;
-    
+
     await bot!.sendMessage(chatId, crossPromo);
   });
 
@@ -812,7 +787,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
     const chatId = msg.chat.id;
     await bot!.sendMessage(chatId, '🔍 Анализирую конкурентов...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `ТОП-3 Telegram канала про AI и нейросети:
 
@@ -841,7 +816,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/chatlist/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     const chatList = `💬 ЧАТЫ ДЛЯ ПРОДВИЖЕНИЯ
 
 🎯 <b>AI/Tech чаты:</b>
@@ -874,17 +849,17 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 2. Будьте активны 2-3 раза в день
 3. Делитесь опытом, не рекламой
 4. Упоминайте канал естественно`;
-    
+
     await bot!.sendMessage(chatId, chatList, { parse_mode: 'HTML' });
   });
 
   // ====================================
   // УТИЛИТЫ
   // ====================================
-  
+
   bot.onText(/\/schedule/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     const schedule = `📅 РАСПИСАНИЕ ПУБЛИКАЦИЙ
 
 ⏰ Ежедневные посты:
@@ -904,14 +879,14 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 /pause - остановить
 /resume - возобновить
 /post - опубликовать сейчас`;
-    
+
     await bot!.sendMessage(chatId, schedule);
   });
 
   bot.onText(/\/pause/, async (msg) => {
     const chatId = msg.chat.id;
     isSchedulerPaused = true;
-    
+
     await bot!.sendMessage(chatId, `⏸️ ПУБЛИКАЦИИ ОСТАНОВЛЕНЫ
 
 Автоматические посты и опросы приостановлены.
@@ -926,7 +901,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/resume/, async (msg) => {
     const chatId = msg.chat.id;
     isSchedulerPaused = false;
-    
+
     await bot!.sendMessage(chatId, `▶️ ПУБЛИКАЦИИ ВОЗОБНОВЛЕНЫ
 
 Автопилот снова активен!
@@ -941,7 +916,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/settings/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     const settings = `⚙️ НАСТРОЙКИ БОТА
 
 📊 Конфигурация:
@@ -966,7 +941,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 /pause - остановить автопубликацию
 /resume - возобновить автопубликацию
 /schedule - подробное расписание`;
-    
+
     await bot!.sendMessage(chatId, settings);
   });
 
@@ -977,10 +952,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/niche(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const niche = match && match[1] ? match[1] : 'AI и нейросети';
-    
+
     await bot!.sendMessage(chatId, '🔍 Анализирую нишу... ⏳ 10-15 сек');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Анализ ниши "${niche}" в Telegram 2025:
 1. Размер рынка и рост
@@ -1008,10 +983,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/spy(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const competitor = match && match[1] ? match[1] : 'топовые AI каналы';
-    
+
     await bot!.sendMessage(chatId, '🕵️ Анализирую конкурентов...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Конкурентная разведка "${competitor}":
 1. Контент-стратегия (темы, форматы, частота)
@@ -1039,10 +1014,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/trends/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '📈 Анализирую тренды 2025...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Главные тренды Telegram октябрь 2025:
 1. Контент-тренды (топ-5 форматов)
@@ -1069,10 +1044,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/optimize/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '⏰ Рассчитываю оптимальное время...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Оптимальное время публикаций для Telegram канала про AI:
 1. Активность по часам (утро/день/вечер)
@@ -1100,15 +1075,15 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/viralcheck\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const content = match && match[1] ? match[1] : '';
-    
+
     if (!content) {
       await bot!.sendMessage(chatId, '❌ Отправьте текст!\n\nПример: /viralcheck ваш текст');
       return;
     }
-    
+
     await bot!.sendMessage(chatId, '🔥 Анализирую вирусность...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Анализ вирусности контента: "${content}"
 
@@ -1143,10 +1118,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/audience/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '👥 Анализирую аудиторию...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Профиль ЦА для канала про AI:
 1. Демография (возраст, пол, города)
@@ -1165,7 +1140,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   // 🚀 БЫСТРЫЙ СТАРТ ДЛЯ НОВИЧКОВ
   bot.onText(/\/quickstart/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     const guide = `🚀 БЫСТРЫЙ СТАРТ
 
 Привет! Я помогу тебе начать продвижение канала за 5 минут.
@@ -1198,14 +1173,14 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 • Смотри /mystats для прогресса
 
 🎯 ГОТОВ? Начни с: /viral`;
-    
+
     await bot!.sendMessage(chatId, guide, { parse_mode: 'HTML' });
   });
 
   // 🎓 ОБУЧЕНИЕ
   bot.onText(/\/learn/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     const lessons = `🎓 ОБУЧАЮЩИЕ УРОКИ
 
 <b>УРОК 1: Создание контента</b>
@@ -1241,7 +1216,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 ━━━━━━━━━━━━━━━━━━━━
 📚 Полный список: /help
 💬 Вопросы? Просто спроси меня!`;
-    
+
     await bot!.sendMessage(chatId, lessons, { parse_mode: 'HTML' });
   });
 
@@ -1249,10 +1224,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/suggest/, async (msg) => {
     const chatId = msg.chat.id;
     const stats = userStats.get(chatId);
-    
+
     const hour = new Date().getHours();
     let suggestion = '';
-    
+
     if (!stats || stats.commands < 5) {
       suggestion = `🌟 ТЫ НОВИЧОК!
 
@@ -1299,7 +1274,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
 Или отдохни! Завтра в 9:00 публикуй! 😴`;
     }
-    
+
     await bot!.sendMessage(chatId, suggestion);
   });
 
@@ -1318,10 +1293,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/blueprint/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '🎯 Создаю ПЛАН ДОМИНИРОВАНИЯ... ⏳ 15-20 сек');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `План доминирования Telegram канала про AI за 6 месяцев:
 
@@ -1352,7 +1327,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/autopilot/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     const autopilotInfo = `🤖 РЕЖИМ АВТОПИЛОТА
 
 ✅ ЧТО РАБОТАЕТ АВТОМАТИЧЕСКИ:
@@ -1382,7 +1357,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
 ✅ Автопилот ${isSchedulerPaused ? '⏸️ НА ПАУЗЕ' : 'АКТИВЕН'}!
 Бот работает 24/7.`;
-    
+
     await bot!.sendMessage(chatId, autopilotInfo);
   });
 
@@ -1392,10 +1367,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/contest/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '🎁 Генерирую КОНКУРС для привлечения аудитории...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Создай ВИРУСНЫЙ КОНКУРС для Telegram канала про AI:
 
@@ -1430,10 +1405,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
       });
 
       const contest = response.choices[0].message.content || 'Ошибка';
-      
+
       // Сохраняем пост для публикации
       userPosts.set(chatId, contest);
-      
+
       await bot!.sendMessage(chatId, `🎁 ВИРУСНЫЙ КОНКУРС\n\n${contest}\n\n✅ Готов к публикации!\n\n💡 Для публикации:\n• Команда: /publish\n• Или напиши: "опубликуй"`);
     } catch (error) {
       await bot!.sendMessage(chatId, '❌ Ошибка генерации конкурса.');
@@ -1442,10 +1417,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/quiz/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '🎯 Создаю интерактивную ВИКТОРИНУ...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Создай ВИРУСНУЮ ВИКТОРИНУ для Telegram про AI:
 
@@ -1476,9 +1451,9 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/hook/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '🪝 Генерирую ЦЕПЛЯЮЩИЕ ХУКИ...');
-    
+
     try {
       const prompt = `Создай 10 МОЩНЫХ хуков (первых строк) для постов про AI:
 
@@ -1512,10 +1487,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/magnet/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '🧲 Создаю ЛИД-МАГНИТ...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Создай МОЩНЫЙ лид-магнит для привлечения подписчиков в AI канал:
 
@@ -1555,10 +1530,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/boost/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '🚀 Создаю стратегию БЫСТРОГО РОСТА...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `План БЫСТРОГО РОСТА Telegram канала за 30 дней:
 
@@ -1602,9 +1577,9 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/story/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '📱 Генерирую контент для STORIES...');
-    
+
     try {
       const prompt = `Создай 5 идей для Telegram Stories про AI:
 
@@ -1639,10 +1614,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/engage/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '💬 Анализирую ВОВЛЕЧЕНИЕ...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `AI-рекомендации для МАКСИМАЛЬНОГО вовлечения в Telegram:
 
@@ -1693,10 +1668,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/challenge/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '🏆 Создаю ЧЕЛЛЕНДЖ...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Создай ВИРУСНЫЙ ЧЕЛЛЕНДЖ для Telegram канала про AI:
 
@@ -1735,10 +1710,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
       });
 
       const challenge = response.choices[0].message.content || 'Ошибка';
-      
+
       // Сохраняем пост для публикации
       userPosts.set(chatId, challenge);
-      
+
       await bot!.sendMessage(chatId, `🏆 ВИРУСНЫЙ ЧЕЛЛЕНДЖ\n\n${challenge}\n\n✅ Готов к публикации!\n\n💡 Для публикации:\n• Команда: /publish\n• Или напиши: "опубликуй"`);
     } catch (error) {
       await bot!.sendMessage(chatId, '❌ Ошибка создания челленджа.');
@@ -1750,7 +1725,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
     const msg = callbackQuery.message;
     const chatId = msg?.chat.id;
     const data = callbackQuery.data;
-    
+
     if (!chatId) return;
 
     try {
@@ -1777,16 +1752,16 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   // 1. ГОЛОСОВОЕ СООБЩЕНИЕ → ПОСТ (используют 90% топ-каналов)
   bot.on('voice', async (msg) => {
     const chatId = msg.chat.id;
-    
+
     if (!checkRateLimit(chatId, 'ai')) {
       await bot!.sendMessage(chatId, '⏳ Слишком много AI запросов! Подождите минуту.');
       return;
     }
-    
+
     try {
       await bot!.sendMessage(chatId, '🎤 Получил голосовое! Расшифровываю и создаю пост...');
       await bot!.sendChatAction(chatId, 'typing');
-      
+
       // В реальности здесь была бы расшифровка через Whisper API
       // Сейчас генерируем пост на основе контекста
       const prompt = `Пользователь отправил голосовое сообщение про AI и нейросети. 
@@ -1807,7 +1782,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
       const post = response.choices[0].message.content || 'Ошибка';
       userPosts.set(chatId, post);
       updateUserStats(chatId, 'ai');
-      
+
       await bot!.sendMessage(chatId, `🎤 ПОСТ ИЗ ГОЛОСОВОГО:\n\n${post}\n\n✅ Готов! /publish для публикации`);
     } catch (error) {
       await bot!.sendMessage(chatId, '❌ Ошибка обработки голосового.');
@@ -1817,10 +1792,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   // 2. АВТОМАТИЧЕСКИЙ АНАЛИЗ КОММЕНТАРИЕВ → ИДЕИ (топ-фича Coin Bureau)
   bot.onText(/\/analyze_comments/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '💬 Анализирую комментарии подписчиков...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Проанализируй типичные вопросы/комментарии в AI-канале:
 - "Как начать с ChatGPT?"
@@ -1853,10 +1828,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/carousel(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const topic = match && match[1] ? match[1] : 'AI инструменты 2025';
-    
+
     await bot!.sendMessage(chatId, '📸 Создаю карусель для Instagram...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Создай текст для КАРУСЕЛИ Instagram про "${topic}":
 
@@ -1896,10 +1871,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   // 4. АВТОМАТИЧЕСКИЙ СБОРЩИК ОТЗЫВОВ → КОНТЕНТ (Rayner Teo)
   bot.onText(/\/testimonials/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '⭐ Генерирую стратегию сбора отзывов...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Создай систему автоматического сбора отзывов для AI-канала:
 
@@ -1907,7 +1882,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
    - Автоматические вопросы в Stories
    - Опросы в постах
    - Личные сообщения подписчикам
-   
+
 2. ВОПРОСЫ ДЛЯ ОТЗЫВОВ (топ-5):
    - Какой AI инструмент изменил вашу работу?
    - ...
@@ -1940,15 +1915,15 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/voice_answer(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const question = match && match[1] ? match[1] : '';
-    
+
     if (!question) {
       await bot!.sendMessage(chatId, '❌ Укажите вопрос!\n\nПример: /voice_answer Как использовать ChatGPT?');
       return;
     }
-    
+
     await bot!.sendMessage(chatId, '🎙️ Создаю скрипт для голосового ответа...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Создай скрипт ГОЛОСОВОГО ОТВЕТА на вопрос: "${question}"
 
@@ -1980,10 +1955,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   bot.onText(/\/multipost(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const topic = match && match[1] ? match[1] : 'AI в 2025';
-    
+
     await bot!.sendMessage(chatId, '🔄 Создаю контент для ВСЕХ платформ...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Адаптируй тему "${topic}" под ВСЕ платформы:
 
@@ -2018,10 +1993,10 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
   // 7. ЭКСПРЕСС-АУДИТ КАНАЛА (что используют консультанты)
   bot.onText(/\/audit/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     await bot!.sendMessage(chatId, '🔍 Провожу экспресс-аудит канала...');
     await bot!.sendChatAction(chatId, 'typing');
-    
+
     try {
       const prompt = `Проведи экспресс-АУДИТ Telegram канала про AI:
 
@@ -2036,8 +2011,8 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
    - Опросы/викторины
    - Ответы на комментарии
    - Интерактив
-   
-3. ПРОДВИЖЕНИЕ:
+
+3. ПРОДВИНЕНИЕ:
    - Кросс-промо
    - Хештеги
    - Партнерства
@@ -2069,7 +2044,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 
   bot.onText(/\/test/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     const testReport = `🧪 ТЕСТ РАБОТОСПОСОБНОСТИ БОТА
 
 ✅ <b>Базовые функции:</b>
@@ -2093,7 +2068,7 @@ ${isNewbie ? '🌟 <b>БЫСТРЫЙ СТАРТ (для новичков)</b>\n 
 Аналитика: /analytics /growth /report /mystats
 Продвижение: /crosspromo /competitors /chatlist
 Утилиты: /schedule /pause /resume /settings
-Доминирование: /niche /spy /trends /optimize /viralcheck /audience /blueprint /autopilot
+Доминирование: /niche /spy /trends /optimize /viralcheck /blueprint /autopilot
 AI-инструменты: /contest /quiz /magnet /boost /story /engage /challenge
 Новое: /mystats /botstats
 
@@ -2103,7 +2078,7 @@ AI-инструменты: /contest /quiz /magnet /boost /story /engage /challen
 3. /mystats - твоя статистика
 
 Всё работает корректно! ✅`;
-    
+
     await bot!.sendMessage(chatId, testReport, { parse_mode: 'HTML' });
   });
 
@@ -2111,12 +2086,12 @@ AI-инструменты: /contest /quiz /magnet /boost /story /engage /challen
   bot.onText(/\/mystats/, async (msg) => {
     const chatId = msg.chat.id;
     const stats = userStats.get(chatId);
-    
+
     if (!stats) {
       await bot!.sendMessage(chatId, '📊 У вас пока нет статистики. Начните использовать бота!');
       return;
     }
-    
+
     const report = `📊 ВАША СТАТИСТИКА
 
 👤 <b>Активность:</b>
@@ -2133,26 +2108,26 @@ ${stats.postsCreated < 5 ? '• Создайте больше постов с /v
 
 🚀 <b>Следующая цель:</b>
 ${stats.commands < 50 ? `Выполните еще ${50 - stats.commands} команд для уровня "Продвинутый"` : 'Вы достигли максимального уровня! 🎉'}`;
-    
+
     await bot!.sendMessage(chatId, report, { parse_mode: 'HTML' });
   });
 
   // 📈 СТАТИСТИКА БОТА
   bot.onText(/\/botstats/, async (msg) => {
     const chatId = msg.chat.id;
-    
+
     // Топ-5 команд
     const topCommands = Array.from(commandStats.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([cmd, count], i) => `${i + 1}. ${cmd} - ${count} раз`)
       .join('\n');
-    
+
     const totalUsers = userStats.size;
     const totalCommands = Array.from(commandStats.values()).reduce((a, b) => a + b, 0);
     const totalAI = Array.from(userStats.values()).reduce((sum, s) => sum + s.aiRequests, 0);
     const totalPosts = Array.from(userStats.values()).reduce((sum, s) => sum + s.postsCreated, 0);
-    
+
     const report = `📈 СТАТИСТИКА БОТА
 
 👥 <b>Пользователи:</b>
@@ -2178,43 +2153,43 @@ ${topCommands || 'Нет данных'}
 💡 <b>Система:</b>
 • Автопубликация: ${isSchedulerPaused ? '⏸️ пауза' : '✅ работает'}
 • Расписание: 09:00, 15:00, 20:00`;
-    
+
     await bot!.sendMessage(chatId, report, { parse_mode: 'HTML' });
   });
 
   // ====================================
   // AI АССИСТЕНТ В РЕАЛЬНОМ ВРЕМЕНИ
   // ====================================
-  
+
   bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text || '';
-    
+
     if (text.startsWith('/') || !text.trim()) {
       return;
     }
-    
+
     console.log(`💬 Сообщение от ${chatId}: ${text}`);
-    
+
     // Проверка на команды публикации
     const publishKeywords = ['опубликуй', 'опубликовать', 'публикуй', 'опублікуй', 'publish'];
     const isPublishCommand = publishKeywords.some(keyword => 
       text.toLowerCase().includes(keyword)
     );
-    
+
     if (isPublishCommand) {
       const savedPost = userPosts.get(chatId);
-      
+
       if (!savedPost) {
         await bot!.sendMessage(chatId, '❌ Нет сохранённого поста!\n\n💡 Сначала создай пост командой /viral');
         return;
       }
-      
+
       try {
         await bot!.sendMessage(chatId, '📤 Публикую в канал...');
         await bot!.sendMessage(CHANNEL_ID, savedPost);
         await bot!.sendMessage(chatId, `✅ Пост успешно опубликован в канале ${CHANNEL_ID}!`);
-        
+
         updateUserStats(chatId, 'post');
         userPosts.delete(chatId);
         console.log(`✅ Пост опубликован пользователем ${chatId}`);
@@ -2224,28 +2199,28 @@ ${topCommands || 'Нет данных'}
       }
       return;
     }
-    
+
     // 🛡️ Rate limit для AI запросов
     if (!checkRateLimit(chatId, 'ai')) {
       await bot!.sendMessage(chatId, '⏳ Слишком много AI запросов! Подождите минуту.\n\n💡 Используйте команды из /menu для быстрого доступа.');
       return;
     }
-    
+
     // 💾 Проверяем кэш для частых вопросов
     const cacheKey = text.toLowerCase().trim().substring(0, 100);
     const cachedResponse = getCachedResponse(cacheKey);
-    
+
     if (cachedResponse) {
       await bot!.sendMessage(chatId, `${cachedResponse}\n\n⚡ (из кэша)`);
       console.log(`💾 Ответ из кэша для ${chatId}`);
       return;
     }
-    
+
     // AI-ассистент для обычных вопросов
     try {
       await bot!.sendChatAction(chatId, 'typing');
       updateUserStats(chatId, 'ai');
-      
+
       const prompt = `Ты AI-ассистент по продвижению Telegram. Канал: ${CHANNEL_ID}. Вопрос: "${text}". Дай полезный ответ: дружелюбный, конкретные советы, эмодзи. Макс 500 символов.`;
 
       const response = await grok.chat.completions.create({
@@ -2256,10 +2231,10 @@ ${topCommands || 'Нет данных'}
       });
 
       const answer = response.choices[0].message.content || 'Извините, не могу ответить. Попробуйте переформулировать или используйте /help';
-      
+
       // Сохраняем в кэш
       setCachedResponse(cacheKey, answer);
-      
+
       await bot!.sendMessage(chatId, answer);
       console.log(`✅ Ответ отправлен ${chatId}`);
     } catch (error) {
@@ -2267,7 +2242,7 @@ ${topCommands || 'Нет данных'}
       await bot!.sendMessage(chatId, '⚠️ Ошибка. Попробуйте позже или используйте /help');
     }
   });
-  
+
   console.log('📅 Расписание: 09:00, 15:00, 20:00 (посты), 12:00 Пн/Чт (опросы)');
   console.log('💡 Команды: /start /menu /help');
   console.log('🔥 Режим доминирования: /niche /spy /trends /viralcheck /blueprint');
