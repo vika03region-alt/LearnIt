@@ -13,6 +13,7 @@ const grok = new OpenAI({
 let bot: TelegramBot | null = null;
 let isSchedulerPaused = false;
 let isStarting = false;
+let pollingActive = false;
 
 // Хранилище последних постов пользователей для публикации
 const userPosts = new Map<number, string>();
