@@ -1754,6 +1754,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup advanced promotion strategy routes
   setupPromotionStrategyRoutes(app);
 
+  // Telegram bot test route
+  app.post('/api/telegram/test-post', isAuthenticated, async (req: any, res) => {
+    try {
+      const { publishPost } = await import('./telegramBot');
+      const result = await publishPost();
+      res.json({
+        success: true,
+        message: 'Пост успешно опубликован!',
+        ...result
+      });
+    } catch (error: any) {
+      console.error('Ошибка публикации в Telegram:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error.message || 'Не удалось опубликовать пост' 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
