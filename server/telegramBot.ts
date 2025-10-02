@@ -41,14 +41,6 @@ const CACHE_TTL = 3600000; // 1 час
 // 🔒 ЕДИНСТВЕННЫЙ ЭКЗЕМПЛЯР БОТА
 let botInstanceId: string | null = null;
 
-function checkRateLimit(userId: number, type: 'command' | 'ai'): boolean {
-  const now = Date.now();
-  const timestamps = type === 'command' 
-    ? userCommandTimestamps.get(userId) || []
-    : userAIRequestTimestamps.get(userId) || [];
-
-
-
 // 🧹 АВТОМАТИЧЕСКАЯ ОЧИСТКА КЭША (каждые 2 часа)
 setInterval(() => {
   const now = Date.now();
@@ -83,6 +75,12 @@ setInterval(() => {
 
   console.log(`🧹 Очистка кэша: удалено ${cleared} записей`);
 }, 7200000); // 2 часа
+
+function checkRateLimit(userId: number, type: 'command' | 'ai'): boolean {
+  const now = Date.now();
+  const timestamps = type === 'command' 
+    ? userCommandTimestamps.get(userId) || []
+    : userAIRequestTimestamps.get(userId) || [];
 
   // Удаляем старые timestamps
   const recentTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
