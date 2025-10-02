@@ -1492,4 +1492,34 @@ export async function startTelegramBot() {
   console.log('💡 Команды: /start /menu /help');
   console.log('🔥 Режим доминирования: /niche /spy /trends /viralcheck /blueprint');
   console.log('🤖 AI ассистент: отвечает на любые сообщения');
+  } catch (error) {
+    console.error('❌ Критическая ошибка при запуске бота:', error);
+    bot = null;
+  } finally {
+    isStarting = false;
+  }
 }
+
+// Очистка при завершении процесса
+export async function stopTelegramBot() {
+  if (bot) {
+    console.log('🛑 Остановка Telegram бота...');
+    try {
+      await bot.stopPolling({ cancel: true, reason: 'Server shutdown' });
+    } catch (e) {
+      // Игнорируем ошибки остановки
+    }
+    bot = null;
+  }
+}
+
+// Обработчики завершения процесса
+process.on('SIGINT', async () => {
+  await stopTelegramBot();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await stopTelegramBot();
+  process.exit(0);
+});
