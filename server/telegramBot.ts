@@ -1278,6 +1278,25 @@ export async function startTelegramBot() {
     await bot!.sendMessage(chatId, suggestion);
   });
 
+  bot.onText(/\/audience/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    await bot!.sendMessage(chatId, '👥 Анализирую аудиторию...');
+    await bot!.sendChatAction(chatId, 'typing');
+
+    try {
+      const prompt = `Профиль ЦА для канала про AI:
+1. Демография (возраст, пол, города)
+2. Профессии (% психологов/IT/преподавателей)
+3. Боли и потребности (топ-5)
+4. Поведение в Telegram
+5. Уровень экспертизы (новички/эксперты)
+6. Контент-стратегия для каждой группы
+7. Монетизация (что купят, средний чек)
+
+До 1000 символов.`;
+
+      const response = await grok.chat.completions.create({
         model: 'grok-2-latest',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
