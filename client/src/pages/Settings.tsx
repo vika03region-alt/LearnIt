@@ -14,12 +14,16 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Settings as SettingsIcon, User, Shield, Trash2, Plus, LogOut } from "lucide-react";
 import { Link } from "wouter";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import TelegramQuickTest from "@/components/TelegramQuickTest";
+import TelegramChannelAnalyzer from "@/components/TelegramChannelAnalyzer";
+import TelegramPromotion from "@/components/TelegramPromotion";
 
 export default function Settings() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
   const queryClient = useQueryClient();
-  
+
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [newAccountData, setNewAccountData] = useState({
     platformId: '',
@@ -122,7 +126,7 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      
+
       <main className="ml-64 transition-all duration-300">
         <header className="bg-card border-b border-border px-6 py-4">
           <div className="flex items-center gap-4">
@@ -157,7 +161,7 @@ export default function Settings() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">
-                    {user?.firstName && user?.lastName 
+                    {user?.firstName && user?.lastName
                       ? `${user.firstName} ${user.lastName}`
                       : 'User'
                     }
@@ -166,13 +170,13 @@ export default function Settings() {
                   <Badge variant="secondary" className="mt-1">Pro Plan</Badge>
                 </div>
               </div>
-              
+
               <Separator />
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input 
+                  <Input
                     id="firstName"
                     defaultValue={user?.firstName || ''}
                     disabled
@@ -182,7 +186,7 @@ export default function Settings() {
                 </div>
                 <div>
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input 
+                  <Input
                     id="lastName"
                     defaultValue={user?.lastName || ''}
                     disabled
@@ -192,7 +196,7 @@ export default function Settings() {
                 </div>
                 <div className="md:col-span-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input 
+                  <Input
                     id="email"
                     type="email"
                     defaultValue={user?.email || ''}
@@ -213,7 +217,7 @@ export default function Settings() {
                   <Shield className="w-5 h-5" />
                   Connected Accounts
                 </CardTitle>
-                <Button 
+                <Button
                   onClick={() => setShowAddAccount(!showAddAccount)}
                   data-testid="button-add-account"
                 >
@@ -269,15 +273,15 @@ export default function Settings() {
                     </div>
                   </div>
                   <div className="flex gap-2 mt-4">
-                    <Button 
+                    <Button
                       onClick={handleAddAccount}
                       disabled={addAccountMutation.isPending}
                       data-testid="button-save-account"
                     >
                       {addAccountMutation.isPending ? 'Connecting...' : 'Connect Account'}
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => setShowAddAccount(false)}
                       data-testid="button-cancel-add"
                     >
@@ -294,7 +298,7 @@ export default function Settings() {
               ) : userAccounts && userAccounts.length > 0 ? (
                 <div className="space-y-3">
                   {userAccounts.map((account: any) => (
-                    <div 
+                    <div
                       key={account.id}
                       className="flex items-center justify-between p-3 border border-border rounded-lg"
                       data-testid={`account-${account.id}`}
@@ -316,8 +320,8 @@ export default function Settings() {
                         <Badge variant={account.isActive ? "default" : "secondary"}>
                           {account.isActive ? "Active" : "Inactive"}
                         </Badge>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="ghost"
                           data-testid={`button-remove-${account.id}`}
                         >
@@ -339,47 +343,272 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* App Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>App Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">Email Notifications</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Receive email alerts for safety warnings and completed actions
-                  </p>
-                </div>
-                <Switch defaultChecked data-testid="switch-email-notifications" />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">Auto Safety Checks</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Automatically run safety checks every hour
-                  </p>
-                </div>
-                <Switch defaultChecked data-testid="switch-auto-safety" />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">Emergency Stop on Critical</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Automatically stop all automation when critical rate limits are reached
-                  </p>
-                </div>
-                <Switch defaultChecked data-testid="switch-emergency-stop" />
-              </div>
-            </CardContent>
-          </Card>
+          <Tabs defaultValue="general" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="general">Основные</TabsTrigger>
+              <TabsTrigger value="accounts">Аккаунты</TabsTrigger>
+              <TabsTrigger value="automation">Автоматизация</TabsTrigger>
+              <TabsTrigger value="telegram">Telegram</TabsTrigger>
+              <TabsTrigger value="promotion">Продвижение</TabsTrigger>
+            </TabsList>
+
+            {/* General Tab */}
+            <TabsContent value="general" className="space-y-6">
+              {/* User Profile Card (already rendered above, but conceptually part of general tab) */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    User Profile
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-primary to-chart-1 rounded-full flex items-center justify-center">
+                      <User className="w-8 h-8 text-primary-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {user?.firstName && user?.lastName
+                          ? `${user.firstName} ${user.lastName}`
+                          : 'User'
+                        }
+                      </h3>
+                      <p className="text-sm text-muted-foreground">{user?.email}</p>
+                      <Badge variant="secondary" className="mt-1">Pro Plan</Badge>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        defaultValue={user?.firstName || ''}
+                        disabled
+                        className="mt-1"
+                        data-testid="input-first-name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        defaultValue={user?.lastName || ''}
+                        disabled
+                        className="mt-1"
+                        data-testid="input-last-name"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        defaultValue={user?.email || ''}
+                        disabled
+                        className="mt-1"
+                        data-testid="input-email"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Accounts Tab */}
+            <TabsContent value="accounts" className="space-y-6">
+              {/* Connected Accounts Card (already rendered above, but conceptually part of accounts tab) */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="w-5 h-5" />
+                      Connected Accounts
+                    </CardTitle>
+                    <Button
+                      onClick={() => setShowAddAccount(!showAddAccount)}
+                      data-testid="button-add-account"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Account
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {showAddAccount && (
+                    <div className="p-4 border border-border rounded-lg bg-muted">
+                      <h4 className="font-medium text-foreground mb-3">Add New Account</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="platform">Platform</Label>
+                          <select
+                            id="platform"
+                            className="w-full mt-1 px-3 py-2 border border-border rounded-md bg-background"
+                            value={newAccountData.platformId}
+                            onChange={(e) => setNewAccountData(prev => ({ ...prev, platformId: e.target.value }))}
+                            data-testid="select-platform"
+                          >
+                            <option value="">Select Platform</option>
+                            {platforms?.map((platform: any) => (
+                              <option key={platform.id} value={platform.id}>
+                                {platform.displayName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <Label htmlFor="accountHandle">Account Handle</Label>
+                          <Input
+                            id="accountHandle"
+                            placeholder="@username"
+                            value={newAccountData.accountHandle}
+                            onChange={(e) => setNewAccountData(prev => ({ ...prev, accountHandle: e.target.value }))}
+                            className="mt-1"
+                            data-testid="input-account-handle"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="accessToken">Access Token</Label>
+                          <Input
+                            id="accessToken"
+                            type="password"
+                            placeholder="Enter access token"
+                            value={newAccountData.accessToken}
+                            onChange={(e) => setNewAccountData(prev => ({ ...prev, accessToken: e.target.value }))}
+                            className="mt-1"
+                            data-testid="input-access-token"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-4">
+                        <Button
+                          onClick={handleAddAccount}
+                          disabled={addAccountMutation.isPending}
+                          data-testid="button-save-account"
+                        >
+                          {addAccountMutation.isPending ? 'Connecting...' : 'Connect Account'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowAddAccount(false)}
+                          data-testid="button-cancel-add"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {isAccountsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  ) : userAccounts && userAccounts.length > 0 ? (
+                    <div className="space-y-3">
+                      {userAccounts.map((account: any) => (
+                        <div
+                          key={account.id}
+                          className="flex items-center justify-between p-3 border border-border rounded-lg"
+                          data-testid={`account-${account.id}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                              <SettingsIcon className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {getPlatformName(account.platformId)}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {account.accountHandle}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={account.isActive ? "default" : "secondary"}>
+                              {account.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              data-testid={`button-remove-${account.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground text-sm">No connected accounts</p>
+                      <p className="text-muted-foreground text-xs mt-1">
+                        Connect your social media accounts to enable automation
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Automation Tab */}
+            <TabsContent value="automation" className="space-y-6">
+              {/* App Settings Card (conceptually part of automation tab) */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>App Settings</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">Email Notifications</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Receive email alerts for safety warnings and completed actions
+                      </p>
+                    </div>
+                    <Switch defaultChecked data-testid="switch-email-notifications" />
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">Auto Safety Checks</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Automatically run safety checks every hour
+                      </p>
+                    </div>
+                    <Switch defaultChecked data-testid="switch-auto-safety" />
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">Emergency Stop on Critical</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Automatically stop all automation when critical rate limits are reached
+                      </p>
+                    </div>
+                    <Switch defaultChecked data-testid="switch-emergency-stop" />
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Telegram Tab */}
+            <TabsContent value="telegram" className="space-y-6">
+              <TelegramQuickTest />
+              <TelegramChannelAnalyzer />
+            </TabsContent>
+
+            {/* Promotion Tab */}
+            <TabsContent value="promotion" className="space-y-6">
+              <TelegramPromotion />
+            </TabsContent>
+          </Tabs>
 
           {/* Danger Zone */}
           <Card className="border-destructive">
@@ -394,8 +623,8 @@ export default function Settings() {
                     Sign out of your account on this device
                   </p>
                 </div>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleLogout}
                   data-testid="button-logout"
                 >
@@ -403,9 +632,9 @@ export default function Settings() {
                   Sign Out
                 </Button>
               </div>
-              
+
               <Separator />
-              
+
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-destructive">Delete Account</p>
@@ -413,7 +642,7 @@ export default function Settings() {
                     Permanently delete your account and all associated data
                   </p>
                 </div>
-                <Button 
+                <Button
                   variant="destructive"
                   data-testid="button-delete-account"
                 >
