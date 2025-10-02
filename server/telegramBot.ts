@@ -105,6 +105,9 @@ export async function startTelegramBot() {
     // Удаляем webhook, если был установлен
     await tempBot.deleteWebHook();
     console.log('✅ Webhook очищен');
+    
+    // Даем время серверам Telegram обработать удаление webhook
+    await new Promise(resolve => setTimeout(resolve, 2000));
   } catch (error) {
     console.log('⚠️ Ошибка очистки webhook (возможно, его не было)');
   }
@@ -112,25 +115,19 @@ export async function startTelegramBot() {
   // Запускаем бот с polling
   bot = new TelegramBot(TELEGRAM_TOKEN, { 
     polling: {
-      interval: 300,
+      interval: 1000,
       autoStart: true,
       params: {
-        timeout: 10
+        timeout: 30
       }
     }
   });
 
-  // Обработка ошибок polling
+  // Обработка ошибок polling (только логирование, без перезапуска)
   bot.on('polling_error', (error) => {
-    console.error('⚠️ Polling error:', error.message);
-    if (error.message.includes('409')) {
-      console.log('🔄 Конфликт 409 - останавливаю polling и перезапускаю...');
-      setTimeout(async () => {
-        if (bot) {
-          await bot.stopPolling();
-          bot.startPolling();
-        }
-      }, 5000);
+    // Игнорируем ошибку 409, если она появляется только один раз при старте
+    if (!error.message.includes('409')) {
+      console.error('⚠️ Polling error:', error.message);
     }
   });
   
