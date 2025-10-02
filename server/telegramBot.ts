@@ -12,6 +12,7 @@ const grok = new OpenAI({
 
 let bot: TelegramBot | null = null;
 let isSchedulerPaused = false;
+let isStarting = false;
 
 // Хранилище последних постов пользователей для публикации
 const userPosts = new Map<number, string>();
@@ -123,12 +124,22 @@ export async function startTelegramBot() {
     }
   });
 
-  // Обработка ошибок polling (только логирование, без перезапуска)
+  // Обработка ошибок polling
+  let conflict409Count = 0;
   bot.on('polling_error', (error) => {
-    // Игнорируем ошибку 409, если она появляется только один раз при старте
-    if (!error.message.includes('409')) {
-      console.error('⚠️ Polling error:', error.message);
+    if (error.message.includes('409')) {
+      conflict409Count++;
+      if (conflict409Count === 1) {
+        console.error('⚠️ Ошибка 409: Другой экземпляр бота уже запущен!');
+        console.error('💡 Решение: остановите другие экземпляры бота с этим токеном');
+        console.error('   - Проверьте другие Replit deployments');
+        console.error('   - Проверьте внешние серверы');
+        console.error('   - Используйте /setWebhook для удаления webhook');
+      }
+      // Не перезапускаем бот при 409 - это только ухудшит ситуацию
+      return;
     }
+    console.error('⚠️ Polling error:', error.message);
   });
   
   console.log('🤖 Telegram бот запущен!');
