@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest } from "@/lib/queryClient";
 import Sidebar from "@/components/Sidebar";
+import SocialAccountManager from "@/components/SocialAccountManager";
+import TelegramTester from "@/components/TelegramTester";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +21,7 @@ export default function Settings() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
   const queryClient = useQueryClient();
-  
+
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [newAccountData, setNewAccountData] = useState({
     platformId: '',
@@ -122,7 +124,7 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      
+
       <main className="ml-64 transition-all duration-300">
         <header className="bg-card border-b border-border px-6 py-4">
           <div className="flex items-center gap-4">
@@ -166,9 +168,9 @@ export default function Settings() {
                   <Badge variant="secondary" className="mt-1">Pro Plan</Badge>
                 </div>
               </div>
-              
+
               <Separator />
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">First Name</Label>
@@ -339,6 +341,9 @@ export default function Settings() {
             </CardContent>
           </Card>
 
+          {/* Telegram Tester */}
+          <TelegramTester />
+
           {/* App Settings */}
           <Card>
             <CardHeader>
@@ -354,9 +359,9 @@ export default function Settings() {
                 </div>
                 <Switch defaultChecked data-testid="switch-email-notifications" />
               </div>
-              
+
               <Separator />
-              
+
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-medium">Auto Safety Checks</Label>
@@ -366,9 +371,9 @@ export default function Settings() {
                 </div>
                 <Switch defaultChecked data-testid="switch-auto-safety" />
               </div>
-              
+
               <Separator />
-              
+
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-medium">Emergency Stop on Critical</Label>
@@ -403,9 +408,9 @@ export default function Settings() {
                   Sign Out
                 </Button>
               </div>
-              
+
               <Separator />
-              
+
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-destructive">Delete Account</p>
