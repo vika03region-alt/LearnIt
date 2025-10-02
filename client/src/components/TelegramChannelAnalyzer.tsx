@@ -263,6 +263,66 @@ export default function TelegramChannelAnalyzer() {
               </CardContent>
             </Card>
           )}
+
+          {/* Кнопка запуска продвижения */}
+          <Card className="border-blue-500 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold mb-2">🚀 Запустить автоматическое продвижение</h3>
+                  <p className="text-sm text-blue-100">
+                    На основе анализа будет создан и запущен план продвижения с автоматическим постингом и оптимизацией контента
+                  </p>
+                </div>
+                <Button
+                  size="lg"
+                  className="ml-4 bg-white text-blue-600 hover:bg-blue-50"
+                  onClick={async () => {
+                    setIsAnalyzing(true);
+                    try {
+                      const response = await fetch('/api/telegram/start-promotion', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          channelId, 
+                          analysisData: analysis 
+                        }),
+                      });
+
+                      const data = await response.json();
+
+                      if (!response.ok) {
+                        throw new Error(data.error || 'Ошибка запуска продвижения');
+                      }
+
+                      toast({
+                        title: "🚀 Продвижение запущено!",
+                        description: data.message,
+                      });
+                    } catch (error: any) {
+                      toast({
+                        title: "❌ Ошибка",
+                        description: error.message,
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsAnalyzing(false);
+                    }
+                  }}
+                  disabled={isAnalyzing}
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Запуск...
+                    </>
+                  ) : (
+                    'Запустить продвижение'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

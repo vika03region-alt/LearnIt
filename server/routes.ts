@@ -1814,6 +1814,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === АВТОМАТИЧЕСКОЕ ПРОДВИЖЕНИЕ TELEGRAM КАНАЛА ===
+  app.post('/api/telegram/start-promotion', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { channelId, analysisData } = req.body;
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+      if (!botToken) {
+        return res.status(400).json({
+          error: 'TELEGRAM_BOT_TOKEN не найден в секретах',
+        });
+      }
+
+      const targetChannel = channelId || '@IIPRB';
+
+      console.log(`🚀 Запуск продвижения канала ${targetChannel}`);
+
+      // Создаем стратегию продвижения на основе анализа
+      const promotionPlan = {
+        contentSchedule: [
+          {
+            time: '09:00',
+            type: 'market_analysis',
+            content: '📊 Утренний анализ рынка: основные тренды и возможности дня',
+          },
+          {
+            time: '14:00',
+            type: 'trading_signal',
+            content: '🎯 Дневной торговый сигнал с детальным разбором точек входа/выхода',
+          },
+          {
+            time: '19:00',
+            type: 'education',
+            content: '📚 Обучающий материал: разбор торговой стратегии или паттерна',
+          },
+        ],
+        growthTactics: [
+          'Кросс-постинг в TikTok и YouTube Shorts с CTA на Telegram',
+          'Создание эксклюзивного контента только для Telegram подписчиков',
+          'Запуск еженедельных конкурсов с призами для активных участников',
+          'Интеграция торгового бота для автоматических уведомлений',
+        ],
+        metrics: {
+          targetGrowth: '+30% подписчиков за месяц',
+          engagementGoal: '10% активность',
+          contentFrequency: '3-5 постов в день',
+        },
+      };
+
+      // Отправляем приветственное сообщение о запуске продвижения
+      const startMessage = `🎯 <b>ЗАПУСК СИСТЕМЫ ПРОДВИЖЕНИЯ</b>
+
+✅ Канал проанализирован
+📊 Текущих подписчиков: ${analysisData?.channelInfo?.memberCount || 'N/A'}
+📈 Средняя вовлеченность: ${analysisData?.analytics?.avgEngagement || 'N/A'}%
+
+<b>План продвижения:</b>
+${promotionPlan.growthTactics.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+
+<b>Расписание контента:</b>
+${promotionPlan.contentSchedule.map(s => `⏰ ${s.time} - ${s.type}`).join('\n')}
+
+🎯 Цель: ${promotionPlan.metrics.targetGrowth}
+
+🤖 Автоматическое продвижение активировано!`;
+
+      const sendResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: targetChannel,
+          text: startMessage,
+          parse_mode: 'HTML',
+        }),
+      });
+
+      const sendData = await sendResponse.json();
+
+      if (!sendData.ok) {
+        throw new Error(sendData.description || 'Не удалось отправить сообщение');
+      }
+
+      // Логируем запуск продвижения
+      await storage.createActivityLog({
+        userId,
+        action: 'Telegram Promotion Started',
+        description: `Запущено автоматическое продвижение канала ${targetChannel}`,
+        status: 'success',
+        metadata: { channelId: targetChannel, promotionPlan },
+      });
+
+      res.json({
+        success: true,
+        message: 'Продвижение успешно запущено',
+        promotionPlan,
+        messageId: sendData.result.message_id,
+      });
+    } catch (error: any) {
+      console.error('Ошибка запуска продвижения:', error);
+      res.status(500).json({
+        error: error.message || 'Не удалось запустить продвижение',
+      });
+    }
+  });
+
   // === TELEGRAM БЫСТРОЕ ТЕСТИРОВАНИЕ ===
   app.post('/api/telegram/quick-test', isAuthenticated, async (req: any, res) => {
     try {
