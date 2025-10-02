@@ -39,7 +39,7 @@ export default function AIContent() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: contentLogs, isLoading: isLogsLoading } = useQuery({
+  const { data: contentLogs, isLoading: isLogsLoading } = useQuery<any[]>({
     queryKey: ['/api/ai/content-logs'],
     retry: false,
   });

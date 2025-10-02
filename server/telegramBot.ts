@@ -55,7 +55,7 @@ setInterval(() => {
   let cleared = 0;
 
   // Очищаем старый кэш
-  for (const [key, value] of responseCache.entries()) {
+  for (const [key, value] of Array.from(responseCache.entries())) {
     if (now - value.timestamp > CACHE_TTL) {
       responseCache.delete(key);
       cleared++;
@@ -63,8 +63,8 @@ setInterval(() => {
   }
 
   // Очищаем старые timestamps
-  for (const [userId, timestamps] of userCommandTimestamps.entries()) {
-    const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
+  for (const [userId, timestamps] of Array.from(userCommandTimestamps.entries())) {
+    const recent = timestamps.filter((t: number) => now - t < RATE_LIMIT_WINDOW);
     if (recent.length === 0) {
       userCommandTimestamps.delete(userId);
     } else {
@@ -72,8 +72,8 @@ setInterval(() => {
     }
   }
 
-  for (const [userId, timestamps] of userAIRequestTimestamps.entries()) {
-    const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
+  for (const [userId, timestamps] of Array.from(userAIRequestTimestamps.entries())) {
+    const recent = timestamps.filter((t: number) => now - t < RATE_LIMIT_WINDOW);
     if (recent.length === 0) {
       userAIRequestTimestamps.delete(userId);
     } else {
