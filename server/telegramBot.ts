@@ -1,6 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api';
 import cron from 'node-cron';
 import OpenAI from 'openai';
+import { storage } from './storage.js';
 
 const TELEGRAM_TOKEN = process.env.BOTTG || '';
 const CHANNEL_ID = '@IIPRB';
@@ -169,13 +170,63 @@ export async function publishPost() {
   }
 
   try {
+    // Пытаемся получить запланированный пост из базы данных
+    const telegramPlatform = await storage.getPlatformByName('telegram');
+    if (telegramPlatform) {
+      const scheduledPosts = await storage.getPostsByPlatformAndStatus(
+        telegramPlatform.id, 
+        'scheduled'
+      );
+      
+      // Проверяем, есть ли посты готовые к публикации
+      const now = new Date();
+      const postToPublish = scheduledPosts.find((post: any) => 
+        post.scheduledAt && new Date(post.scheduledAt) <= now
+      );
+
+      if (postToPublish) {
+        // Публикуем пост с медиа если есть
+        if (postToPublish.mediaUrls && postToPublish.mediaUrls.length > 0) {
+          const videoUrl = postToPublish.mediaUrls[0]; // Первый - это видео
+          const coverUrl = postToPublish.mediaUrls[1]; // Второй - это обложка
+
+          if (videoUrl) {
+            // Публикуем видео (обложка будет автоматически извлечена из видео)
+            const caption = postToPublish.title 
+              ? `${postToPublish.title}\n\n${postToPublish.content}`
+              : postToPublish.content;
+
+            await bot.sendVideo(CHANNEL_ID, videoUrl, {
+              caption
+            });
+          } else {
+            // Просто текстовый пост
+            await bot.sendMessage(CHANNEL_ID, postToPublish.content);
+          }
+        } else {
+          // Текстовый пост
+          const text = postToPublish.title 
+            ? `${postToPublish.title}\n\n${postToPublish.content}`
+            : postToPublish.content;
+          await bot.sendMessage(CHANNEL_ID, text);
+        }
+
+        // Обновляем статус поста
+        await storage.updatePostStatus(postToPublish.id, 'published', new Date());
+        
+        console.log(`✅ Пост из БД опубликован: ${postToPublish.id}`);
+        return { success: true, postId: postToPublish.id, fromDatabase: true };
+      }
+    }
+
+    // Если нет запланированных постов, генерируем новый
     const randomTopic = contentTopics[Math.floor(Math.random() * contentTopics.length)];
     const postText = await generatePost(randomTopic);
 
     await bot.sendMessage(CHANNEL_ID, postText);
-    console.log(`✅ Пост опубликован: ${new Date().toLocaleString()}`);
+    console.log(`✅ Сгенерированный пост опубликован: ${new Date().toLocaleString()}`);
     console.log(`📝 Тема: ${randomTopic}`);
-    return { success: true, topic: randomTopic, text: postText };
+    return { success: true, topic: randomTopic, text: postText, fromDatabase: false };
   } catch (error: any) {
     console.error('❌ Ошибка публикации:', error);
     throw error;

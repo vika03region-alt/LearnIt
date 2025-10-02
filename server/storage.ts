@@ -95,6 +95,7 @@ export interface IStorage {
   // Platform operations
   getPlatforms(): Promise<Platform[]>;
   getPlatform(id: number): Promise<Platform | undefined>;
+  getPlatformByName(name: string): Promise<Platform | undefined>;
 
   // User account operations
   getUserAccounts(userId: string): Promise<UserAccount[]>;
@@ -106,7 +107,9 @@ export interface IStorage {
   createPost(post: InsertPost & { userId: string }): Promise<Post>;
   getUserPosts(userId: string, limit?: number): Promise<Post[]>;
   getScheduledPosts(userId: string): Promise<Post[]>;
+  getPostsByPlatformAndStatus(platformId: number, status: string): Promise<Post[]>;
   updatePost(id: number, updates: Partial<Post>): Promise<Post>;
+  updatePostStatus(postId: number, status: string, publishedAt?: Date): Promise<Post>;
 
   // Analytics operations
   getPostAnalytics(postId: number): Promise<Analytics[]>;
@@ -176,6 +179,11 @@ export class DatabaseStorage implements IStorage {
 
   async getPlatform(id: number): Promise<Platform | undefined> {
     const [platform] = await db.select().from(platforms).where(eq(platforms.id, id));
+    return platform;
+  }
+
+  async getPlatformByName(name: string): Promise<Platform | undefined> {
+    const [platform] = await db.select().from(platforms).where(eq(platforms.name, name));
     return platform;
   }
 
@@ -271,6 +279,28 @@ export class DatabaseStorage implements IStorage {
       .update(posts)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(posts.id, id))
+      .returning();
+    return updatedPost;
+  }
+
+  async getPostsByPlatformAndStatus(platformId: number, status: string): Promise<Post[]> {
+    return await db
+      .select()
+      .from(posts)
+      .where(and(eq(posts.platformId, platformId), eq(posts.status, status)))
+      .orderBy(posts.scheduledAt);
+  }
+
+  async updatePostStatus(postId: number, status: string, publishedAt?: Date): Promise<Post> {
+    const updates: any = { status, updatedAt: new Date() };
+    if (publishedAt) {
+      updates.publishedAt = publishedAt;
+    }
+    
+    const [updatedPost] = await db
+      .update(posts)
+      .set(updates)
+      .where(eq(posts.id, postId))
       .returning();
     return updatedPost;
   }

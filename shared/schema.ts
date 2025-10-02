@@ -84,6 +84,7 @@ export const posts = pgTable("posts", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id).notNull(),
   platformId: integer("platform_id").references(() => platforms.id).notNull(),
+  title: text("title"),
   content: text("content").notNull(),
   mediaUrls: text("media_urls").array(),
   scheduledAt: timestamp("scheduled_at"),
@@ -167,6 +168,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export const insertPostSchema = createInsertSchema(posts).pick({
   platformId: true,
+  title: true,
   content: true,
   mediaUrls: true,
   scheduledAt: true,

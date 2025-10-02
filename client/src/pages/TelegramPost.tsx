@@ -47,8 +47,7 @@ export default function TelegramPost() {
       content: string;
       title?: string;
       platformId: number;
-      videoUrl?: string;
-      coverUrl?: string;
+      mediaUrls?: string[];
     }) => {
       const response = await apiRequest('POST', '/api/posts', data);
       return await response.json();
@@ -94,12 +93,15 @@ export default function TelegramPost() {
       return;
     }
 
+    const mediaUrls: string[] = [];
+    if (videoUrl) mediaUrls.push(videoUrl);
+    if (coverUrl) mediaUrls.push(coverUrl);
+
     createPostMutation.mutate({
       content: content.trim(),
       title: title.trim() || undefined,
       platformId: telegramPlatform.id,
-      videoUrl: videoUrl || undefined,
-      coverUrl: coverUrl || undefined,
+      mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
     });
   };
 
