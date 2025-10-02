@@ -490,11 +490,12 @@ export async function startTelegramBot() {
 /hashtags - Хештеги
 /rewrite - Переписать текст
 
-<b>📤 ПУБЛИКАЦИЯ (3)</b>
+<b>📤 ПУБЛИКАЦИЯ (4)</b>
 ━━━━━━━━━━━━━━━━━━━━━━━
 /publish - Опубликовать пост
 /post - Сгенерировать и опубликовать
 /poll - Опубликовать опрос
+/uploadvideo - Загрузить видео в канал 🎬
 
 <b>📊 АНАЛИТИКА (3)</b>
 ━━━━━━━━━━━━━━━━━━━━━━━
@@ -1223,13 +1224,15 @@ export async function startTelegramBot() {
 /infographic - 📊 Инфографика с данными
 /voiceover - 🎙️ Озвучка текста
 /videoscript - 🎬 Скрипт для видео
+/uploadvideo - 📹 Загрузить своё видео
 /designtemplate - 🎭 Дизайн-шаблон
 /contentpack - 📦 Массовый контент-пак
 
 💡 Примеры:
 /cover минимализм - создать обложку
 /meme "когда стоп-лосс сработал" - мем
-/voiceover "Привет, трейдеры!" - озвучка`;
+/voiceover "Привет, трейдеры!" - озвучка
+/uploadvideo - загрузить видео на канал`;
 
     await bot!.sendMessage(chatId, menu);
   });
