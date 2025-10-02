@@ -244,7 +244,7 @@ JSON:
    * Генерация геймификационного контента
    */
   async generateGameContent(
-    type: 'quiz' | 'puzzle' | 'challenge',
+    type: 'quiz' | 'puzzle' | 'challenge' | 'daily_mission',
     topic: string,
     difficulty: 'easy' | 'medium' | 'hard'
   ): Promise<{
@@ -256,6 +256,8 @@ JSON:
       explanation: string;
     }>;
     reward: string;
+    points?: number;
+    badge?: string;
   }> {
     try {
       const prompt = `Создай ${type} для геймификации канала:
@@ -265,19 +267,27 @@ JSON:
 
 Создай интерактивный контент с:
 1. Вопросами (если quiz) или заданиями
-2. Вариантами ответов
+2. Вариантами ответов (4 варианта для quiz)
 3. Правильными ответами
-4. Объяснениями
-5. Наградой за выполнение
+4. Объяснениями (почему правильный ответ верный)
+5. Наградой за выполнение (очки и бейджи)
+6. Мотивирующим текстом
 
-JSON формат зависит от типа контента.`;
+JSON формат:
+{
+  "content": "описание задания",
+  "questions": [{"question": "", "options": [], "correctAnswer": 0, "explanation": ""}],
+  "reward": "текст награды",
+  "points": 10-100,
+  "badge": "название бейджа"
+}`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-5",
         messages: [
           { 
             role: "system", 
-            content: "Ты эксперт по созданию вовлекающего геймифицированного контента для Telegram."
+            content: "Ты эксперт по созданию вовлекающего геймифицированного контента для Telegram с глубоким пониманием психологии мотивации."
           },
           { role: "user", content: prompt }
         ],
@@ -287,6 +297,56 @@ JSON формат зависит от типа контента.`;
       return JSON.parse(response.choices[0].message.content || '{}');
     } catch (error) {
       throw new Error(`Failed to generate game content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Создание AI-персонажа для бота (Character.AI стиль)
+   */
+  async createBotPersonality(
+    personality: 'дружелюбный_эксперт' | 'мотивирующий_коуч' | 'строгий_аналитик' | 'веселый_гуру',
+    niche: string
+  ): Promise<{
+    systemPrompt: string;
+    greeting: string;
+    catchphrases: string[];
+    responseStyle: string;
+  }> {
+    try {
+      const prompt = `Создай уникальную личность для Telegram-бота:
+
+Тип личности: ${personality}
+Ниша: ${niche}
+
+Создай:
+1. System prompt для настройки AI (300-500 символов)
+2. Приветственное сообщение
+3. 5 крылатых фраз персонажа
+4. Описание стиля ответов
+
+JSON:
+{
+  "systemPrompt": "детальное описание личности для AI",
+  "greeting": "приветственное сообщение",
+  "catchphrases": ["фраза 1", "фраза 2", ...],
+  "responseStyle": "как отвечать на вопросы"
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          { 
+            role: "system", 
+            content: "Ты креативный писатель, создающий запоминающиеся персонажи для AI-ботов."
+          },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      return JSON.parse(response.choices[0].message.content || '{}');
+    } catch (error) {
+      throw new Error(`Failed to create bot personality: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

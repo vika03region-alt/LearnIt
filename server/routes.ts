@@ -566,6 +566,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Генерация геймификационного контента
+  app.post('/api/ai/game-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { type, topic, difficulty } = req.body;
+
+      if (!type || !topic || !difficulty) {
+        return res.status(400).json({ message: "Type, topic, and difficulty are required" });
+      }
+
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.generateGameContent(type, topic, difficulty);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Game Content Generated',
+        description: `Generated ${type} game content on ${topic}`,
+        platformId: null,
+        status: 'success',
+        metadata: { type, difficulty, points: result.points },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating game content:", error);
+      res.status(500).json({ message: "Failed to generate game content" });
+    }
+  });
+
+  // Создание личности для бота
+  app.post('/api/ai/bot-personality', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { personality, niche } = req.body;
+
+      if (!personality || !niche) {
+        return res.status(400).json({ message: "Personality and niche are required" });
+      }
+
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.createBotPersonality(personality, niche);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Bot Personality Created',
+        description: `Created ${personality} personality for ${niche}`,
+        platformId: null,
+        status: 'success',
+        metadata: { personality, niche },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error creating bot personality:", error);
+      res.status(500).json({ message: "Failed to create bot personality" });
+    }
+  });
+
   // Массовая генерация контент-пака
   app.post('/api/ai/content-pack', isAuthenticated, async (req: any, res) => {
     try {
@@ -767,6 +825,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating forex education:", error);
       res.status(500).json({ message: "Failed to generate forex education" });
+    }
+  });
+
+  // === ОПТИМИЗАЦИЯ КОНТЕНТА (Grammarly-подобная) ===
+
+  // Проверка грамматики и стиля
+  app.post('/api/ai/check-grammar', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { text, targetAudience } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ message: "Text is required" });
+      }
+
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.checkGrammarAndStyle(
+        text,
+        targetAudience || 'professional'
+      );
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Grammar Check Completed',
+        description: `Checked ${text.length} characters, found ${result.grammarIssues.length} issues`,
+        platformId: null,
+        status: 'success',
+        metadata: { seoScore: result.seoScore, readabilityScore: result.readabilityScore },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking grammar:", error);
+      res.status(500).json({ message: "Failed to check grammar" });
+    }
+  });
+
+  // Анализ тональности контента
+  app.post('/api/ai/analyze-sentiment', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { text } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ message: "Text is required" });
+      }
+
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.analyzeSentiment(text);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Sentiment Analysis Completed',
+        description: `Analyzed sentiment: ${result.sentiment} (${result.score})`,
+        platformId: null,
+        status: 'success',
+        metadata: { sentiment: result.sentiment, emotions: result.emotions },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error analyzing sentiment:", error);
+      res.status(500).json({ message: "Failed to analyze sentiment" });
+    }
+  });
+
+  // TLDR генерация
+  app.post('/api/ai/generate-tldr', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { text, maxLength } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ message: "Text is required" });
+      }
+
+      const { contentOptimizationService } = await import('./services/contentOptimization');
+      const result = await contentOptimizationService.generateTLDR(text, maxLength || 200);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'TLDR Generated',
+        description: `Generated TLDR for ${text.length} characters`,
+        platformId: null,
+        status: 'success',
+        metadata: { keyPoints: result.keyPoints.length },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating TLDR:", error);
+      res.status(500).json({ message: "Failed to generate TLDR" });
     }
   });
 
