@@ -129,58 +129,6 @@ async function publishPoll() {
   }
 }
 
-// Функция для разбивки длинных сообщений на части
-async function sendLongMessage(chatId: number, text: string, options?: any) {
-  const MAX_LENGTH = 4000; // Лимит Telegram 4096, оставляем запас
-  
-  if (text.length <= MAX_LENGTH) {
-    await bot!.sendMessage(chatId, text, options);
-    return;
-  }
-  
-  // Разбиваем по абзацам
-  const parts: string[] = [];
-  let currentPart = '';
-  
-  const lines = text.split('\n');
-  
-  for (const line of lines) {
-    if ((currentPart + line + '\n').length > MAX_LENGTH) {
-      if (currentPart) {
-        parts.push(currentPart.trim());
-        currentPart = '';
-      }
-      
-      // Если одна строка слишком длинная
-      if (line.length > MAX_LENGTH) {
-        const chunks = line.match(new RegExp(`.{1,${MAX_LENGTH}}`, 'g')) || [];
-        parts.push(...chunks);
-      } else {
-        currentPart = line + '\n';
-      }
-    } else {
-      currentPart += line + '\n';
-    }
-  }
-  
-  if (currentPart.trim()) {
-    parts.push(currentPart.trim());
-  }
-  
-  // Отправляем части
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    const isLast = i === parts.length - 1;
-    
-    await bot!.sendMessage(chatId, part, isLast ? options : { parse_mode: options?.parse_mode });
-    
-    // Небольшая задержка между сообщениями
-    if (!isLast) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
-  }
-}
-
 export function startTelegramBot() {
   if (!TELEGRAM_TOKEN) {
     console.log('⚠️ BOTTG токен не найден - Telegram бот не запущен');
@@ -372,8 +320,8 @@ export function startTelegramBot() {
 🔍 *АНАЛИЗ ВАШЕЙ НИШИ*
 (генерируется AI...)`, { parse_mode: 'Markdown' });
         
-        // Отправляем полный анализ (с автоматической разбивкой)
-        await sendLongMessage(chatId, result.analysis, { parse_mode: 'Markdown' });
+        // Отправляем полный анализ
+        await bot!.sendMessage(chatId, result.analysis, { parse_mode: 'Markdown' });
         
         // Меню команд
         await bot!.sendMessage(chatId, `
@@ -755,118 +703,170 @@ ID: ${brandStyle.id}`;
 
   // === ОБРАБОТКА ТЕКСТОВЫХ КОМАНД ===
   
-  bot.on('message', async (msg) => {
-    // Пропускаем сообщения с '/' командами (они обрабатываются отдельно)
-    if (msg.text?.startsWith('/')) return;
-    
-    const chatId = msg.chat.id;
-    const text = msg.text?.toLowerCase() || '';
-    const userId = msg.from?.id.toString() || '';
-    
-    try {
-      await ensureUser(userId, msg.from?.username);
-      
-      // Анализ намерения через простые ключевые слова
-      if (text.includes('пост') || text.includes('опубликуй') || text.includes('создай контент')) {
+  // Обработчик текстовых команд
+  interface CommandHandler {
+    keywords: string[];
+    handler: (chatId: number, userId: string, text: string) => Promise<void>;
+  }
+  
+  const commandHandlers: CommandHandler[] = [
+    {
+      keywords: ['пост', 'опубликуй', 'создай контент', 'напиши пост'],
+      handler: async (chatId, userId, text) => {
         await bot!.sendMessage(chatId, '📝 Создаю пост...');
-        const result = await publishPost();
-        await bot!.sendMessage(chatId, `✅ Пост опубликован!\n\nТема: ${result.topic}`);
+        try {
+          const result = await publishPost();
+          
+          await storage.createActivityLog({
+            userId,
+            platformId: 1,
+            action: 'Auto Post Created',
+            description: `Пост создан через текстовую команду: ${result.topic}`,
+            status: 'completed',
+            metadata: { topic: result.topic }
+          });
+          
+          await bot!.sendMessage(chatId, `✅ Пост опубликован!\n\n📝 Тема: ${result.topic}\n\n🔗 Канал: ${CHANNEL_ID}`);
+        } catch (error: any) {
+          await bot!.sendMessage(chatId, `❌ Ошибка публикации: ${error.message}`);
+        }
       }
-      
-      else if (text.includes('опрос') || text.includes('голосование')) {
+    },
+    {
+      keywords: ['опрос', 'голосование', 'создай опрос'],
+      handler: async (chatId, userId, text) => {
         await bot!.sendMessage(chatId, '📊 Создаю опрос...');
-        await publishPoll();
-        await bot!.sendMessage(chatId, '✅ Опрос опубликован!');
+        try {
+          await publishPoll();
+          
+          await storage.createActivityLog({
+            userId,
+            platformId: 1,
+            action: 'Poll Created',
+            description: 'Опрос создан через текстовую команду',
+            status: 'completed'
+          });
+          
+          await bot!.sendMessage(chatId, `✅ Опрос опубликован!\n\n🔗 Канал: ${CHANNEL_ID}`);
+        } catch (error: any) {
+          await bot!.sendMessage(chatId, `❌ Ошибка публикации опроса: ${error.message}`);
+        }
       }
-      
-      else if (text.includes('статистика') || text.includes('аналитика')) {
-        const stats = `📊 *Статистика бота:*
+    },
+    {
+      keywords: ['статистика', 'аналитика', 'покажи статистику', 'stats'],
+      handler: async (chatId, userId, text) => {
+        const logs = await storage.getActivityLogsByUserId(userId, 10);
+        const postsCount = logs.filter(l => l.action.includes('Post')).length;
+        const pollsCount = logs.filter(l => l.action.includes('Poll')).length;
+        
+        const stats = `📊 *Ваша статистика:*
 
-✅ Постов в день: 3
-✅ Опросов в неделю: 2
+✅ Постов создано: ${postsCount}
+✅ Опросов создано: ${pollsCount}
 ✅ AI модель: Gemini 2.0
 ✅ Канал: ${CHANNEL_ID}
 
-*Расписание:*
+*Расписание автопостинга:*
 • 09:00 - утренний пост
 • 15:00 - дневной пост  
 • 20:00 - вечерний пост
-• 12:00 (Пн, Чт) - опрос`;
+• 12:00 (Пн, Чт) - опрос
+
+💡 Используйте команды для управления контентом!`;
+        
         await bot!.sendMessage(chatId, stats, { parse_mode: 'Markdown' });
       }
-      
-      else if (text.includes('мой бренд') || text.includes('бранд')) {
+    },
+    {
+      keywords: ['мой бренд', 'бранд', 'брендстайл', 'brand'],
+      handler: async (chatId, userId, text) => {
         const brandStyle = await storage.getDefaultBrandStyle(userId);
         
         if (!brandStyle) {
-          await bot!.sendMessage(chatId, '❌ У вас нет активного бренда.\n\nСоздайте его командой: /brandstyle');
+          await bot!.sendMessage(chatId, '❌ У вас нет активного бренда.\n\n🎨 Создайте его командой: /brandstyle', { parse_mode: 'Markdown' });
           return;
         }
         
         const message = `🎨 *Активный Brand Style*
 
 📝 Название: ${brandStyle.name}
-🎨 Основной цвет: ${brandStyle.primaryColor || 'не указан'}
+${brandStyle.primaryColor ? `🎨 Основной цвет: ${brandStyle.primaryColor}` : ''}
+${brandStyle.secondaryColor ? `🌈 Дополнительный: ${brandStyle.secondaryColor}` : ''}
 🗣 Tone: ${brandStyle.tone}
+${brandStyle.voice ? `📢 Voice: ${brandStyle.voice}` : ''}
 
-ID: ${brandStyle.id}`;
+🆔 ID: ${brandStyle.id}
+
+💡 Управление: /listbrands`;
         
         await bot!.sendMessage(chatId, message, { parse_mode: 'Markdown' });
       }
-      
-      else if (text.includes('тренд') || text.includes('вирус')) {
+    },
+    {
+      keywords: ['тренд', 'вирус', 'вирусный', 'топ тренды'],
+      handler: async (chatId, userId, text) => {
         const trends = await storage.getTopTrends(5);
         
         if (trends.length === 0) {
-          await bot!.sendMessage(chatId, '❌ Трендов пока нет.\n\nДобавьте командой: /addtrend [url]');
+          await bot!.sendMessage(chatId, '❌ Трендов пока нет.\n\n📈 Добавьте первый: /addtrend [url]', { parse_mode: 'Markdown' });
           return;
         }
         
         let message = `📈 *ТОП-${trends.length} ТРЕНДОВ*\n\n`;
         
-        for (const trend of trends) {
+        trends.forEach((trend, index) => {
           const score = trend.trendScore || 0;
-          message += `🔥 ${trend.title} (Score: ${score.toFixed(1)})\n`;
-        }
+          const views = trend.views ? `${(trend.views / 1000).toFixed(0)}K` : 'N/A';
+          message += `${index + 1}. 🔥 *${trend.title}*\n`;
+          message += `   Score: ${score.toFixed(1)} | Views: ${views}\n`;
+          message += `   ID: ${trend.id}\n\n`;
+        });
+        
+        message += `💡 Клонировать: /clonetrend [id]`;
         
         await bot!.sendMessage(chatId, message, { parse_mode: 'Markdown' });
       }
-      
-      else if (text.includes('помощь') || text.includes('команд') || text.includes('что умеешь')) {
-        const help = `💡 *Я понимаю такие команды:*
+    },
+    {
+      keywords: ['помощь', 'команд', 'что умеешь', 'help', 'начать'],
+      handler: async (chatId, userId, text) => {
+        const help = `💡 *Я понимаю текстовые команды:*
 
-📝 *Контент:*
+📝 *Создание контента:*
 • "создай пост" / "опубликуй контент"
 • "создай опрос" / "сделай голосование"
 
-📊 *Аналитика:*
-• "покажи статистику" / "аналитика"
+📊 *Аналитика и данные:*
+• "покажи статистику" / "stats"
 • "мой бренд" / "брендстайл"
 • "покажи тренды" / "вирусные тренды"
 
-🎨 *Бренд:*
-• "создай бренд" → /brandstyle
+🔍 *Проверка и управление:*
+• "проверь канал"
 • "мои бренды" → /listbrands
-
-📈 *Тренды:*
 • "добавь тренд [url]" → /addtrend
-• "клонируй тренд [id]" → /clonetrend
 
-🔍 *Другое:*
-• "проверь канал" → /checkchannel
-• "помощь" - это сообщение
+⚙️ *Команды через /*
+/start - главное меню
+/brandstyle - создать бренд
+/checkchannel - проверка канала
+/toptrends - топ трендов
 
-Также работают все команды через /`;
+💬 Просто напишите что нужно - я пойму!`;
         
         await bot!.sendMessage(chatId, help, { parse_mode: 'Markdown' });
       }
-      
-      else if (text.includes('канал') || text.includes('проверь')) {
+    },
+    {
+      keywords: ['канал', 'проверь', 'проверь канал', 'статус канала'],
+      handler: async (chatId, userId, text) => {
         await bot!.sendMessage(chatId, '🔍 Проверяю канал...');
         
         try {
           const channelInfo = await bot!.getChat(CHANNEL_ID);
           let memberCount = 'не определено';
+          
           try {
             const count = await bot!.getChatMemberCount(CHANNEL_ID);
             memberCount = count.toString();
@@ -874,27 +874,81 @@ ID: ${brandStyle.id}`;
             console.log('Не удалось получить количество подписчиков');
           }
           
-          const report = `✅ *КАНАЛ ПРОВЕРЕН*
+          const botInfo = await bot!.getMe();
+          const botStatus = await bot!.getChatMember(CHANNEL_ID, botInfo.id);
+          const canPost = botStatus.status === 'administrator';
+          
+          const report = `${canPost ? '✅' : '⚠️'} *ПРОВЕРКА КАНАЛА*
 
 📢 Канал: ${CHANNEL_ID}
 ${channelInfo.title ? `📝 Название: ${channelInfo.title}` : ''}
 👥 Подписчиков: ${memberCount}
+🤖 Бот: ${botStatus.status}
+${canPost ? '✅ Публикация: доступна' : '❌ Публикация: НЕТ ПРАВ'}
 
-🎉 Канал работает!`;
+${canPost ? '🎉 Канал готов к работе!' : '⚠️ Добавьте бота администратором'}`;
           
           await bot!.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+          
+          await storage.createActivityLog({
+            userId,
+            platformId: 1,
+            action: 'Channel Check',
+            description: 'Проверка статуса канала',
+            status: 'completed',
+            metadata: { channel: CHANNEL_ID, canPost }
+          });
         } catch (error: any) {
           await bot!.sendMessage(chatId, `❌ Ошибка проверки канала: ${error.message}`);
         }
       }
+    }
+  ];
+  
+  bot.on('message', async (msg) => {
+    // Пропускаем сообщения с '/' командами (они обрабатываются отдельно)
+    if (msg.text?.startsWith('/')) return;
+    
+    // Пропускаем не текстовые сообщения
+    if (!msg.text) return;
+    
+    const chatId = msg.chat.id;
+    const text = msg.text.toLowerCase();
+    const userId = msg.from?.id.toString() || '';
+    
+    try {
+      await ensureUser(userId, msg.from?.username);
       
-      else {
-        // Если команда не распознана - подсказываем
-        await bot!.sendMessage(chatId, '🤔 Не понял команду.\n\nНапишите "помощь" чтобы увидеть список команд.');
+      // Поиск подходящего обработчика
+      let handled = false;
+      
+      for (const command of commandHandlers) {
+        if (command.keywords.some(keyword => text.includes(keyword))) {
+          await command.handler(chatId, userId, text);
+          handled = true;
+          
+          // Логирование использования команды
+          await storage.createActivityLog({
+            userId,
+            platformId: 1,
+            action: 'Text Command',
+            description: `Обработана команда: ${text.substring(0, 50)}`,
+            status: 'completed',
+            metadata: { command: command.keywords[0] }
+          });
+          
+          break;
+        }
+      }
+      
+      // Если команда не распознана
+      if (!handled) {
+        await bot!.sendMessage(chatId, `🤔 Не понял команду: "${msg.text}"\n\n💡 Напишите "помощь" для списка команд`, { parse_mode: 'Markdown' });
       }
       
     } catch (error: any) {
-      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+      console.error('Ошибка обработки текстовой команды:', error);
+      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}\n\n💡 Попробуйте команду /help`);
     }
   });
 
