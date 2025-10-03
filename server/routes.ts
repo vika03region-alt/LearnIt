@@ -377,6 +377,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === GEMINI AI ЭНДПОИНТЫ ===
 
+  // Тестовый эндпоинт для проверки Gemini API
+  app.get('/api/gemini/test', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { analyzeNicheWithGemini, generateContentWithGemini } = await import('./services/geminiService');
+      
+      console.log('🧪 Запуск теста Gemini API...');
+      
+      // Тест 1: Анализ ниши
+      console.log('1️⃣ Тестирование анализа ниши...');
+      const nicheAnalysis = await analyzeNicheWithGemini('Lucifer_tradera');
+      
+      // Тест 2: Генерация контента
+      console.log('2️⃣ Тестирование генерации контента...');
+      const content = await generateContentWithGemini(
+        'Как начать зарабатывать на крипто трейдинге',
+        {
+          tone: 'профессиональный, но доступный',
+          keywords: ['трейдинг', 'криптовалюты', 'заработок'],
+          targetAudience: 'начинающие трейдеры'
+        }
+      );
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Gemini Test Completed',
+        description: 'Успешный тест Gemini API',
+        platformId: null,
+        status: 'success',
+        metadata: { test: 'gemini_integration' },
+      });
+
+      res.json({
+        success: true,
+        message: '✅ Gemini API работает отлично!',
+        results: {
+          nicheAnalysis: {
+            preview: nicheAnalysis.substring(0, 200) + '...',
+            fullLength: nicheAnalysis.length
+          },
+          contentGeneration: {
+            preview: content.substring(0, 200) + '...',
+            fullLength: content.length
+          }
+        },
+        capabilities: [
+          '✅ Анализ ниши и аудитории',
+          '✅ Генерация трейдинг контента',
+          '✅ Анализ трендов и видео',
+          '✅ Мультимодальная обработка (текст + изображения)',
+          '✅ Адаптация контента для разных платформ',
+          '✅ Персонализация под аудиторию'
+        ],
+        recommendations: [
+          '💡 Используйте /api/gemini/analyze-content для глубокого анализа постов',
+          '💡 /api/gemini/viral-content создаст вирусный контент для любой платформы',
+          '💡 /api/gemini/analyze-competitor проанализирует стратегии конкурентов',
+          '💡 /api/gemini/optimize-content улучшит существующий контент',
+          '💡 /api/gemini/content-ideas сгенерирует 10+ идей для постов'
+        ]
+      });
+    } catch (error: any) {
+      console.error('❌ Ошибка теста Gemini:', error);
+      res.status(500).json({ 
+        success: false,
+        error: 'Тест не пройден',
+        details: error.message,
+        hint: 'Проверьте переменную окружения GEMINI'
+      });
+    }
+  });
+
   // Генерация контента через Gemini
   app.post('/api/gemini/generate-content', isAuthenticated, async (req: any, res) => {
     try {
