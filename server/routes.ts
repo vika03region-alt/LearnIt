@@ -375,6 +375,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === B2B МАРКЕТИНГ МАРШРУТЫ ===
+
+  // Анализ целевой аудитории организации
+  app.post('/api/b2b/analyze-audience', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { industry, website, competitors, targetMarkets } = req.body;
+
+      const { b2bAudienceAnalysis } = await import('./services/b2bAudienceAnalysis');
+      const audienceProfile = await b2bAudienceAnalysis.analyzeOrganization({
+        industry,
+        website,
+        competitors,
+        targetMarkets,
+      });
+
+      await storage.createActivityLog({
+        userId,
+        action: 'B2B Audience Analyzed',
+        description: `Проанализирована аудитория для индустрии: ${industry}`,
+        platformId: null,
+        status: 'success',
+        metadata: { audienceProfile },
+      });
+
+      res.json({ audienceProfile });
+    } catch (error) {
+      console.error('Ошибка анализа B2B аудитории:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать аудиторию' });
+    }
+  });
+
+  // Генерация lead-магнита
+  app.post('/api/b2b/generate-lead-magnet', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { audienceProfile } = req.body;
+
+      const { b2bAudienceAnalysis } = await import('./services/b2bAudienceAnalysis');
+      const leadMagnet = await b2bAudienceAnalysis.generateLeadMagnet(audienceProfile);
+
+      res.json({ leadMagnet });
+    } catch (error) {
+      console.error('Ошибка генерации lead-магнита:', error);
+      res.status(500).json({ error: 'Не удалось создать lead-магнит' });
+    }
+  });
+
+  // Генерация кейс-стади
+  app.post('/api/b2b/generate-case-study', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { clientName, problem, solution, results } = req.body;
+
+      const { b2bContentGenerator } = await import('./services/b2bContentGenerator');
+      const caseStudy = await b2bContentGenerator.generateCaseStudy({
+        clientName,
+        problem,
+        solution,
+        results,
+      });
+
+      res.json({ content: caseStudy });
+    } catch (error) {
+      console.error('Ошибка генерации кейса:', error);
+      res.status(500).json({ error: 'Не удалось создать кейс' });
+    }
+  });
+
+  // Скоринг лидов
+  app.get('/api/b2b/leads/scoring', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const { leadFunnelService } = await import('./services/leadFunnel');
+      const scoredLeads = await leadFunnelService.scoreLeads(userId);
+
+      res.json({ leads: scoredLeads });
+    } catch (error) {
+      console.error('Ошибка скоринга лидов:', error);
+      res.status(500).json({ error: 'Не удалось оценить лиды' });
+    }
+  });
+
   // === ПРОФЕССИОНАЛЬНЫЕ AI ТРЕЙДИНГ МАРШРУТЫ ===
 
   // Генерация viral TikTok контента
