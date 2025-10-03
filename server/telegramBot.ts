@@ -129,58 +129,6 @@ async function publishPoll() {
   }
 }
 
-// Функция для разбивки длинных сообщений на части
-async function sendLongMessage(chatId: number, text: string, options?: any) {
-  const MAX_LENGTH = 4000; // Лимит Telegram 4096, оставляем запас
-  
-  if (text.length <= MAX_LENGTH) {
-    await bot!.sendMessage(chatId, text, options);
-    return;
-  }
-  
-  // Разбиваем по абзацам
-  const parts: string[] = [];
-  let currentPart = '';
-  
-  const lines = text.split('\n');
-  
-  for (const line of lines) {
-    if ((currentPart + line + '\n').length > MAX_LENGTH) {
-      if (currentPart) {
-        parts.push(currentPart.trim());
-        currentPart = '';
-      }
-      
-      // Если одна строка слишком длинная
-      if (line.length > MAX_LENGTH) {
-        const chunks = line.match(new RegExp(`.{1,${MAX_LENGTH}}`, 'g')) || [];
-        parts.push(...chunks);
-      } else {
-        currentPart = line + '\n';
-      }
-    } else {
-      currentPart += line + '\n';
-    }
-  }
-  
-  if (currentPart.trim()) {
-    parts.push(currentPart.trim());
-  }
-  
-  // Отправляем части
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    const isLast = i === parts.length - 1;
-    
-    await bot!.sendMessage(chatId, part, isLast ? options : { parse_mode: options?.parse_mode });
-    
-    // Небольшая задержка между сообщениями
-    if (!isLast) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
-  }
-}
-
 export function startTelegramBot() {
   if (!TELEGRAM_TOKEN) {
     console.log('⚠️ BOTTG токен не найден - Telegram бот не запущен');
@@ -374,51 +322,60 @@ export function startTelegramBot() {
         
         // Отправляем полный анализ
         await bot!.sendMessage(chatId, result.analysis, { parse_mode: 'Markdown' });
-        
-        // Меню команд
-        await bot!.sendMessage(chatId, `
-📱 *ДОСТУПНЫЕ КОМАНДЫ:*
-
-🎨 *BRAND STYLE*:
-/brandstyle - создать новый бренд
-/mybrand - показать активный бренд
-/listbrands - все ваши бренды
-/setdefault [id] - установить default
-
-📈 *TREND VIDEOS*:
-/addtrend [url] - добавить тренд
-/toptrends [limit] - топ трендов
-/mytrends - ваши тренды
-/clonetrend [id] - клонировать тренд
-
-📊 *ДРУГОЕ*:
-/checkchannel - проверить канал
-/post - пост в канал
-/stats - статистика`, { parse_mode: 'Markdown' });
-      } else {
-        // Существующий пользователь
-        await bot!.sendMessage(chatId, `👋 С возвращением!
-
-🎨 *BRAND STYLE*:
-/brandstyle - создать новый бренд
-/mybrand - показать активный бренд
-/listbrands - все ваши бренды
-/setdefault [id] - установить default
-
-📈 *TREND VIDEOS*:
-/addtrend [url] - добавить тренд
-/toptrends [limit] - топ трендов
-/mytrends - ваши тренды
-/clonetrend [id] - клонировать тренд
-
-📊 *ДРУГОЕ*:
-/checkchannel - проверить канал
-/post - пост в канал
-/stats - статистика`, { parse_mode: 'Markdown' });
       }
+      
+      // Новое структурированное меню
+      const menuMessage = `👋 С возвращением!
+
+🎨 *BRAND STYLE:*
+/brandstyle - создать новый бренд
+/mybrand - показать активный бренд
+/listbrands - все ваши бренды
+/setdefault id - установить default
+
+🚀 *TREND VIDEOS:*
+/addtrend url - добавить тренд
+/toptrends limit - топ трендов
+/mytrends - ваши тренды
+/clonetrend id - клонировать тренд
+
+📊 *ДРУГОЕ:*
+/checkchannel - проверить канал
+/post - пост в канал
+/stats - статистика`;
+      
+      await bot!.sendMessage(chatId, menuMessage, { parse_mode: 'Markdown' });
+      
     } catch (error: any) {
       await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
     }
+  });
+
+  // === КОМАНДА МЕНЮ ===
+  
+  bot.onText(/\/menu/, async (msg) => {
+    const chatId = msg.chat.id;
+    
+    const menuMessage = `👋 С возвращением!
+
+🎨 *BRAND STYLE:*
+/brandstyle - создать новый бренд
+/mybrand - показать активный бренд
+/listbrands - все ваши бренды
+/setdefault id - установить default
+
+🚀 *TREND VIDEOS:*
+/addtrend url - добавить тренд
+/toptrends limit - топ трендов
+/mytrends - ваши тренды
+/clonetrend id - клонировать тренд
+
+📊 *ДРУГОЕ:*
+/checkchannel - проверить канал
+/post - пост в канал
+/stats - статистика`;
+    
+    await bot!.sendMessage(chatId, menuMessage, { parse_mode: 'Markdown' });
   });
 
   // === КОМАНДА ПРОВЕРКИ КАНАЛА ===
