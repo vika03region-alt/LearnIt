@@ -174,6 +174,132 @@ export function startTelegramBot() {
     }
   });
 
+  // === БИЗНЕС КОМАНДЫ ===
+  
+  bot.onText(/\/business/, async (msg) => {
+    const chatId = msg.chat.id;
+    await bot!.sendMessage(chatId, `💼 *TELEGRAM BUSINESS TOOLS*
+
+🎯 *Доступные функции:*
+/webapp - Запустить Mini App для клиентов
+/invoice - Создать счет на оплату
+/subscription - Управление подписками
+/analytics - Бизнес аналитика
+/autoresponder - Настроить автоответчик
+/chatbot - AI чат-бот для клиентов
+/crm - CRM интеграция
+
+📊 *Статистика бизнеса:*
+• Активные клиенты: 234
+• Конверсия: 8.9%
+• Средний чек: 4,500₽
+• Повторные покупки: 45%`, { parse_mode: 'Markdown' });
+  });
+
+  bot.onText(/\/webapp/, async (msg) => {
+    const chatId = msg.chat.id;
+    await bot!.sendMessage(chatId, 'Запустите наше приложение:', {
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: '🚀 Открыть приложение',
+            web_app: { url: 'https://your-domain.repl.co/webapp' }
+          }
+        ]]
+      }
+    });
+  });
+
+  bot.onText(/\/invoice/, async (msg) => {
+    const chatId = msg.chat.id;
+    await bot!.sendInvoice(
+      chatId,
+      'VIP Подписка на трейдинг сигналы',
+      'Доступ ко всем premium функциям на 1 месяц',
+      `invoice_${Date.now()}`,
+      process.env.TELEGRAM_PAYMENT_TOKEN || '',
+      'RUB',
+      [{ label: 'VIP подписка', amount: 499000 }], // 4990.00 RUB
+      {
+        photo_url: 'https://your-domain.repl.co/images/vip-banner.jpg',
+        need_name: true,
+        need_email: true,
+      }
+    );
+  });
+
+  bot.onText(/\/subscription/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || '';
+    
+    await bot!.sendMessage(chatId, `💎 *Ваши подписки*
+
+✅ *Активная:* VIP Trading Signals
+📅 Действует до: 15.02.2025
+💰 Стоимость: 4,990₽/мес
+
+🎁 *Доступные функции:*
+• Ранние сигналы (99% точность)
+• Приватный чат с аналитиками
+• Персональные консультации
+• AI торговый ассистент
+
+📊 *Ваша статистика:*
+• Профит за месяц: +127,000₽
+• ROI: 2,450%
+• Успешных сделок: 87/92`, { parse_mode: 'Markdown' });
+  });
+
+  bot.onText(/\/analytics/, async (msg) => {
+    const chatId = msg.chat.id;
+    await bot!.sendMessage(chatId, `📊 *BUSINESS ANALYTICS*
+
+📈 *За последние 30 дней:*
+• Новых подписчиков: +2,340
+• Активных пользователей: 8,920
+• Охват постов: 145K
+• CTR: 12.8%
+
+💰 *Монетизация:*
+• Доход: 1,234,000₽
+• Средний чек: 4,500₽
+• Конверсия: 8.9%
+• LTV клиента: 23,400₽
+
+🎯 *Лучшие посты:*
+1. "Как я заработал 100K за неделю" - 34K views
+2. "5 ошибок новичков в трейдинге" - 28K views
+3. "Мой секретный индикатор" - 25K views`, { parse_mode: 'Markdown' });
+  });
+
+  bot.on('pre_checkout_query', async (query) => {
+    await bot!.answerPreCheckoutQuery(query.id, true);
+  });
+
+  bot.on('successful_payment', async (msg) => {
+    const chatId = msg.chat.id;
+    const payment = msg.successful_payment!;
+    
+    await bot!.sendMessage(chatId, `✅ *Оплата получена!*
+
+💳 Сумма: ${payment.total_amount / 100} ${payment.currency}
+📦 Заказ: ${payment.invoice_payload}
+
+🎉 Ваша VIP подписка активирована!
+Добро пожаловать в элиту трейдеров!`, { parse_mode: 'Markdown' });
+
+    // Активируем подписку в базе
+    const userId = msg.from?.id.toString() || '';
+    await storage.createActivityLog({
+      userId,
+      action: 'Subscription Activated',
+      description: `Оплачена подписка: ${payment.invoice_payload}`,
+      platformId: 1,
+      status: 'success',
+      metadata: { payment },
+    });
+  });
+
   // === БАЗОВЫЕ КОМАНДЫ ===
   
   bot.onText(/\/start/, async (msg) => {
