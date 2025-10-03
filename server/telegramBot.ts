@@ -1413,7 +1413,7 @@ Dashboard → Master Automation
     }
 
     try {
-      await bot!.sendMessage(chatId, '🎬 Генерирую AI видео...\n\n✨ Используется Fal.ai Hunyuan Video\n💰 Стоимость: $0.40\n⏱️ Время: 60-120 секунд');
+      await bot!.sendMessage(chatId, '🎬 Генерирую AI видео...\n\n✨ Используется Fal.ai WAN-2.1 (быстрая модель)\n💰 Стоимость: $0.20\n⏱️ Время: 30-60 секунд');
 
       // Импортируем сервис
       const { klingAIService } = await import('./services/klingAIService');
@@ -1423,9 +1423,9 @@ Dashboard → Master Automation
 
       console.log(`🎬 Fal.ai: Генерация видео для промпта: ${videoPrompt}`);
 
-      // Генерация через Fal.ai
+      // Генерация через Fal.ai (WAN-2.1 - быстрая модель)
       const result = await klingAIService.generateFalVideo(videoPrompt, {
-        model: 'hunyuan',
+        model: 'wan',
         resolution: '720p',
         aspectRatio: '16:9'
       });
@@ -1438,14 +1438,14 @@ Dashboard → Master Automation
 📹 Промпт: ${topic}
 ⏱️ Длительность: 5 секунд
 🎨 Качество: 720p HD
-🤖 Модель: Hunyuan Video (Tencent)
-💰 Стоимость: $0.40
+🤖 Модель: WAN-2.1 (быстрая)
+💰 Стоимость: $0.20
 
 🚀 Отправляю видео...`, { parse_mode: 'HTML' });
 
         // Отправляем видео
         await bot!.sendVideo(chatId, result.videoUrl, {
-          caption: `🎬 AI Видео: ${topic}\n\n✨ Создано с Fal.ai Hunyuan Video - профессиональное качество 720p`
+          caption: `🎬 AI Видео: ${topic}\n\n✨ Создано с Fal.ai WAN-2.1 - быстрая генерация 720p`
         });
 
         await bot!.sendMessage(chatId, '✨ Хочешь опубликовать это видео в канал?\nИспользуй /publish для публикации!');
