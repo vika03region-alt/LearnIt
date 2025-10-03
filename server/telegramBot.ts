@@ -701,6 +701,151 @@ ID: ${brandStyle.id}`;
     }
   });
 
+  // === ОБРАБОТКА ТЕКСТОВЫХ КОМАНД ===
+  
+  bot.on('message', async (msg) => {
+    // Пропускаем сообщения с '/' командами (они обрабатываются отдельно)
+    if (msg.text?.startsWith('/')) return;
+    
+    const chatId = msg.chat.id;
+    const text = msg.text?.toLowerCase() || '';
+    const userId = msg.from?.id.toString() || '';
+    
+    try {
+      await ensureUser(userId, msg.from?.username);
+      
+      // Анализ намерения через простые ключевые слова
+      if (text.includes('пост') || text.includes('опубликуй') || text.includes('создай контент')) {
+        await bot!.sendMessage(chatId, '📝 Создаю пост...');
+        const result = await publishPost();
+        await bot!.sendMessage(chatId, `✅ Пост опубликован!\n\nТема: ${result.topic}`);
+      }
+      
+      else if (text.includes('опрос') || text.includes('голосование')) {
+        await bot!.sendMessage(chatId, '📊 Создаю опрос...');
+        await publishPoll();
+        await bot!.sendMessage(chatId, '✅ Опрос опубликован!');
+      }
+      
+      else if (text.includes('статистика') || text.includes('аналитика')) {
+        const stats = `📊 *Статистика бота:*
+
+✅ Постов в день: 3
+✅ Опросов в неделю: 2
+✅ AI модель: Gemini 2.0
+✅ Канал: ${CHANNEL_ID}
+
+*Расписание:*
+• 09:00 - утренний пост
+• 15:00 - дневной пост  
+• 20:00 - вечерний пост
+• 12:00 (Пн, Чт) - опрос`;
+        await bot!.sendMessage(chatId, stats, { parse_mode: 'Markdown' });
+      }
+      
+      else if (text.includes('мой бренд') || text.includes('бранд')) {
+        const brandStyle = await storage.getDefaultBrandStyle(userId);
+        
+        if (!brandStyle) {
+          await bot!.sendMessage(chatId, '❌ У вас нет активного бренда.\n\nСоздайте его командой: /brandstyle');
+          return;
+        }
+        
+        const message = `🎨 *Активный Brand Style*
+
+📝 Название: ${brandStyle.name}
+🎨 Основной цвет: ${brandStyle.primaryColor || 'не указан'}
+🗣 Tone: ${brandStyle.tone}
+
+ID: ${brandStyle.id}`;
+        
+        await bot!.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      }
+      
+      else if (text.includes('тренд') || text.includes('вирус')) {
+        const trends = await storage.getTopTrends(5);
+        
+        if (trends.length === 0) {
+          await bot!.sendMessage(chatId, '❌ Трендов пока нет.\n\nДобавьте командой: /addtrend [url]');
+          return;
+        }
+        
+        let message = `📈 *ТОП-${trends.length} ТРЕНДОВ*\n\n`;
+        
+        for (const trend of trends) {
+          const score = trend.trendScore || 0;
+          message += `🔥 ${trend.title} (Score: ${score.toFixed(1)})\n`;
+        }
+        
+        await bot!.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      }
+      
+      else if (text.includes('помощь') || text.includes('команд') || text.includes('что умеешь')) {
+        const help = `💡 *Я понимаю такие команды:*
+
+📝 *Контент:*
+• "создай пост" / "опубликуй контент"
+• "создай опрос" / "сделай голосование"
+
+📊 *Аналитика:*
+• "покажи статистику" / "аналитика"
+• "мой бренд" / "брендстайл"
+• "покажи тренды" / "вирусные тренды"
+
+🎨 *Бренд:*
+• "создай бренд" → /brandstyle
+• "мои бренды" → /listbrands
+
+📈 *Тренды:*
+• "добавь тренд [url]" → /addtrend
+• "клонируй тренд [id]" → /clonetrend
+
+🔍 *Другое:*
+• "проверь канал" → /checkchannel
+• "помощь" - это сообщение
+
+Также работают все команды через /`;
+        
+        await bot!.sendMessage(chatId, help, { parse_mode: 'Markdown' });
+      }
+      
+      else if (text.includes('канал') || text.includes('проверь')) {
+        await bot!.sendMessage(chatId, '🔍 Проверяю канал...');
+        
+        try {
+          const channelInfo = await bot!.getChat(CHANNEL_ID);
+          let memberCount = 'не определено';
+          try {
+            const count = await bot!.getChatMemberCount(CHANNEL_ID);
+            memberCount = count.toString();
+          } catch (error) {
+            console.log('Не удалось получить количество подписчиков');
+          }
+          
+          const report = `✅ *КАНАЛ ПРОВЕРЕН*
+
+📢 Канал: ${CHANNEL_ID}
+${channelInfo.title ? `📝 Название: ${channelInfo.title}` : ''}
+👥 Подписчиков: ${memberCount}
+
+🎉 Канал работает!`;
+          
+          await bot!.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+        } catch (error: any) {
+          await bot!.sendMessage(chatId, `❌ Ошибка проверки канала: ${error.message}`);
+        }
+      }
+      
+      else {
+        // Если команда не распознана - подсказываем
+        await bot!.sendMessage(chatId, '🤔 Не понял команду.\n\nНапишите "помощь" чтобы увидеть список команд.');
+      }
+      
+    } catch (error: any) {
+      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+    }
+  });
+
   // Callback для публикации
   bot.on('callback_query', async (query) => {
     const chatId = query.message?.chat.id;
