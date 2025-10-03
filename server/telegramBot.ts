@@ -142,6 +142,9 @@ export function startTelegramBot() {
   console.log('📅 Расписание: 09:00, 15:00, 20:00 (посты), 12:00 Пн/Чт (опросы)');
   console.log('💡 Команды: /start /menu /help');
   console.log('🔥 Режим доминирования: /niche /spy /trends /viralcheck /blueprint');
+  console.log('🎙️ Voice AI: голосовые сигналы и подкасты');
+  console.log('💼 Business API: автоответчик и FAQ-бот');
+  console.log('✨ Premium: эмодзи-статусы и расширенная аналитика');
   console.log('');
   
   cron.schedule('0 9 * * *', () => {

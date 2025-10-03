@@ -286,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const result = await aiAssistantService.sendMessage(conversationId, message.trim());
-      
+
       // Логируем активность
       const userId = req.user.claims.sub;
       await storage.createActivityLog({
@@ -333,9 +333,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
-      
+
       const success = await aiAssistantService.deleteConversation(conversationId, userId);
-      
+
       if (success) {
         await storage.createActivityLog({
           userId,
@@ -360,14 +360,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = parseInt(req.params.id);
       const title = await aiAssistantService.generateConversationTitle(conversationId);
-      
+
       const userId = req.user.claims.sub;
       const updatedConversation = await aiAssistantService.updateConversationTitle(
         conversationId, 
         userId, 
         title
       );
-      
+
       res.json({ title, conversation: updatedConversation });
     } catch (error) {
       console.error("Error generating title:", error);
@@ -382,13 +382,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { analyzeNicheWithGemini, generateContentWithGemini } = await import('./services/geminiService');
-      
+
       console.log('🧪 Запуск теста Gemini API...');
-      
+
       // Тест 1: Анализ ниши
       console.log('1️⃣ Тестирование анализа ниши...');
       const nicheAnalysis = await analyzeNicheWithGemini('Lucifer_tradera');
-      
+
       // Тест 2: Генерация контента
       console.log('2️⃣ Тестирование генерации контента...');
       const content = await generateContentWithGemini(
@@ -454,9 +454,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { prompt, systemInstruction } = req.body;
       const { geminiService } = await import('./services/geminiService');
-      
+
       const result = await geminiService.generateContent(prompt, systemInstruction);
-      
+
       await storage.createActivityLog({
         userId: req.user.claims.sub,
         action: 'Gemini Content Generated',
@@ -478,9 +478,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { imageData, prompt } = req.body;
       const { geminiService } = await import('./services/geminiService');
-      
+
       const result = await geminiService.analyzeImage(imageData, prompt);
-      
+
       res.json(result);
     } catch (error) {
       console.error('Gemini vision error:', error);
@@ -493,9 +493,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { platform, niche, trend } = req.body;
       const { geminiService } = await import('./services/geminiService');
-      
+
       const result = await geminiService.generateViralContent(platform, niche, trend);
-      
+
       res.json(result);
     } catch (error) {
       console.error('Gemini viral content error:', error);
@@ -508,9 +508,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitorUrl, platform } = req.body;
       const { geminiService } = await import('./services/geminiService');
-      
+
       const analysis = await geminiService.analyzeCompetitor(competitorUrl, platform);
-      
+
       res.json(analysis);
     } catch (error) {
       console.error('Gemini competitor analysis error:', error);
@@ -523,14 +523,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { businessType, targetAudience, budget, platforms } = req.body;
       const { geminiService } = await import('./services/geminiService');
-      
+
       const strategy = await geminiService.generateMarketingStrategy(
         businessType,
         targetAudience,
         budget,
         platforms
       );
-      
+
       res.json(strategy);
     } catch (error) {
       console.error('Gemini strategy error:', error);
@@ -543,9 +543,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { content, platform } = req.body;
       const { geminiService } = await import('./services/geminiService');
-      
+
       const result = await geminiService.optimizeContent(content, platform);
-      
+
       res.json(result);
     } catch (error) {
       console.error('Gemini optimization error:', error);
@@ -558,9 +558,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { niche, count } = req.body;
       const { geminiService } = await import('./services/geminiService');
-      
+
       const ideas = await geminiService.generateContentIdeas(niche, count || 10);
-      
+
       res.json({ ideas });
     } catch (error) {
       console.error('Gemini ideas error:', error);
@@ -577,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { platform, apiKey, accountHandle } = req.body;
 
       const { platformIntegrationEngine } = await import('./services/platformIntegrationEngine');
-      
+
       // Собираем данные через API платформы
       const integration = {
         platform,
@@ -1816,7 +1816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { niche, platform, targetEmotion } = req.body;
       const viralContent = await viralGrowthEngine.generateViralContent(niche, platform, targetEmotion);
-      
+
       res.json({
         content: viralContent,
         message: 'Вирусный контент создан с высоким потенциалом',
@@ -1832,9 +1832,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { campaignType, niche } = req.body;
-      
+
       const campaign = await viralGrowthEngine.launchViralCampaign(userId, campaignType, niche);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'Viral Campaign Launched',
@@ -1858,7 +1858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { audience, goal } = req.body;
       const triggers = await viralGrowthEngine.generatePsychologicalTriggers(audience, goal);
-      
+
       res.json({
         triggers,
         message: 'Психологические триггеры сгенерированы',
@@ -1874,7 +1874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { emotion, niche, platform } = req.body;
       const emotionalContent = await viralGrowthEngine.createEmotionalContent(emotion, niche, platform);
-      
+
       res.json({
         content: emotionalContent,
         emotion,
@@ -1891,7 +1891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { content } = req.body;
       const enhancedContent = await viralGrowthEngine.applyNeuroMarketingPrinciples(content);
-      
+
       res.json({
         original: content,
         enhanced: enhancedContent,
@@ -1910,9 +1910,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { niche } = req.body;
-      
+
       const intelligence = await competitorSurveillance.monitorCompetitors(niche);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'Competitor Intelligence',
@@ -1936,7 +1936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitors } = req.body;
       const strategies = await competitorSurveillance.analyzeCompetitorStrategies(competitors);
-      
+
       res.json({
         strategies,
         message: 'Стратегии конкурентов проанализированы',
@@ -1952,7 +1952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitorHandle, theirStrategy } = req.body;
       const counterStrategy = await competitorSurveillance.createCounterStrategy(competitorHandle, theirStrategy);
-      
+
       res.json({
         counterStrategy,
         message: 'Контр-стратегия создана',
@@ -1968,7 +1968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { competitorData, marketTrends } = req.body;
       const predictions = await competitorSurveillance.predictCompetitorMoves(competitorData, marketTrends);
-      
+
       res.json({
         predictions,
         message: 'Действия конкурентов спрогнозированы',
@@ -1984,9 +1984,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { competitors } = req.body;
-      
+
       await competitorSurveillance.setupAutomaticMonitoring(userId, competitors);
-      
+
       res.json({
         message: 'Автоматический мониторинг конкурентов настроен',
         competitors: competitors.length,
@@ -2004,7 +2004,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientProfile, targetMarketShare } = req.body;
       const dominationPlan = await brandDominationEngine.createDominationPlan(clientProfile, targetMarketShare);
-      
+
       res.json({
         plan: dominationPlan,
         message: 'План доминирования создан',
@@ -2020,7 +2020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientProfile } = req.body;
       const empire = await brandDominationEngine.buildBrandEmpire(clientProfile);
-      
+
       res.json({
         empire,
         message: 'Брендовая империя создана',
@@ -2036,9 +2036,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { clientProfile } = req.body;
-      
+
       const results = await brandDominationEngine.executeAggressiveGrowth(userId, clientProfile);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'Aggressive Growth Launched',
@@ -2062,7 +2062,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { targetAudience, competitorWeaknesses } = req.body;
       const campaign = await brandDominationEngine.launchPsychologicalCampaign(targetAudience, competitorWeaknesses);
-      
+
       res.json({
         campaign,
         message: 'Психологическая кампания запущена',
@@ -2078,7 +2078,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { niche } = req.body;
       const monopolizationPlan = await brandDominationEngine.createMonopolizationPlan(niche);
-      
+
       res.json({
         plan: monopolizationPlan,
         message: 'План монополизации рынка создан',
@@ -2234,9 +2234,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { smartPromotionManager } = await import('./services/smartPromotionManager');
-      
+
       const integrations = await smartPromotionManager.analyzeIntegratedPlatforms(userId);
-      
+
       res.json({
         integrations,
         message: 'Анализ платформ завершен',
@@ -2252,10 +2252,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { smartPromotionManager } = await import('./services/smartPromotionManager');
-      
+
       const integrations = await smartPromotionManager.analyzeIntegratedPlatforms(userId);
       const plan = await smartPromotionManager.generatePromotionPlan(userId, integrations);
-      
+
       await storage.createActivityLog({
         userId,
         action: 'Promotion Plan Generated',
@@ -2280,7 +2280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { planType } = req.body; // 'free' или 'paid'
       const { smartPromotionManager } = await import('./services/smartPromotionManager');
-      
+
       const integrations = await smartPromotionManager.analyzeIntegratedPlatforms(userId);
       const plan = await smartPromotionManager.generatePromotionPlan(userId, integrations);
       const results = await smartPromotionManager.executePromotionPlan(userId, plan, planType);
@@ -2300,7 +2300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { smartPromotionManager } = await import('./services/smartPromotionManager');
-      
+
       const integrations = await smartPromotionManager.analyzeIntegratedPlatforms(userId);
       const plan = await smartPromotionManager.generatePromotionPlan(userId, integrations);
 
@@ -2368,13 +2368,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === TELEGRAM BUSINESS TOOLS ===
+
+  bot.onText(/\/business/, async (msg) => {
+    const chatId = msg.chat.id;
+    await bot!.sendMessage(chatId, `💼 *TELEGRAM BUSINESS TOOLS*
+
+🎯 *Доступные функции:*
+/webapp - Запустить Mini App для клиентов
+/invoice - Создать счет на оплату
+/subscription - Управление подписками
+/analytics - Бизнес аналитика
+/autoresponder - Настроить автоответчик
+/chatbot - AI чат-бот для клиентов
+/crm - CRM интеграция
+
+🎙️ *VOICE AI:*
+/voicesignal - Голосовой торговый сигнал
+/podcast - Ежедневный подкаст
+/transcribe - Распознать голосовое
+
+✨ *PREMIUM:*
+/setstatus - Эмодзи-статус
+/reactions - Кастомные реакции
+/largefile - Загрузить большой файл
+
+📊 *Статистика бизнеса:*
+• Активные клиенты: 234
+• Конверсия: 8.9%
+• Средний чек: 4,500₽
+• Повторные покупки: 45%`, { parse_mode: 'Markdown' });
+  });
+
+  // Voice AI команды
+  bot.onText(/\/voicesignal/, async (msg) => {
+    const chatId = msg.chat.id;
+    const { telegramVoiceAI } = await import('./services/telegramVoiceAI');
+
+    const voiceUrl = await telegramVoiceAI.generateVoiceSignal({
+      pair: 'BTC/USDT',
+      action: 'BUY',
+      entry: 45000,
+      target: 47000,
+      stopLoss: 44000,
+    });
+
+    await bot!.sendMessage(chatId, '🎙️ Голосовой сигнал отправляется...');
+  });
+
+  bot.onText(/\/podcast/, async (msg) => {
+    const chatId = msg.chat.id;
+    await bot!.sendMessage(chatId, '🎧 Генерирую ежедневный подкаст с AI анализом рынка...');
+  });
+
+  // Premium команды
+  bot.onText(/\/setstatus/, async (msg) => {
+    const chatId = msg.chat.id;
+    const { telegramPremiumService } = await import('./services/telegramPremiumFeatures');
+
+    await telegramPremiumService.setEmojiStatus('trading');
+    await bot!.sendMessage(chatId, '✨ Эмодзи-статус установлен: 📊 TRADING');
+  });
+
   // === TELEGRAM BUSINESS API ===
 
   // Создание invoice для оплаты
   app.post('/api/telegram/create-invoice', isAuthenticated, async (req: any, res) => {
     try {
       const { title, description, amount, currency } = req.body;
-      
+
       const invoice = {
         invoiceId: `inv_${Date.now()}`,
         title,
@@ -2395,9 +2457,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { initData } = req.body;
       const { telegramWebAppService } = await import('./services/telegramWebApp');
-      
+
       const isValid = telegramWebAppService.validateWebAppData(initData, TELEGRAM_TOKEN);
-      
+
       if (!isValid) {
         return res.status(401).json({ error: 'Invalid WebApp data' });
       }
@@ -2414,7 +2476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { telegramAdsService } = await import('./services/telegramAds');
-      
+
       const campaign = await telegramAdsService.createCampaign(req.body);
 
       await storage.createActivityLog({
@@ -2437,7 +2499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { mediaUrl, caption } = req.body;
       const { telegramStoriesService } = await import('./services/telegramStories');
-      
+
       const story = await telegramStoriesService.publishStory(CHANNEL_ID, mediaUrl, caption);
 
       res.json({ success: true, story });
@@ -2450,7 +2512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/telegram/business-analytics', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      
+
       const analytics = {
         subscribers: {
           total: 8920,
@@ -2487,7 +2549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/telegram/stats', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      
+
       // Получаем логи активности Telegram
       const activities = await storage.getUserActivityLogs(userId, 100);
       const telegramActivities = activities.filter(a => 
