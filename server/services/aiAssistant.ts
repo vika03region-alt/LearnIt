@@ -110,7 +110,7 @@ class AIAssistantService {
       const savedMessage = await storage.createAIMessage(assistantMsg);
 
       // Обновляем общую статистику разговора
-      await storage.updateAIConversationMetrics(conversationId, tokensUsed, cost);
+      await storage.updateAIConversationMetrics(conversationId, tokensUsed, parseFloat(cost));
 
       return {
         message: savedMessage,

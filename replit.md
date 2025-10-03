@@ -2,36 +2,6 @@
 
 This is a comprehensive social media automation platform called "Lucifer Trading" designed for trading professionals. The application features AI-powered content generation, multi-platform social media management (Instagram, TikTok, YouTube, Telegram), advanced safety controls, and analytics. Built with modern web technologies, it provides a unified interface for automating social media presence while maintaining platform-specific rate limits and safety measures.
 
-## Recent Changes (October 2025)
-
-### Brand Style & Trend Cloning System (Latest)
-- **Database Schema**: Created `brandStyles` and `trendVideos` tables for automated trend adaptation to brand identity
-- **Brand Style Features**: Complete brand configuration with logo/CTA assets, video format settings (aspect ratio, duration), visual/content style (colors, tone, voice), and AI prompt templates
-- **Trend Video System**: Track trending videos from multiple sources (TikTok, YouTube, Instagram) with virality metrics, AI-extracted concepts, and brand adaptation results
-- **Relational Design**: Full integration between trends and brand styles via `brandStyleId` foreign key with adaptation output storage (adaptedPrompt, adaptedScript, assetUrls)
-- **Storage Layer**: Comprehensive CRUD operations plus combined queries (getTrendWithBrandStyle, getTrendsForBrandStyle, getPendingTrendsWithDefaultStyle) for efficient workflow execution
-- **Architecture Validated**: Architect-approved implementation ready for Trend Analysis service integration
-
-### Kling AI Video Generation Integration
-- **AI Video Service**: Integrated Kling AI for automated video generation from text prompts and images with text-to-video and image-to-video modes
-- **Cost Efficiency**: Leverages Kling AI free tier (66 daily credits = 6 videos/day) at $0.25/video for paid generation
-- **Database Schema**: Extended `aiVideos` table with `prompt` field for tracking generation parameters
-- **Storage Methods**: Added `createAIVideo`, `getAIVideo`, `updateAIVideoStatus`, `getUserAIVideos` for complete AI video lifecycle management
-- **API Endpoints**: Created `/api/ai-video/generate`, `/api/ai-video/status/:id`, `/api/ai-video/user-videos`, `/api/ai-video/auto-generate` for full workflow support
-- **AI Video Studio**: New dedicated page with VideoEditor component supporting both text-to-video and image-to-video generation modes
-- **One-Click Generation**: Integrated AI video generation directly into TelegramPost page with automatic polling and video attachment
-- **Auto-Link Workflow**: Generated videos automatically attach to posts via status polling (5s intervals, 5min timeout)
-- **Navigation**: Added AI Video Studio link to sidebar with Video icon
-
-### Telegram Video Upload Integration
-- **Video & Cover Upload**: Full support for uploading videos (up to 500MB) and cover images to Telegram posts using Replit Object Storage with presigned URLs
-- **Database Enhancement**: Added `title` field to posts table for video titles alongside content
-- **Storage Methods**: Added `getPlatformByName`, `getPostsByPlatformAndStatus`, `updatePostStatus` methods for bot integration
-- **Bot Publishing**: Telegram bot now checks database for scheduled posts with media, publishes videos with captions combining title + content, and automatically updates post status
-- **Bot Commands**: Added `/uploadvideo` command that provides web interface link and instructions for uploading videos with proper URL fallback chain
-- **Bug Fixes**: Fixed critical setInterval bug in telegramBot.ts (cache cleanup was incorrectly placed inside checkRateLimit function)
-- **UI Components**: TelegramMediaUploader component for video/cover uploads, TelegramPost page for scheduling posts with media
-
 # User Preferences
 
 Preferred communication style: Simple, everyday language.

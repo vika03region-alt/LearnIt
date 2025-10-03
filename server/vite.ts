@@ -6,6 +6,14 @@ import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
 
+import { createServer as createViteServer, createLogger } from "vite";
+import { Express } from "express";
+import { Server } from "http";
+import viteConfig from "../vite.config.js";
+import path from "path";
+import fs from "fs";
+import { nanoid } from "nanoid";
+
 const viteLogger = createLogger();
 
 export function log(message: string, source = "express") {
@@ -24,10 +32,8 @@ export async function setupVite(app: Express, server: Server) {
     middlewareMode: true,
     hmr: { 
       server,
-      host: process.env.REPLIT_DEV_DOMAIN || "localhost",
       port: 5904,
       clientPort: 443,
-      protocol: "wss" as const,
     },
     allowedHosts: true as const,
   };

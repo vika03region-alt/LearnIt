@@ -62,32 +62,19 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  
-  // Обработка ошибок порта
-  server.on('error', (error: any) => {
-    if (error.code === 'EADDRINUSE') {
-      console.error(`❌ Порт ${port} уже занят. Попробуйте перезапустить приложение.`);
-      process.exit(1);
-    } else {
-      console.error('❌ Ошибка сервера:', error);
-      throw error;
-    }
-  });
-  
   server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, async () => {
+  }, () => {
     log(`serving on port ${port}`);
     
-    // Запуск Telegram бота
     if (process.env.BOTTG) {
       try {
-        await startTelegramBot();
-        log('🤖 Telegram бот запущен и готов к работе!');
+        startTelegramBot();
+        log('🤖 Telegram бот запущен и готов к автопостингу!');
       } catch (error) {
-        console.error('⚠️ Ошибка запуска Telegram бота:', error);
+        log('⚠️ Ошибка запуска Telegram бота:', error);
       }
     } else {
       log('⚠️ BOTTG токен не найден - Telegram бот не запущен');

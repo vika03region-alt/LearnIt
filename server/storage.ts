@@ -15,9 +15,6 @@ import {
   trendAnalysis,
   aiConversations,
   aiMessages,
-  aiVideos,
-  brandStyles,
-  trendVideos,
   type User,
   type UpsertUser,
   type Platform,
@@ -40,15 +37,9 @@ import {
   type AIMessage,
   type InsertAIConversation,
   type InsertAIMessage,
-  type AIVideo,
-  type InsertAIVideo,
-  type BrandStyle,
-  type InsertBrandStyle,
-  type TrendVideo,
-  type InsertTrendVideo,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import * as crypto from 'crypto';
 
 // Encryption utilities for sensitive data
@@ -104,7 +95,6 @@ export interface IStorage {
   // Platform operations
   getPlatforms(): Promise<Platform[]>;
   getPlatform(id: number): Promise<Platform | undefined>;
-  getPlatformByName(name: string): Promise<Platform | undefined>;
 
   // User account operations
   getUserAccounts(userId: string): Promise<UserAccount[]>;
@@ -116,9 +106,7 @@ export interface IStorage {
   createPost(post: InsertPost & { userId: string }): Promise<Post>;
   getUserPosts(userId: string, limit?: number): Promise<Post[]>;
   getScheduledPosts(userId: string): Promise<Post[]>;
-  getPostsByPlatformAndStatus(platformId: number, status: string): Promise<Post[]>;
   updatePost(id: number, updates: Partial<Post>): Promise<Post>;
-  updatePostStatus(postId: number, status: string, publishedAt?: Date): Promise<Post>;
 
   // Analytics operations
   getPostAnalytics(postId: number): Promise<Analytics[]>;
@@ -157,35 +145,6 @@ export interface IStorage {
   createAIMessage(message: InsertAIMessage): Promise<AIMessage>;
   getAIConversationMessages(conversationId: number): Promise<AIMessage[]>;
   updateAIConversationMetrics(conversationId: number, tokensUsed: number, cost: number): Promise<void>;
-
-  // AI Video operations
-  createAIVideo(video: InsertAIVideo): Promise<AIVideo>;
-  getAIVideo(id: number): Promise<AIVideo | undefined>;
-  getUserAIVideos(userId: string, limit?: number): Promise<AIVideo[]>;
-  updateAIVideo(id: number, updates: Partial<AIVideo>): Promise<AIVideo>;
-  getAIVideoByVideoId(videoId: string): Promise<AIVideo | undefined>;
-  updateAIVideoStatus(id: number, status: string, videoUrl?: string, thumbnailUrl?: string): Promise<AIVideo>;
-
-  // Brand Style operations
-  createBrandStyle(style: InsertBrandStyle & { userId: string }): Promise<BrandStyle>;
-  getUserBrandStyles(userId: string): Promise<BrandStyle[]>;
-  getDefaultBrandStyle(userId: string): Promise<BrandStyle | undefined>;
-  getBrandStyle(id: number): Promise<BrandStyle | undefined>;
-  updateBrandStyle(id: number, updates: Partial<InsertBrandStyle>): Promise<BrandStyle>;
-  setDefaultBrandStyle(userId: string, styleId: number): Promise<void>;
-
-  // Trend Video operations
-  createTrendVideo(trend: InsertTrendVideo): Promise<TrendVideo>;
-  getTrendVideos(userId?: string, limit?: number): Promise<TrendVideo[]>;
-  getTrendVideo(id: number): Promise<TrendVideo | undefined>;
-  updateTrendVideo(id: number, updates: Partial<InsertTrendVideo>): Promise<TrendVideo>;
-  updateTrendVideoStatus(id: number, status: string, clonedVideoId?: number, clonedPostId?: number): Promise<TrendVideo>;
-  getTopTrends(limit?: number): Promise<TrendVideo[]>;
-
-  // Combined Trend + Brand Style queries
-  getTrendWithBrandStyle(trendId: number): Promise<{ trend: TrendVideo; brandStyle: BrandStyle | null }>;
-  getTrendsForBrandStyle(brandStyleId: number, limit?: number): Promise<TrendVideo[]>;
-  getPendingTrendsWithDefaultStyle(userId: string, limit?: number): Promise<{ trend: TrendVideo; brandStyle: BrandStyle | null }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -220,11 +179,6 @@ export class DatabaseStorage implements IStorage {
     return platform;
   }
 
-  async getPlatformByName(name: string): Promise<Platform | undefined> {
-    const [platform] = await db.select().from(platforms).where(eq(platforms.name, name));
-    return platform;
-  }
-
   // User account operations
   async getUserAccounts(userId: string): Promise<UserAccount[]> {
     const accounts = await db.select().from(userAccounts).where(eq(userAccounts.userId, userId));
@@ -253,13 +207,7 @@ export class DatabaseStorage implements IStorage {
     const [account] = await db
       .select()
       .from(userAccounts)
-      .where(
-        and(
-          eq(userAccounts.userId, userId),
-          eq(userAccounts.platformId, platformId)
-        )
-      )
-      .limit(1);
+      .where(and(eq(userAccounts.userId, userId), eq(userAccounts.platformId, platformId)));
     return account;
   }
 
@@ -323,28 +271,6 @@ export class DatabaseStorage implements IStorage {
       .update(posts)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(posts.id, id))
-      .returning();
-    return updatedPost;
-  }
-
-  async getPostsByPlatformAndStatus(platformId: number, status: string): Promise<Post[]> {
-    return await db
-      .select()
-      .from(posts)
-      .where(and(eq(posts.platformId, platformId), eq(posts.status, status)))
-      .orderBy(posts.scheduledAt);
-  }
-
-  async updatePostStatus(postId: number, status: string, publishedAt?: Date): Promise<Post> {
-    const updates: any = { status, updatedAt: new Date() };
-    if (publishedAt) {
-      updates.publishedAt = publishedAt;
-    }
-
-    const [updatedPost] = await db
-      .update(posts)
-      .set(updates)
-      .where(eq(posts.id, postId))
       .returning();
     return updatedPost;
   }
@@ -763,257 +689,6 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(aiConversations.id, conversationId));
-  }
-
-  // AI Video operations
-  async createAIVideo(video: InsertAIVideo): Promise<AIVideo> {
-    const [created] = await db
-      .insert(aiVideos)
-      .values(video)
-      .returning();
-    return created;
-  }
-
-  async getAIVideo(id: number): Promise<AIVideo | undefined> {
-    const [video] = await db
-      .select()
-      .from(aiVideos)
-      .where(eq(aiVideos.id, id));
-    return video;
-  }
-
-  async getUserAIVideos(userId: string, limit: number = 50): Promise<AIVideo[]> {
-    return await db
-      .select()
-      .from(aiVideos)
-      .where(eq(aiVideos.userId, userId))
-      .orderBy(desc(aiVideos.createdAt))
-      .limit(limit);
-  }
-
-  async updateAIVideo(id: number, updates: Partial<AIVideo>): Promise<AIVideo> {
-    const [updated] = await db
-      .update(aiVideos)
-      .set(updates)
-      .where(eq(aiVideos.id, id))
-      .returning();
-    return updated;
-  }
-
-  async getAIVideoByVideoId(videoId: string): Promise<AIVideo | undefined> {
-    const [video] = await db
-      .select()
-      .from(aiVideos)
-      .where(eq(aiVideos.videoId, videoId));
-    return video;
-  }
-
-  async updateAIVideoStatus(
-    id: number, 
-    status: string, 
-    videoUrl?: string, 
-    thumbnailUrl?: string
-  ): Promise<AIVideo> {
-    const updates: Partial<AIVideo> = { status };
-    if (videoUrl) updates.videoUrl = videoUrl;
-    if (thumbnailUrl) updates.thumbnailUrl = thumbnailUrl;
-    if (status === 'completed') updates.completedAt = new Date();
-
-    const [updated] = await db
-      .update(aiVideos)
-      .set(updates)
-      .where(eq(aiVideos.id, id))
-      .returning();
-    return updated;
-  }
-
-  // Brand Style operations
-  async createBrandStyle(style: InsertBrandStyle & { userId: string }): Promise<BrandStyle> {
-    const [created] = await db
-      .insert(brandStyles)
-      .values(style)
-      .returning();
-    return created;
-  }
-
-  async getUserBrandStyles(userId: string): Promise<BrandStyle[]> {
-    return await db
-      .select()
-      .from(brandStyles)
-      .where(eq(brandStyles.userId, userId))
-      .orderBy(desc(brandStyles.createdAt));
-  }
-
-  async getDefaultBrandStyle(userId: string): Promise<BrandStyle | undefined> {
-    const [style] = await db
-      .select()
-      .from(brandStyles)
-      .where(and(
-        eq(brandStyles.userId, userId),
-        eq(brandStyles.isDefault, true)
-      ))
-      .limit(1);
-    return style;
-  }
-
-  async getBrandStyle(id: number): Promise<BrandStyle | undefined> {
-    const [style] = await db
-      .select()
-      .from(brandStyles)
-      .where(eq(brandStyles.id, id));
-    return style;
-  }
-
-  async updateBrandStyle(id: number, updates: Partial<InsertBrandStyle>): Promise<BrandStyle> {
-    const [updated] = await db
-      .update(brandStyles)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(brandStyles.id, id))
-      .returning();
-    return updated;
-  }
-
-  async setDefaultBrandStyle(userId: string, styleId: number): Promise<void> {
-    // Сначала снимаем флаг default со всех стилей пользователя
-    await db
-      .update(brandStyles)
-      .set({ isDefault: false })
-      .where(eq(brandStyles.userId, userId));
-
-    // Затем устанавливаем новый стиль как default
-    await db
-      .update(brandStyles)
-      .set({ isDefault: true })
-      .where(eq(brandStyles.id, styleId));
-  }
-
-  // Trend Video operations
-  async createTrendVideo(trend: InsertTrendVideo): Promise<TrendVideo> {
-    const [created] = await db
-      .insert(trendVideos)
-      .values(trend)
-      .returning();
-    return created;
-  }
-
-  async getTrendVideos(userId?: string, limit: number = 50): Promise<TrendVideo[]> {
-    const query = db.select().from(trendVideos);
-
-    if (userId) {
-      return await query
-        .where(eq(trendVideos.userId, userId))
-        .orderBy(desc(trendVideos.createdAt))
-        .limit(limit);
-    }
-
-    return await query
-      .orderBy(desc(trendVideos.createdAt))
-      .limit(limit);
-  }
-
-  async getTrendVideo(id: number): Promise<TrendVideo | undefined> {
-    const [trend] = await db
-      .select()
-      .from(trendVideos)
-      .where(eq(trendVideos.id, id));
-    return trend;
-  }
-
-  async updateTrendVideo(id: number, updates: Partial<InsertTrendVideo>): Promise<TrendVideo> {
-    const [updated] = await db
-      .update(trendVideos)
-      .set(updates)
-      .where(eq(trendVideos.id, id))
-      .returning();
-    return updated;
-  }
-
-  async updateTrendVideoStatus(
-    id: number, 
-    status: string, 
-    clonedVideoId?: number,
-    clonedPostId?: number
-  ): Promise<TrendVideo> {
-    const updates: Partial<TrendVideo> = { status };
-    if (clonedVideoId) updates.clonedVideoId = clonedVideoId;
-    if (clonedPostId) updates.clonedPostId = clonedPostId;
-    if (status === 'analyzed') updates.analyzedAt = new Date();
-    if (status === 'cloned') updates.clonedAt = new Date();
-
-    const [updated] = await db
-      .update(trendVideos)
-      .set(updates)
-      .where(eq(trendVideos.id, id))
-      .returning();
-    return updated;
-  }
-
-  async getTopTrends(limit: number = 10): Promise<TrendVideo[]> {
-    return await db
-      .select()
-      .from(trendVideos)
-      .where(eq(trendVideos.status, 'pending'))
-      .orderBy(desc(trendVideos.trendScore))
-      .limit(limit);
-  }
-
-  // Combined Trend + Brand Style queries
-  async getTrendWithBrandStyle(trendId: number): Promise<{ trend: TrendVideo; brandStyle: BrandStyle | null }> {
-    const [trend] = await db
-      .select()
-      .from(trendVideos)
-      .where(eq(trendVideos.id, trendId));
-
-    if (!trend) {
-      throw new Error('Trend not found');
-    }
-
-    let brandStyle: BrandStyle | null = null;
-
-    if (trend.brandStyleId) {
-      [brandStyle] = await db
-        .select()
-        .from(brandStyles)
-        .where(eq(brandStyles.id, trend.brandStyleId));
-    }
-
-    return { trend, brandStyle };
-  }
-
-  async getTrendsForBrandStyle(brandStyleId: number, limit: number = 50): Promise<TrendVideo[]> {
-    return await db
-      .select()
-      .from(trendVideos)
-      .where(eq(trendVideos.brandStyleId, brandStyleId))
-      .orderBy(desc(trendVideos.createdAt))
-      .limit(limit);
-  }
-
-  async getPendingTrendsWithDefaultStyle(
-    userId: string, 
-    limit: number = 10
-  ): Promise<{ trend: TrendVideo; brandStyle: BrandStyle | null }[]> {
-    // Получаем default стиль пользователя
-    const defaultStyle = await this.getDefaultBrandStyle(userId);
-
-    // Получаем pending тренды пользователя
-    const trends = await db
-      .select()
-      .from(trendVideos)
-      .where(and(
-        eq(trendVideos.userId, userId),
-        eq(trendVideos.status, 'pending')
-      ))
-      .orderBy(desc(trendVideos.trendScore))
-      .limit(limit);
-
-    // Комбинируем результаты
-    return trends.map(trend => ({
-      trend,
-      brandStyle: trend.brandStyleId 
-        ? null // Если у тренда уже есть стиль, его нужно отдельно загрузить
-        : defaultStyle || null
-    }));
   }
 }
 

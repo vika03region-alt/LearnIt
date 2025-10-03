@@ -31,12 +31,12 @@ export default function Scheduler() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: scheduledJobs, isLoading: isJobsLoading } = useQuery<any[]>({
+  const { data: scheduledJobs, isLoading: isJobsLoading } = useQuery({
     queryKey: ['/api/scheduler/jobs'],
     retry: false,
   });
 
-  const { data: platforms } = useQuery<any[]>({
+  const { data: platforms } = useQuery({
     queryKey: ['/api/platforms'],
     retry: false,
   });

@@ -19,7 +19,6 @@ import PromotionStrategyManager from "@/components/PromotionStrategyManager";
 import { AILearningDashboard } from '../components/AILearningDashboard';
 import { ViralGrowthDashboard } from '../components/ViralGrowthDashboard';
 import { DominationControlCenter } from '../components/DominationControlCenter';
-import MasterAutomationControl from '../components/MasterAutomationControl';
 import { 
   Bell, 
   User, 
@@ -275,15 +274,12 @@ export default function Dashboard() {
 
             {/* Пульт управления - главная вкладка */}
             <TabsContent value="control" className="space-y-6 mt-6">
-              {/* Мастер-Автоматизация (10 шагов бизнес-процесса) */}
-              <MasterAutomationControl />
-
               {/* Инициализация клиента Lucifer */}
               <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center">
+                      <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center">
                         <Star className="w-6 h-6 text-white" />
                       </div>
                       <div>
@@ -314,42 +310,6 @@ export default function Dashboard() {
                     >
                       <Rocket className="w-4 h-4 mr-2" />
                       Запустить Анализ
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Pro Activation Banner */}
-              <Card className="mt-4 bg-gradient-to-r from-amber-500 to-orange-600 border-amber-300">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center">
-                        <Crown className="w-10 h-10 text-amber-600" />
-                      </div>
-                      <div className="text-white">
-                        <h3 className="text-2xl font-bold mb-1">🎉 Спасибо за оплату $50!</h3>
-                        <p className="text-amber-100">Активируйте Pro план прямо сейчас</p>
-                      </div>
-                    </div>
-                    <Button 
-                      size="lg"
-                      className="bg-white text-amber-600 hover:bg-amber-50 font-bold"
-                      onClick={async () => {
-                        try {
-                          const response = await fetch('/api/subscription/activate-pro', {
-                            method: 'POST',
-                            credentials: 'include'
-                          });
-                          const data = await response.json();
-                          alert(data.message + '\n\n' + data.unlocked.join('\n'));
-                          window.location.reload();
-                        } catch (error) {
-                          alert('Ошибка активации');
-                        }
-                      }}
-                    >
-                      Активировать Pro
                     </Button>
                   </div>
                 </CardContent>

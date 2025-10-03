@@ -19,8 +19,7 @@ import {
   BarChart3,
   Target,
   Users,
-  MessageSquare,
-  Video
+  Bot
 } from "lucide-react";
 import { SiTiktok, SiTelegram } from "react-icons/si";
 
@@ -103,18 +102,19 @@ export default function Sidebar() {
         </div>
         
         <nav className="space-y-2">
-          <Link 
-            href="/"
-            className={cn(
-              "flex items-center gap-3 px-3 py-3 rounded-lg transition-colors",
-              location === "/" 
-                ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm" 
-                : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-            )}
-            data-testid="link-dashboard"
-          >
-            <Gauge className="w-5 h-5" />
-            {!collapsed && <span className="font-medium">Главная Панель</span>}
+          <Link href="/">
+            <a 
+              className={cn(
+                "flex items-center gap-3 px-3 py-3 rounded-lg transition-colors",
+                location === "/" 
+                  ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm" 
+                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+              )}
+              data-testid="link-dashboard"
+            >
+              <Gauge className="w-5 h-5" />
+              {!collapsed && <span className="font-medium">Главная Панель</span>}
+            </a>
           </Link>
 
           {/* Раздел платформы */}
@@ -127,24 +127,24 @@ export default function Sidebar() {
           )}
 
           {platforms?.map((platform: any) => (
-            <Link 
-              key={platform.id} 
-              href={`/platform/${platform.id}`}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                location === `/platform/${platform.id}`
-                  ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid={`link-platform-${platform.name}`}
-            >
-              {getPlatformIcon(platform.name)}
-              {!collapsed && <span>{platform.displayName}</span>}
-              {!collapsed && (
-                <span className="ml-auto">
-                  {getStatusIndicator(getPlatformStatus(platform.name))}
-                </span>
-              )}
+            <Link key={platform.id} href={`/platform/${platform.id}`}>
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === `/platform/${platform.id}`
+                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid={`link-platform-${platform.name}`}
+              >
+                {getPlatformIcon(platform.name)}
+                {!collapsed && <span>{platform.displayName}</span>}
+                {!collapsed && (
+                  <span className="ml-auto">
+                    {getStatusIndicator(getPlatformStatus(platform.name))}
+                  </span>
+                )}
+              </a>
             </Link>
           ))}
           
@@ -157,88 +157,79 @@ export default function Sidebar() {
               </div>
             )}
 
-            <Link 
-              href="/ai-content"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                location === "/ai-content"
-                  ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-ai-content"
-            >
-              <Brain className="w-5 h-5" />
-              {!collapsed && <span>AI Контент</span>}
+            <Link href="/ai-content">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/ai-content"
+                    ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-ai-content"
+              >
+                <Brain className="w-5 h-5" />
+                {!collapsed && <span>AI Контент</span>}
+              </a>
             </Link>
 
-            <Link 
-              href="/ai-video"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                location === "/ai-video"
-                  ? "bg-gradient-to-r from-purple-600 to-pink-700 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-ai-video"
-            >
-              <Video className="w-5 h-5" />
-              {!collapsed && <span>AI Video Studio</span>}
+            <Link href="/ai-assistant">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/ai-assistant"
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-ai-assistant"
+              >
+                <Bot className="w-5 h-5" />
+                {!collapsed && <span>AI Ассистент</span>}
+              </a>
             </Link>
 
-            <Link 
-              href="/telegram-post"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                location === "/telegram-post"
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-telegram-post"
-            >
-              <MessageSquare className="w-5 h-5" />
-              {!collapsed && <span>Telegram Пост</span>}
+            <Link href="/safety">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/safety"
+                    ? "bg-gradient-to-r from-green-500 to-blue-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-safety"
+              >
+                <Shield className="w-5 h-5" />
+                {!collapsed && <span>Безопасность</span>}
+              </a>
             </Link>
 
-            <Link 
-              href="/safety"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                location === "/safety"
-                  ? "bg-gradient-to-r from-green-500 to-blue-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-safety"
-            >
-              <Shield className="w-5 h-5" />
-              {!collapsed && <span>Безопасность</span>}
+            <Link href="/scheduler">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/scheduler"
+                    ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-scheduler"
+              >
+                <Calendar className="w-5 h-5" />
+                {!collapsed && <span>Планировщик</span>}
+              </a>
             </Link>
 
-            <Link 
-              href="/scheduler"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                location === "/scheduler"
-                  ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-scheduler"
-            >
-              <Calendar className="w-5 h-5" />
-              {!collapsed && <span>Планировщик</span>}
-            </Link>
-
-            <Link 
-              href="/settings"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                location === "/settings"
-                  ? "bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-sm"
-                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
-              )}
-              data-testid="link-settings"
-            >
-              <Settings className="w-5 h-5" />
-              {!collapsed && <span>Настройки</span>}
+            <Link href="/settings">
+              <a 
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  location === "/settings"
+                    ? "bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-sm"
+                    : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                )}
+                data-testid="link-settings"
+              >
+                <Settings className="w-5 h-5" />
+                {!collapsed && <span>Настройки</span>}
+              </a>
             </Link>
           </div>
         </nav>
