@@ -6,7 +6,7 @@ import { seedPlatforms } from "./seedDatabase";
 import { aiContentService } from "./services/aiContent";
 import { aiAnalyticsService } from "./services/aiAnalytics";
 import { aiAssistantService } from "./services/aiAssistant";
-import { huggingFaceVideoService } from "./services/huggingFaceVideoService";
+import { klingAIService } from "./services/klingAIService";
 import { clientAnalysisService } from "./services/clientAnalysis";
 import { promotionEngine } from "./services/promotionEngine";
 import { socialMediaManager } from "./services/socialMediaIntegration";
@@ -1131,7 +1131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Image URL and prompt are required" });
       }
 
-      const videoResult = await huggingFaceVideoService.generateImageToVideo(imageUrl, prompt, config);
+      const videoResult = await klingAIService.generateImageToVideo(imageUrl, prompt, config);
 
       const aiVideo = await storage.createAIVideo({
         userId,

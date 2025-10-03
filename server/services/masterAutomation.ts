@@ -1,6 +1,6 @@
 import { storage } from '../storage.js';
 import { aiContentService } from './aiContent.js';
-import { huggingFaceVideoService } from './huggingFaceVideoService.js';
+import { klingAIService } from './klingAIService.js';
 import { schedulerService } from './scheduler.js';
 import { safetyService } from './safety.js';
 import OpenAI from 'openai';
@@ -181,25 +181,30 @@ class MasterAutomationService {
         
         const videoPrompt = `${content.topic}. ${content.content}. Professional trading finance content, cinematic lighting, high quality, smooth camera movement.`;
         
-        const result = await huggingFaceVideoService.generateTextToVideo(videoPrompt, {
+        const result = await klingAIService.generateTextToVideo(videoPrompt, {
           duration: 5,
           mode: 'std',
           aspectRatio: '16:9'
         });
 
-        if (result.status === 'completed' && result.videoUrl) {
+        if (result.status === 'queued' || result.status === 'processing') {
           const aiVideo = await storage.createAIVideo({
             userId,
-            provider: 'huggingface',
+            provider: 'kling',
             videoId: result.taskId,
             prompt: videoPrompt,
-            status: 'completed',
-            videoUrl: result.videoUrl,
-            cost: 0,
+            status: result.status,
+            cost: result.cost,
           });
 
-          videos.set(i, result.videoUrl);
-          console.log(`✅ Видео создано (FREE): ${result.taskId}`);
+          // Ждём завершения генерации
+          const finalResult = await klingAIService.checkVideoStatus(result.taskId);
+          
+          if (finalResult.status === 'completed' && finalResult.videoUrl) {
+            await storage.updateAIVideoStatus(aiVideo.id, 'completed', finalResult.videoUrl);
+            videos.set(i, finalResult.videoUrl);
+            console.log(`✅ Видео создано (Kling AI): ${result.taskId} - $${result.cost}`);
+          }
         }
       } catch (error) {
         console.error('Ошибка создания видео:', error);
