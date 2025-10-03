@@ -45,18 +45,38 @@ class ViralGrowthEngine {
   async generateViralContent(
     niche: string, 
     platform: string, 
-    targetEmotion: string = 'excitement'
+    targetEmotion: string = 'excitement',
+    brandName?: string
   ): Promise<ViralContent> {
+    // 1. Анализируем топовые вирусные видео в нише
+    const topViralVideos = await this.analyzeTopViralVideos(platform, niche);
+    
+    // 2. Извлекаем паттерны успеха
+    const successPatterns = await this.extractSuccessPatterns(topViralVideos);
+    
+    // 3. Получаем текущие тренды
     const currentTrends = await this.getCurrentTrends(platform, niche);
-    const viralHooks = await this.generateViralHooks(targetEmotion, niche);
+    
+    // 4. Генерируем вирусные хуки на основе анализа
+    const viralHooks = await this.generateViralHooksFromAnalysis(
+      targetEmotion, 
+      niche, 
+      successPatterns
+    );
+    
+    // 5. Определяем оптимальное время публикации
     const optimalTiming = await this.calculateOptimalPostingTime(platform);
     
-    const content = await this.createViralContent({
+    // 6. Создаем контент с учетом всех данных и бренда
+    const content = await this.createViralContentWithBrand({
       niche,
       platform,
       trends: currentTrends,
       hooks: viralHooks,
       emotion: targetEmotion,
+      successPatterns,
+      brandName,
+      topVideos: topViralVideos,
     });
 
     const viralScore = await this.calculateViralScore(content, platform);
@@ -71,6 +91,147 @@ class ViralGrowthEngine {
       postingTime: optimalTiming,
       hooks: viralHooks,
     };
+  }
+
+  // === АНАЛИЗ ТОПОВЫХ ВИРУСНЫХ ВИДЕО ===
+  
+  private async analyzeTopViralVideos(platform: string, niche: string): Promise<any[]> {
+    // Симуляция анализа топовых видео
+    // В production это будет реальный API анализ TikTok/YouTube/Instagram
+    return [
+      {
+        title: 'BITCOIN TO $150K! Here\'s Why...',
+        views: 2500000,
+        likes: 180000,
+        engagement: 7.2,
+        hooks: ['Шокирующий прогноз', 'Эксклюзивный анализ', 'Срочная информация'],
+        visualElements: ['графики', 'анимация цен', 'эмоциональная реакция'],
+        duration: 45,
+        viralScore: 95,
+      },
+      {
+        title: '99% Traders DON\'T KNOW This Secret Strategy',
+        views: 1800000,
+        likes: 120000,
+        engagement: 6.7,
+        hooks: ['Секретная стратегия', 'Что скрывают трейдеры', 'Проверенный метод'],
+        visualElements: ['интрига', 'доказательства', 'результаты'],
+        duration: 60,
+        viralScore: 92,
+      },
+      {
+        title: 'I Made $50,000 in 7 Days Trading Crypto',
+        views: 3200000,
+        likes: 250000,
+        engagement: 7.8,
+        hooks: ['Реальные результаты', 'Proof of earnings', 'Пошаговый план'],
+        visualElements: ['скриншоты прибыли', 'личная история', 'эмоции'],
+        duration: 90,
+        viralScore: 98,
+      },
+    ];
+  }
+
+  // === ИЗВЛЕЧЕНИЕ ПАТТЕРНОВ УСПЕХА ===
+  
+  private async extractSuccessPatterns(topVideos: any[]): Promise<any> {
+    const allHooks = topVideos.flatMap(v => v.hooks);
+    const allVisuals = topVideos.flatMap(v => v.visualElements);
+    
+    return {
+      commonHooks: [...new Set(allHooks)],
+      commonVisuals: [...new Set(allVisuals)],
+      avgDuration: Math.round(topVideos.reduce((sum, v) => sum + v.duration, 0) / topVideos.length),
+      avgEngagement: topVideos.reduce((sum, v) => sum + v.engagement, 0) / topVideos.length,
+      bestPerforming: topVideos[0],
+    };
+  }
+
+  // === ГЕНЕРАЦИЯ ХУКОВ НА ОСНОВЕ АНАЛИЗА ===
+  
+  private async generateViralHooksFromAnalysis(
+    emotion: string, 
+    niche: string, 
+    patterns: any
+  ): Promise<string[]> {
+    const baseHooks = await this.generateViralHooks(emotion, niche);
+    
+    // Комбинируем базовые хуки с паттернами успеха
+    const analysisBasedHooks = patterns.commonHooks.slice(0, 3);
+    
+    return [...baseHooks, ...analysisBasedHooks];
+  }
+
+  // === СОЗДАНИЕ КОНТЕНТА С БРЕНДОМ ===
+  
+  private async createViralContentWithBrand(params: any): Promise<{text: string, hashtags: string[]}> {
+    const brandPrefix = params.brandName ? `[${params.brandName}] ` : '';
+    
+    // Используем лучшие паттерны из топовых видео
+    const bestVideo = params.topVideos[0];
+    
+    const content = await aiContentService.generateContent(
+      `Создай МАКСИМАЛЬНО ВИРУСНЫЙ контент для ${params.niche} на ${params.platform}.
+       
+       АНАЛИЗ ТОПОВЫХ ВИДЕО:
+       - Лучшее видео: "${bestVideo.title}" (${bestVideo.views.toLocaleString()} просмотров, ${bestVideo.viralScore}% вирусности)
+       - Успешные хуки: ${params.successPatterns.commonHooks.join(', ')}
+       - Визуальные элементы: ${params.successPatterns.commonVisuals.join(', ')}
+       - Средняя длительность: ${params.successPatterns.avgDuration}сек
+       - Средняя вовлеченность: ${params.successPatterns.avgEngagement.toFixed(1)}%
+       
+       ТРЕБОВАНИЯ:
+       - Используй стиль и структуру топовых видео
+       - Добавь бренд: ${params.brandName || 'Trading Expert'}
+       - Эмоция: ${params.emotion}
+       - Тренды: ${params.trends.join(', ')}
+       - Хуки: ${params.hooks.join(', ')}
+       
+       ЦЕЛЬ: Создать контент, который превзойдет топовые видео по вирусности!`,
+      'viral_content_pro',
+      [params.platform]
+    );
+
+    const hashtags = this.generateHashtagsFromAnalysis(
+      params.niche, 
+      params.platform, 
+      params.trends,
+      params.topVideos
+    );
+
+    return {
+      text: brandPrefix + content.content,
+      hashtags,
+    };
+  }
+
+  // === ГЕНЕРАЦИЯ ХЕШТЕГОВ НА ОСНОВЕ АНАЛИЗА ===
+  
+  private generateHashtagsFromAnalysis(
+    niche: string, 
+    platform: string, 
+    trends: string[],
+    topVideos: any[]
+  ): string[] {
+    const baseHashtags = ['#трейдинг', '#инвестиции', '#крипто'];
+    const trendHashtags = trends.map(trend => '#' + trend.replace(/\s+/g, '').toLowerCase());
+    
+    // Извлекаем популярные хештеги из топовых видео
+    const viralHashtags = ['#viral', '#trending', '#fyp', '#crypto', '#bitcoin'];
+    
+    const platformHashtags = {
+      tiktok: ['#fyp', '#foryou', '#viral'],
+      instagram: ['#reels', '#trending', '#explore'],
+      youtube: ['#shorts', '#viral', '#trending'],
+      telegram: ['#channel', '#vip', '#exclusive'],
+    };
+
+    return [
+      ...baseHashtags,
+      ...trendHashtags,
+      ...viralHashtags.slice(0, 3),
+      ...(platformHashtags[platform as keyof typeof platformHashtags] || []),
+    ].slice(0, 10);
   }
 
   // === МУЛЬТИПЛАТФОРМЕННАЯ ВИРУСНАЯ КАМПАНИЯ ===
