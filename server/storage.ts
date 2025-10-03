@@ -15,6 +15,7 @@ import {
   trendAnalysis,
   aiConversations,
   aiMessages,
+  aiVideos,
   type User,
   type UpsertUser,
   type Platform,
@@ -37,6 +38,8 @@ import {
   type AIMessage,
   type InsertAIConversation,
   type InsertAIMessage,
+  type AIVideo,
+  type InsertAIVideo,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -148,6 +151,14 @@ export interface IStorage {
   createAIMessage(message: InsertAIMessage): Promise<AIMessage>;
   getAIConversationMessages(conversationId: number): Promise<AIMessage[]>;
   updateAIConversationMetrics(conversationId: number, tokensUsed: number, cost: number): Promise<void>;
+
+  // AI Video operations
+  createAIVideo(video: InsertAIVideo): Promise<AIVideo>;
+  getAIVideo(id: number): Promise<AIVideo | undefined>;
+  getUserAIVideos(userId: string, limit?: number): Promise<AIVideo[]>;
+  updateAIVideo(id: number, updates: Partial<AIVideo>): Promise<AIVideo>;
+  getAIVideoByVideoId(videoId: string): Promise<AIVideo | undefined>;
+  updateAIVideoStatus(id: number, status: string, videoUrl?: string, thumbnailUrl?: string): Promise<AIVideo>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -719,6 +730,68 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(aiConversations.id, conversationId));
+  }
+
+  // AI Video operations
+  async createAIVideo(video: InsertAIVideo): Promise<AIVideo> {
+    const [created] = await db
+      .insert(aiVideos)
+      .values(video)
+      .returning();
+    return created;
+  }
+
+  async getAIVideo(id: number): Promise<AIVideo | undefined> {
+    const [video] = await db
+      .select()
+      .from(aiVideos)
+      .where(eq(aiVideos.id, id));
+    return video;
+  }
+
+  async getUserAIVideos(userId: string, limit: number = 50): Promise<AIVideo[]> {
+    return await db
+      .select()
+      .from(aiVideos)
+      .where(eq(aiVideos.userId, userId))
+      .orderBy(desc(aiVideos.createdAt))
+      .limit(limit);
+  }
+
+  async updateAIVideo(id: number, updates: Partial<AIVideo>): Promise<AIVideo> {
+    const [updated] = await db
+      .update(aiVideos)
+      .set(updates)
+      .where(eq(aiVideos.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getAIVideoByVideoId(videoId: string): Promise<AIVideo | undefined> {
+    const [video] = await db
+      .select()
+      .from(aiVideos)
+      .where(eq(aiVideos.videoId, videoId));
+    return video;
+  }
+
+  async updateAIVideoStatus(
+    id: number, 
+    status: string, 
+    videoUrl?: string, 
+    thumbnailUrl?: string
+  ): Promise<AIVideo> {
+    const updates: Partial<AIVideo> = { status };
+    if (videoUrl) updates.videoUrl = videoUrl;
+    if (thumbnailUrl) updates.thumbnailUrl = thumbnailUrl;
+    if (status === 'completed') updates.completedAt = new Date();
+
+    const [updated] = await db
+      .update(aiVideos)
+      .set(updates)
+      .where(eq(aiVideos.id, id))
+      .returning();
+    return updated;
   }
 }
 

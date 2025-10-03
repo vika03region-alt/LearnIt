@@ -102,9 +102,10 @@ export const aiVideos = pgTable("ai_videos", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id).notNull(),
   postId: integer("post_id").references(() => posts.id),
-  provider: varchar("provider", { length: 20 }).notNull(), // 'heygen', 'synthesia'
+  provider: varchar("provider", { length: 50 }).notNull(), // 'kling', 'heygen', 'synthesia'
   videoId: varchar("video_id").notNull(), // External video ID from provider
-  script: text("script").notNull(),
+  prompt: text("prompt"),  // User's original prompt
+  script: text("script"),  // Optional AI-generated script
   scenes: json("scenes").$type<{
     text: string;
     duration: number;
@@ -112,13 +113,7 @@ export const aiVideos = pgTable("ai_videos", {
     avatarId?: string;
     voiceId?: string;
   }[]>(),
-  config: json("config").$type<{
-    avatarId: string;
-    voiceId: string;
-    language: string;
-    dimension?: { width: number; height: number };
-    background?: string;
-  }>(),
+  config: json("config"),  // Config object (provider-specific)
   status: varchar("status", { length: 20 }).notNull().default('queued'), // queued, processing, completed, failed
   videoUrl: text("video_url"),
   thumbnailUrl: text("thumbnail_url"),

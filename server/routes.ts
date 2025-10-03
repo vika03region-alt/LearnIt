@@ -6,6 +6,7 @@ import { seedPlatforms } from "./seedDatabase";
 import { aiContentService } from "./services/aiContent";
 import { aiAnalyticsService } from "./services/aiAnalytics";
 import { aiAssistantService } from "./services/aiAssistant";
+import { klingAIService } from "./services/klingAIService";
 import { clientAnalysisService } from "./services/clientAnalysis";
 import { promotionEngine } from "./services/promotionEngine";
 import { socialMediaManager } from "./services/socialMediaIntegration";
@@ -1033,6 +1034,231 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating hooks:", error);
       res.status(500).json({ message: "Failed to generate hooks" });
+    }
+  });
+
+  // === AI VIDEO GENERATION (KLING AI) ===
+
+  // Генерация видео-скрипта
+  app.post('/api/ai-video/generate-script', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { topic, duration, tone } = req.body;
+
+      if (!topic) {
+        return res.status(400).json({ message: "Topic is required" });
+      }
+
+      const script = await klingAIService.generateVideoScript(
+        topic,
+        duration || 10,
+        tone || 'professional'
+      );
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Video Script Generated',
+        description: `Generated video script for: ${topic}`,
+        platformId: null,
+        status: 'success',
+        metadata: { topic, duration, tone },
+      });
+
+      res.json(script);
+    } catch (error) {
+      console.error("Error generating video script:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to generate video script" 
+      });
+    }
+  });
+
+  // Генерация видео (Text-to-Video)
+  app.post('/api/ai-video/generate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { prompt, config, postId } = req.body;
+
+      if (!prompt) {
+        return res.status(400).json({ message: "Prompt is required" });
+      }
+
+      const videoResult = await klingAIService.generateTextToVideo(prompt, config);
+
+      // Сохранить в базу данных
+      const aiVideo = await storage.createAIVideo({
+        userId,
+        postId: postId || null,
+        videoId: videoResult.taskId,
+        prompt,
+        config: config || {},
+        status: 'processing',
+        provider: videoResult.provider,
+        cost: videoResult.cost
+      });
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Video Generation Started',
+        description: `Video generation started: ${prompt.substring(0, 50)}...`,
+        platformId: null,
+        status: 'success',
+        metadata: { aiVideoId: aiVideo.id, taskId: videoResult.taskId },
+      });
+
+      res.json({
+        ...videoResult,
+        id: aiVideo.id
+      });
+    } catch (error) {
+      console.error("Error generating video:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to generate video" 
+      });
+    }
+  });
+
+  // Генерация видео из изображения (Image-to-Video)
+  app.post('/api/ai-video/generate-from-image', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { imageUrl, prompt, config, postId } = req.body;
+
+      if (!imageUrl || !prompt) {
+        return res.status(400).json({ message: "Image URL and prompt are required" });
+      }
+
+      const videoResult = await klingAIService.generateImageToVideo(imageUrl, prompt, config);
+
+      const aiVideo = await storage.createAIVideo({
+        userId,
+        postId: postId || null,
+        videoId: videoResult.taskId,
+        prompt,
+        config: { ...config, imageUrl },
+        status: 'processing',
+        provider: videoResult.provider,
+        cost: videoResult.cost
+      });
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Image-to-Video Started',
+        description: `Image-to-video generation started`,
+        platformId: null,
+        status: 'success',
+        metadata: { aiVideoId: aiVideo.id, taskId: videoResult.taskId },
+      });
+
+      res.json({
+        ...videoResult,
+        id: aiVideo.id
+      });
+    } catch (error) {
+      console.error("Error generating video from image:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to generate video from image" 
+      });
+    }
+  });
+
+  // Автоматическая генерация: Тема → Скрипт → Видео
+  app.post('/api/ai-video/auto-generate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { topic, config, postId } = req.body;
+
+      if (!topic) {
+        return res.status(400).json({ message: "Topic is required" });
+      }
+
+      const result = await klingAIService.autoGenerateVideo(topic, config);
+
+      const aiVideo = await storage.createAIVideo({
+        userId,
+        postId: postId || null,
+        videoId: result.video.taskId,
+        prompt: topic,
+        config: { ...config, script: result.script },
+        status: 'processing',
+        provider: result.video.provider,
+        cost: result.video.cost
+      });
+
+      await storage.createActivityLog({
+        userId,
+        action: 'AI Auto Video Generation',
+        description: `Auto video generation for topic: ${topic}`,
+        platformId: null,
+        status: 'success',
+        metadata: { aiVideoId: aiVideo.id, taskId: result.video.taskId },
+      });
+
+      res.json({
+        script: result.script,
+        video: {
+          ...result.video,
+          id: aiVideo.id
+        }
+      });
+    } catch (error) {
+      console.error("Error in auto video generation:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to auto-generate video" 
+      });
+    }
+  });
+
+  // Проверка статуса видео
+  app.get('/api/ai-video/status/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const aiVideo = await storage.getAIVideo(parseInt(req.params.id));
+
+      if (!aiVideo || aiVideo.userId !== userId) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+
+      // Проверить статус у Kling AI если еще не завершен
+      if (aiVideo.status === 'processing') {
+        const status = await klingAIService.checkVideoStatus(aiVideo.videoId);
+
+        if (status.status === 'completed') {
+          await storage.updateAIVideoStatus(
+            aiVideo.id,
+            'completed',
+            status.videoUrl,
+            status.thumbnailUrl
+          );
+          aiVideo.status = 'completed';
+          aiVideo.videoUrl = status.videoUrl || null;
+          aiVideo.thumbnailUrl = status.thumbnailUrl || null;
+        } else if (status.status === 'failed') {
+          await storage.updateAIVideoStatus(aiVideo.id, 'failed');
+          aiVideo.status = 'failed';
+        }
+      }
+
+      res.json(aiVideo);
+    } catch (error) {
+      console.error("Error checking video status:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to check video status" 
+      });
+    }
+  });
+
+  // Получить все AI видео пользователя
+  app.get('/api/ai-video/user-videos', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+
+      const videos = await storage.getUserAIVideos(userId, limit);
+      res.json(videos);
+    } catch (error) {
+      console.error("Error fetching user videos:", error);
+      res.status(500).json({ message: "Failed to fetch user videos" });
     }
   });
 
