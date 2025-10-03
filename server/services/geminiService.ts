@@ -198,3 +198,30 @@ export async function generateTradingContentWithGemini(params: {
     throw new Error(`Gemini API ошибка: ${error.message}`);
   }
 }
+
+// Экспорт для использования в других модулях
+export const geminiService = {
+  generateContent: async (prompt: string, systemInstruction?: string) => {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const result = await model.generateContent(prompt);
+    return {
+      content: result.response.text(),
+      tokensUsed: 0,
+      cost: 0
+    };
+  },
+  analyzeImage: async (imageData: string, prompt: string) => {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const result = await model.generateContent([prompt, { inlineData: { data: imageData, mimeType: "image/jpeg" } }]);
+    return { analysis: result.response.text() };
+  },
+  generateViralContent: async (platform: string, niche: string, trend?: string) => {
+    return await generateContentWithGemini(`Создай вирусный контент для ${platform} в нише ${niche}${trend ? ` на основе тренда: ${trend}` : ''}`);
+  },
+  analyzeCompetitor: async (competitorUrl: string, platform: string) => {
+    const prompt = `Проанализируй конкурента на ${platform}: ${competitorUrl}. Дай стратегию превосходства.`;
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const result = await model.generateContent(prompt);
+    return { analysis: result.response.text() };
+  }
+};
