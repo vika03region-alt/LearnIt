@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Rocket, TrendingUp, Target, DollarSign, Zap, Crown, BarChart3, CheckCircle2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Rocket, TrendingUp, Target, DollarSign, Zap, Crown, BarChart3, CheckCircle2, Send, Bot } from 'lucide-react';
 
 export default function SmartPromotionHub({ userId }: { userId: string }) {
   const { toast } = useToast();
@@ -47,6 +46,31 @@ export default function SmartPromotionHub({ userId }: { userId: string }) {
         description: data.message,
       });
     },
+  });
+
+  // Активация Telegram автоматизации
+  const activateTelegramAutomation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/telegram/activate-automation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frequency: 'standard', contentType: 'mixed' }),
+        credentials: 'include',
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Telegram автоматизация активирована!',
+        description: 'Автопостинг 3 раза в день + еженедельные опросы',
+      });
+    },
+  });
+
+  // Статистика Telegram
+  const { data: telegramStats } = useQuery({
+    queryKey: ['/api/telegram/stats'],
+    enabled: !!analysis,
   });
 
   if (analysisLoading || planLoading) {
@@ -228,6 +252,79 @@ export default function SmartPromotionHub({ userId }: { userId: string }) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Telegram Автоматизация */}
+      {analysis?.integrations?.some((i: any) => i.platform.toLowerCase().includes('telegram')) && (
+        <Card className="border-2 border-blue-500">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-blue-500" />
+              Telegram Автоматизация
+            </CardTitle>
+            <CardDescription>
+              Автоматический постинг и взаимодействие с аудиторией
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <Bot className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold">{telegramStats?.totalPosts || 0}</div>
+                <p className="text-xs text-muted-foreground">Автопостов</p>
+              </div>
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold">{telegramStats?.growthRate?.toFixed(1) || 0}%</div>
+                <p className="text-xs text-muted-foreground">Рост за месяц</p>
+              </div>
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <BarChart3 className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold">{telegramStats?.avgEngagement?.toFixed(1) || 0}%</div>
+                <p className="text-xs text-muted-foreground">Вовлеченность</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Расписание автоматизации:</p>
+              <div className="space-y-1 text-sm">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span>Посты: 3 раза в день (9:00, 15:00, 20:00)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span>Опросы: 2 раза в неделю (Пн, Чт в 12:00)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span>Автоответы: Мгновенно на приветствия</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span>AI генерация контента под вашу нишу</span>
+                </div>
+              </div>
+            </div>
+
+            <Button 
+              onClick={() => activateTelegramAutomation.mutate()}
+              disabled={activateTelegramAutomation.isPending || telegramStats?.automationActive}
+              className="w-full"
+              size="lg"
+              variant={telegramStats?.automationActive ? 'outline' : 'default'}
+            >
+              {telegramStats?.automationActive ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Автоматизация активна
+                </>
+              ) : (
+                activateTelegramAutomation.isPending ? 'Активация...' : 'Активировать автоматизацию'
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* План лидерства */}
       {leadership && (

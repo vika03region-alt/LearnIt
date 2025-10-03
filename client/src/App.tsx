@@ -32,9 +32,9 @@ function Router() {
           <Route path="/platform/:platformId" component={PlatformDetails} />
           <Route path="/ai-content" component={AIContent} />
           <Route path="/ai-assistant" component={AIAssistant} />
-          <Route path="/smart-promotion" element={
-            <SmartPromotionHub userId={user?.id || ''} />
-          } />
+          <Route path="/smart-promotion">
+            {user ? <SmartPromotionHub userId={user.id} /> : null}
+          </Route>
           <Route path="/safety" component={SafetyCenter} />
           <Route path="/scheduler" component={Scheduler} />
           <Route path="/settings" component={Settings} />

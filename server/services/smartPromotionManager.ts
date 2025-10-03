@@ -152,13 +152,17 @@ class SmartPromotionManager {
       'Оптимизация профилей для поисковой выдачи',
       'Создание viral hooks на основе AI анализа',
       'Регулярное взаимодействие с подписчиками',
+      'Автопостинг в Telegram каналы (3-5 постов/день)',
+      'Кросс-постинг из других платформ в Telegram',
+      'Интерактивные опросы и викторины в Telegram',
+      'Автоматические приветствия новых подписчиков',
     ];
 
     const actions = await this.generateFreeActions(integrations);
 
     return {
       strategies,
-      expectedGrowth: 25, // 25% рост за месяц
+      expectedGrowth: 35, // 35% рост за месяц с Telegram
       timeframe: '30 дней',
       actions,
     };
@@ -178,12 +182,16 @@ class SmartPromotionManager {
       'Премиум размещение в рекомендациях',
       'Автоматизированные маркетинговые кампании',
       'Эксклюзивные сообщества и платный контент',
+      'Telegram Ads для масштабного охвата',
+      'Покупка постов в крупных Telegram-каналах',
+      'Премиум Telegram-бот с расширенными функциями',
+      'Платные giveaway кампании в Telegram',
     ];
 
     const actions = await this.generatePaidActions(integrations, recommendedBudget);
 
-    const expectedGrowth = 150; // 150% рост за месяц
-    const roi = (totalFollowers * expectedGrowth / 100) * 2 / recommendedBudget; // Примерный ROI
+    const expectedGrowth = 180; // 180% рост за месяц с Telegram
+    const roi = (totalFollowers * expectedGrowth / 100) * 2.5 / recommendedBudget; // Улучшенный ROI
 
     return {
       strategies,
@@ -227,6 +235,7 @@ class SmartPromotionManager {
   // Генерация конкретных бесплатных действий
   private async generateFreeActions(integrations: PlatformIntegration[]): Promise<any[]> {
     const actions = [];
+    let hasTelegram = false;
 
     for (const integration of integrations) {
       const bestTime = integration.audience?.bestTimes?.[0] || 14;
@@ -246,6 +255,37 @@ class SmartPromotionManager {
         cost: 0,
         expectedImpact: 'Рост видимости на 25-30%',
       });
+
+      // Telegram специфичные действия
+      if (integration.platform.toLowerCase().includes('telegram')) {
+        hasTelegram = true;
+        actions.push({
+          platform: 'Telegram',
+          action: 'Автоматический постинг AI-контента',
+          schedule: '3 раза в день (9:00, 15:00, 20:00)',
+          cost: 0,
+          expectedImpact: 'Постоянный поток контента, рост на 30-40%',
+          automation: true,
+        });
+
+        actions.push({
+          platform: 'Telegram',
+          action: 'Еженедельные опросы и викторины',
+          schedule: 'Понедельник и четверг в 12:00',
+          cost: 0,
+          expectedImpact: 'Увеличение вовлеченности на 45-50%',
+          automation: true,
+        });
+
+        actions.push({
+          platform: 'Telegram',
+          action: 'Автоответы на приветствия',
+          frequency: 'Мгновенно при входе нового участника',
+          cost: 0,
+          expectedImpact: 'Улучшение retention на 20-25%',
+          automation: true,
+        });
+      }
     }
 
     actions.push({
@@ -255,6 +295,18 @@ class SmartPromotionManager {
       cost: 0,
       expectedImpact: 'Синергия аудитории, рост на 10-15%',
     });
+
+    // Если есть Telegram, добавляем кросс-постинг
+    if (hasTelegram) {
+      actions.push({
+        platform: 'Telegram + Others',
+        action: 'Автокросс-постинг лучшего контента в Telegram',
+        frequency: 'При каждом успешном посте (engagement > 5%)',
+        cost: 0,
+        expectedImpact: 'Максимальный охват, синергия +25%',
+        automation: true,
+      });
+    }
 
     return actions;
   }
