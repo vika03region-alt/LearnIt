@@ -6,13 +6,19 @@ const openai = new OpenAI({
 
 // Kling AI API через разные провайдеры
 const KLING_API_KEY = process.env.KLING_API_KEY || '';
-const KLING_PROVIDER = process.env.KLING_PROVIDER || 'fal'; // 'fal', 'piapi', 'pollo'
+const KLING_PROVIDER = process.env.KLING_PROVIDER || 'piapi'; // 'fal', 'piapi'
 
-// API endpoints для разных провайдеров
+// API endpoints для разных провайдеров (актуализировано 2025)
 const API_ENDPOINTS = {
-  fal: 'https://api.fal.ai/v1/kling-video/v2.1/standard/text-to-video',
-  piapi: 'https://api.piapi.ai/kling/videogen',
-  pollo: 'https://pollo.ai/api/platform/generation/kling-ai/kling-v2-1'
+  fal: {
+    textToVideo: 'https://fal.run/fal-ai/kling-video/v2.1/standard/text-to-video',
+    imageToVideo: 'https://fal.run/fal-ai/kling-video/v2.1/standard/image-to-video',
+    status: 'https://fal.run/fal-ai'
+  },
+  piapi: {
+    createTask: 'https://api.piapi.ai/api/v1/task',
+    getTask: 'https://api.piapi.ai/api/v1/task'
+  }
 };
 
 export interface VideoScene {
