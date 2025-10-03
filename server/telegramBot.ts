@@ -129,6 +129,58 @@ async function publishPoll() {
   }
 }
 
+// Функция для разбивки длинных сообщений на части
+async function sendLongMessage(chatId: number, text: string, options?: any) {
+  const MAX_LENGTH = 4000; // Лимит Telegram 4096, оставляем запас
+  
+  if (text.length <= MAX_LENGTH) {
+    await bot!.sendMessage(chatId, text, options);
+    return;
+  }
+  
+  // Разбиваем по абзацам
+  const parts: string[] = [];
+  let currentPart = '';
+  
+  const lines = text.split('\n');
+  
+  for (const line of lines) {
+    if ((currentPart + line + '\n').length > MAX_LENGTH) {
+      if (currentPart) {
+        parts.push(currentPart.trim());
+        currentPart = '';
+      }
+      
+      // Если одна строка слишком длинная
+      if (line.length > MAX_LENGTH) {
+        const chunks = line.match(new RegExp(`.{1,${MAX_LENGTH}}`, 'g')) || [];
+        parts.push(...chunks);
+      } else {
+        currentPart = line + '\n';
+      }
+    } else {
+      currentPart += line + '\n';
+    }
+  }
+  
+  if (currentPart.trim()) {
+    parts.push(currentPart.trim());
+  }
+  
+  // Отправляем части
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const isLast = i === parts.length - 1;
+    
+    await bot!.sendMessage(chatId, part, isLast ? options : { parse_mode: options?.parse_mode });
+    
+    // Небольшая задержка между сообщениями
+    if (!isLast) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  }
+}
+
 export function startTelegramBot() {
   if (!TELEGRAM_TOKEN) {
     console.log('⚠️ BOTTG токен не найден - Telegram бот не запущен');
