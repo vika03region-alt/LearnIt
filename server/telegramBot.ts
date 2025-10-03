@@ -1,6 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api';
 import cron from 'node-cron';
 import OpenAI from 'openai';
+import { storage } from './storage';
 
 const TELEGRAM_TOKEN = process.env.BOTTG || '';
 const CHANNEL_ID = '@IIPRB';
@@ -24,6 +25,24 @@ const contentTopics = [
   'AI для преподавателей: инструменты которые работают',
   'Нейрохакинг: как улучшить мышление с помощью AI'
 ];
+
+// Автоматическая регистрация пользователя
+async function ensureUser(telegramId: string, username?: string): Promise<void> {
+  try {
+    const existingUser = await storage.getUser(telegramId);
+    if (!existingUser) {
+      await storage.upsertUser({
+        id: telegramId,
+        email: username ? `${username}@telegram.bot` : `${telegramId}@telegram.bot`,
+        name: username || `User ${telegramId}`,
+      });
+      console.log(`✅ Новый пользователь зарегистрирован: ${telegramId}`);
+    }
+  } catch (error) {
+    console.error('Ошибка регистрации пользователя:', error);
+    throw error;
+  }
+}
 
 async function generatePost(topic: string): Promise<string> {
   try {
@@ -107,6 +126,9 @@ export function startTelegramBot() {
   
   console.log('🤖 Telegram бот запущен!');
   console.log(`📢 Канал: ${CHANNEL_ID}`);
+  console.log('📅 Расписание: 09:00, 15:00, 20:00 (посты), 12:00 Пн/Чт (опросы)');
+  console.log('💡 Команды: /start /menu /help');
+  console.log('🔥 Режим доминирования: /niche /spy /trends /viralcheck /blueprint');
   console.log('');
   
   cron.schedule('0 9 * * *', () => {
@@ -138,6 +160,325 @@ export function startTelegramBot() {
       );
     }
   });
+
+  // === БАЗОВЫЕ КОМАНДЫ ===
+  
+  bot.onText(/\/start/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || '';
+    const username = msg.from?.username;
+    
+    await ensureUser(userId, username);
+    
+    await bot!.sendMessage(chatId, `👋 Добро пожаловать в AI Content Creator!
+
+🎨 *BRAND STYLE* - управление стилем бренда:
+/brandstyle - создать новый бренд
+/mybrand - показать активный бренд
+/listbrands - все ваши бренды
+/setdefault [id] - установить бренд по умолчанию
+
+📈 *TREND VIDEOS* - клонирование трендов:
+/addtrend [url] - добавить тренд вручную
+/toptrends [limit] - топ трендов
+/mytrends - ваши тренды
+/clonetrend [id] - клонировать тренд с AI видео!
+
+📊 *Другие команды*:
+/post - опубликовать пост
+/stats - статистика`, { parse_mode: 'Markdown' });
+  });
+
+  // === BRAND STYLE КОМАНДЫ ===
+  
+  bot.onText(/\/brandstyle/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || '';
+    
+    try {
+      await ensureUser(userId, msg.from?.username);
+      
+      await bot!.sendMessage(chatId, '🎨 *Создание Brand Style*\n\nШаг 1/4: Название бренда\nПример: "Trading Signals PRO"', { parse_mode: 'Markdown' });
+      // TODO: Implement multi-step dialog with user state
+    } catch (error: any) {
+      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+    }
+  });
+
+  bot.onText(/\/mybrand/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || '';
+    
+    try {
+      await ensureUser(userId, msg.from?.username);
+      
+      const brandStyle = await storage.getDefaultBrandStyle(userId);
+      
+      if (!brandStyle) {
+        await bot!.sendMessage(chatId, '❌ У вас нет активного бренда.\n\nСоздайте его командой /brandstyle');
+        return;
+      }
+      
+      const message = `🎨 *Активный Brand Style*
+
+📝 Название: ${brandStyle.name}
+${brandStyle.description ? `📋 Описание: ${brandStyle.description}` : ''}
+
+🎨 *Визуальный стиль:*
+${brandStyle.primaryColor ? `• Основной цвет: ${brandStyle.primaryColor}` : ''}
+${brandStyle.secondaryColor ? `• Дополнительный цвет: ${brandStyle.secondaryColor}` : ''}
+${brandStyle.visualStyle ? `• Визуальный стиль: ${brandStyle.visualStyle}` : ''}
+
+🗣 *Tone & Voice:*
+• Tone: ${brandStyle.tone}
+${brandStyle.voice ? `• Voice: ${brandStyle.voice}` : ''}
+
+🎬 *Видео настройки:*
+${brandStyle.videoStyle ? `• Стиль: ${brandStyle.videoStyle}` : ''}
+• Aspect Ratio: ${brandStyle.aspectRatio || '9:16'}
+• Duration: ${brandStyle.duration || 30}sec
+
+${brandStyle.ctaText ? `📢 CTA: ${brandStyle.ctaText}` : ''}
+${brandStyle.ctaUrl ? `🔗 URL: ${brandStyle.ctaUrl}` : ''}
+
+ID: ${brandStyle.id}`;
+      
+      await bot!.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } catch (error: any) {
+      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+    }
+  });
+
+  bot.onText(/\/listbrands/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || '';
+    
+    try {
+      await ensureUser(userId, msg.from?.username);
+      
+      const brands = await storage.getBrandStylesByUserId(userId);
+      
+      if (brands.length === 0) {
+        await bot!.sendMessage(chatId, '❌ У вас пока нет брендов.\n\nСоздайте первый командой /brandstyle');
+        return;
+      }
+      
+      let message = `🎨 *Ваши Brand Styles* (${brands.length})\n\n`;
+      
+      for (const brand of brands) {
+        const defaultMark = brand.isDefault ? '⭐ ' : '';
+        const activeMark = brand.isActive ? '✅' : '❌';
+        message += `${defaultMark}*${brand.name}* (ID: ${brand.id}) ${activeMark}\n`;
+        message += `   Tone: ${brand.tone}\n`;
+        if (brand.videoStyle) message += `   Video: ${brand.videoStyle}\n`;
+        message += `\n`;
+      }
+      
+      message += `\n💡 /setdefault [id] - установить default`;
+      
+      await bot!.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } catch (error: any) {
+      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+    }
+  });
+
+  bot.onText(/\/setdefault(?:\s+(\d+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || '';
+    const brandId = match?.[1] ? parseInt(match[1]) : null;
+    
+    try {
+      await ensureUser(userId, msg.from?.username);
+      
+      if (!brandId) {
+        await bot!.sendMessage(chatId, '❌ Укажите ID бренда\n\nПример: /setdefault 1');
+        return;
+      }
+      
+      await storage.setDefaultBrandStyle(userId, brandId);
+      await bot!.sendMessage(chatId, `✅ Бренд ${brandId} установлен как default!`);
+    } catch (error: any) {
+      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+    }
+  });
+
+  // === TREND VIDEOS КОМАНДЫ ===
+  
+  bot.onText(/\/addtrend(?:\s+(.+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || '';
+    const url = match?.[1];
+    
+    try {
+      await ensureUser(userId, msg.from?.username);
+      
+      if (!url) {
+        await bot!.sendMessage(chatId, '❌ Укажите URL тренда\n\nПример: /addtrend https://tiktok.com/@user/video/123');
+        return;
+      }
+      
+      // Определяем платформу по URL
+      let source = 'tiktok';
+      if (url.includes('youtube.com') || url.includes('youtu.be')) source = 'youtube';
+      if (url.includes('instagram.com')) source = 'instagram';
+      
+      const trend = await storage.createTrendVideo({
+        userId,
+        source,
+        sourceUrl: url,
+        title: 'Новый тренд',
+        status: 'pending'
+      });
+      
+      await bot!.sendMessage(chatId, `✅ Тренд добавлен!\n\nID: ${trend.id}\nSource: ${source}\nURL: ${url}\n\n💡 Клонируйте: /clonetrend ${trend.id}`);
+    } catch (error: any) {
+      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+    }
+  });
+
+  bot.onText(/\/toptrends(?:\s+(\d+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const limit = match?.[1] ? parseInt(match[1]) : 10;
+    
+    try {
+      const trends = await storage.getTopTrends(limit);
+      
+      if (trends.length === 0) {
+        await bot!.sendMessage(chatId, '❌ Трендов пока нет.\n\nДобавьте первый: /addtrend [url]');
+        return;
+      }
+      
+      let message = `📈 *ТОП-${trends.length} ТРЕНДОВ*\n\n`;
+      
+      for (const trend of trends) {
+        const score = trend.trendScore || 0;
+        const views = trend.views ? `${(trend.views / 1000).toFixed(0)}K views` : 'N/A';
+        message += `🔥 *${trend.title}* (ID: ${trend.id})\n`;
+        message += `   Score: ${score.toFixed(1)} | ${views}\n`;
+        message += `   Source: ${trend.source}\n\n`;
+      }
+      
+      message += `\n💡 Клонировать: /clonetrend [id]`;
+      
+      await bot!.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } catch (error: any) {
+      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+    }
+  });
+
+  bot.onText(/\/mytrends/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || '';
+    
+    try {
+      await ensureUser(userId, msg.from?.username);
+      
+      const trends = await storage.getTrendVideosByUserId(userId);
+      
+      if (trends.length === 0) {
+        await bot!.sendMessage(chatId, '❌ У вас пока нет трендов.\n\nДобавьте: /addtrend [url]');
+        return;
+      }
+      
+      const pending = trends.filter(t => t.status === 'pending');
+      const cloned = trends.filter(t => t.status === 'cloned');
+      const published = trends.filter(t => t.status === 'published');
+      
+      let message = `📈 *Ваши тренды* (${trends.length})\n\n`;
+      
+      if (pending.length > 0) {
+        message += `⏳ *Pending (${pending.length}):*\n`;
+        pending.forEach(t => message += `• ${t.title} (ID: ${t.id})\n`);
+        message += '\n';
+      }
+      
+      if (cloned.length > 0) {
+        message += `✅ *Cloned (${cloned.length}):*\n`;
+        cloned.forEach(t => message += `• ${t.title} (ID: ${t.id})\n`);
+        message += '\n';
+      }
+      
+      if (published.length > 0) {
+        message += `📤 *Published (${published.length}):*\n`;
+        published.forEach(t => message += `• ${t.title} (ID: ${t.id})\n`);
+      }
+      
+      await bot!.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } catch (error: any) {
+      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+    }
+  });
+
+  bot.onText(/\/clonetrend(?:\s+(\d+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || '';
+    const trendId = match?.[1] ? parseInt(match[1]) : null;
+    
+    try {
+      await ensureUser(userId, msg.from?.username);
+      
+      if (!trendId) {
+        await bot!.sendMessage(chatId, '❌ Укажите ID тренда\n\nПример: /clonetrend 1');
+        return;
+      }
+      
+      const trend = await storage.getTrendVideoById(trendId);
+      
+      if (!trend) {
+        await bot!.sendMessage(chatId, '❌ Тренд не найден');
+        return;
+      }
+      
+      // Обновляем статус на cloned
+      await storage.updateTrendVideoStatus(trendId, 'cloned', null);
+      
+      await bot!.sendMessage(chatId, `✅ Тренд ${trendId} помечен как cloned!\n\n📝 ${trend.title}\n🔗 ${trend.sourceUrl}\n\n💡 Функция генерации видео в разработке`);
+    } catch (error: any) {
+      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+    }
+  });
+
+  // Callback для публикации
+  bot.on('callback_query', async (query) => {
+    const chatId = query.message?.chat.id;
+    const data = query.data;
+    
+    if (!chatId || !data) return;
+    
+    if (data.startsWith('publish_cloned_')) {
+      const aiVideoId = parseInt(data.replace('publish_cloned_', ''));
+      
+      try {
+        const aiVideo = await storage.getAIVideoById(aiVideoId);
+        
+        if (!aiVideo) {
+          await bot!.answerCallbackQuery(query.id, { text: '❌ Видео не найдено' });
+          return;
+        }
+        
+        // Публикуем в канал
+        await bot!.sendVideo(CHANNEL_ID, aiVideo.videoUrl!, {
+          caption: aiVideo.prompt || 'AI Generated Video'
+        });
+        
+        // Создаем пост
+        await storage.createPost({
+          userId: aiVideo.userId,
+          platformId: 1, // Telegram
+          content: aiVideo.prompt || 'AI Generated Video',
+          mediaUrls: [aiVideo.videoUrl!],
+          aiVideoId: aiVideo.id
+        });
+        
+        await bot!.answerCallbackQuery(query.id, { text: '✅ Опубликовано!' });
+        await bot!.sendMessage(chatId, `✅ *Видео опубликовано в канал!*\n\n📢 ${CHANNEL_ID}`, { parse_mode: 'Markdown' });
+      } catch (error: any) {
+        await bot!.answerCallbackQuery(query.id, { text: `❌ ${error.message}` });
+      }
+    }
+  });
+
+  // === СТАРЫЕ КОМАНДЫ ===
   
   bot.onText(/\/post/, async (msg) => {
     const chatId = msg.chat.id;
@@ -182,16 +523,4 @@ export function startTelegramBot() {
     const result = Math.floor(Math.random() * maxNumber) + 1;
     await bot!.sendMessage(chatId, `🎲 Бросок кубика (1-${maxNumber}):\n\n🎯 Выпало: ${result}`);
   });
-  
-  console.log('📅 Расписание настроено:');
-  console.log('   • 09:00 - утренний пост');
-  console.log('   • 15:00 - дневной пост');
-  console.log('   • 20:00 - вечерний пост');
-  console.log('   • 12:00 (Пн, Чт) - опрос');
-  console.log('');
-  console.log('💡 Доступные команды:');
-  console.log('   • /post - опубликовать пост сейчас');
-  console.log('   • /poll - создать опрос');
-  console.log('   • /stats - показать статистику');
-  console.log('   • /roll [число] - бросок кубика (по умолчанию 1-6)');
 }
