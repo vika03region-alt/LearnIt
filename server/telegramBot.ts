@@ -400,12 +400,38 @@ export async function startTelegramBot() {
 
   bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
+    const telegramUserId = chatId.toString();
+    
+    // Проверяем, есть ли пользователь в системе
+    let user = await storage.getUser(telegramUserId);
+    
+    // Если нет - создаём автоматически
+    if (!user) {
+      try {
+        const username = msg.from?.username || `user_${chatId}`;
+        const firstName = msg.from?.first_name || 'Telegram';
+        const lastName = msg.from?.last_name || 'User';
+        
+        user = await storage.createUser({
+          id: telegramUserId,
+          email: `telegram_${chatId}@lucifer.bot`,
+          username: username,
+          firstName: firstName,
+          lastName: lastName,
+        });
+        
+        console.log(`✅ Создан новый пользователь для Telegram: ${telegramUserId}`);
+      } catch (error) {
+        console.error('❌ Ошибка создания пользователя:', error);
+      }
+    }
+    
     const welcomeMessage = `
 ╔═══════════════════════════╗
    🤖 <b>LUCIFER TRADING BOT</b>
 ╚═══════════════════════════╝
 
-Привет! Автоматизация соцсетей на AI 🚀
+Привет${user ? `, ${user.firstName}` : ''}! Автоматизация соцсетей на AI 🚀
 
 <b>✨ ВОЗМОЖНОСТИ:</b>
 
@@ -2539,12 +2565,31 @@ ${error.message || 'Неизвестная ошибка'}`;
   // 1. /brandstyle - интерактивное создание бренд-стиля
   bot.onText(/\/brandstyle/, async (msg) => {
     const chatId = msg.chat.id;
+    const telegramUserId = chatId.toString();
 
     // Получаем userId из chatId
-    const user = await storage.getUser(chatId.toString());
+    let user = await storage.getUser(telegramUserId);
     if (!user) {
-      await bot!.sendMessage(chatId, '❌ Пользователь не найден. Пожалуйста, зарегистрируйтесь в системе.');
-      return;
+      // Создаём пользователя автоматически
+      try {
+        const username = msg.from?.username || `user_${chatId}`;
+        const firstName = msg.from?.first_name || 'Telegram';
+        const lastName = msg.from?.last_name || 'User';
+        
+        user = await storage.createUser({
+          id: telegramUserId,
+          email: `telegram_${chatId}@lucifer.bot`,
+          username: username,
+          firstName: firstName,
+          lastName: lastName,
+        });
+        
+        console.log(`✅ Создан новый пользователь для Telegram: ${telegramUserId}`);
+      } catch (error) {
+        console.error('❌ Ошибка создания пользователя:', error);
+        await bot!.sendMessage(chatId, '❌ Ошибка системы. Попробуйте позже.');
+        return;
+      }
     }
 
     // Начинаем интерактивное создание
@@ -2568,11 +2613,12 @@ ${error.message || 'Неизвестная ошибка'}`;
   // 2. /mybrand - показать текущий default бренд-стиль
   bot.onText(/\/mybrand/, async (msg) => {
     const chatId = msg.chat.id;
+    const telegramUserId = chatId.toString();
 
     try {
-      const user = await storage.getUser(chatId.toString());
+      let user = await storage.getUser(telegramUserId);
       if (!user) {
-        await bot!.sendMessage(chatId, '❌ Пользователь не найден.');
+        await bot!.sendMessage(chatId, '❌ Пользователь не найден. Используйте /start для регистрации.');
         return;
       }
 
@@ -2614,11 +2660,12 @@ ${brandStyle.fontStyle ? `<b>🔤 Шрифт:</b> ${brandStyle.fontStyle}` : ''}
   // 3. /listbrands - список всех брендов пользователя
   bot.onText(/\/listbrands/, async (msg) => {
     const chatId = msg.chat.id;
+    const telegramUserId = chatId.toString();
 
     try {
-      const user = await storage.getUser(chatId.toString());
+      let user = await storage.getUser(telegramUserId);
       if (!user) {
-        await bot!.sendMessage(chatId, '❌ Пользователь не найден.');
+        await bot!.sendMessage(chatId, '❌ Пользователь не найден. Используйте /start для регистрации.');
         return;
       }
 
@@ -2659,6 +2706,7 @@ ${brandStyle.fontStyle ? `<b>🔤 Шрифт:</b> ${brandStyle.fontStyle}` : ''}
   // 4. /setdefault [id] - установить бренд как default
   bot.onText(/\/setdefault(?:\s+(\d+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
+    const telegramUserId = chatId.toString();
     const styleId = match && match[1] ? parseInt(match[1]) : null;
 
     if (!styleId) {
@@ -2671,9 +2719,9 @@ ${brandStyle.fontStyle ? `<b>🔤 Шрифт:</b> ${brandStyle.fontStyle}` : ''}
     }
 
     try {
-      const user = await storage.getUser(chatId.toString());
+      let user = await storage.getUser(telegramUserId);
       if (!user) {
-        await bot!.sendMessage(chatId, '❌ Пользователь не найден.');
+        await bot!.sendMessage(chatId, '❌ Пользователь не найден. Используйте /start для регистрации.');
         return;
       }
 
@@ -2703,10 +2751,11 @@ ${brandStyle.fontStyle ? `<b>🔤 Шрифт:</b> ${brandStyle.fontStyle}` : ''}
     if (!state) return;
 
     try {
-      const user = await storage.getUser(chatId.toString());
+      const telegramUserId = chatId.toString();
+      let user = await storage.getUser(telegramUserId);
       if (!user) {
         brandStyleStates.delete(chatId);
-        await bot!.sendMessage(chatId, '❌ Пользователь не найден.');
+        await bot!.sendMessage(chatId, '❌ Пользователь не найден. Используйте /start для регистрации.');
         return;
       }
 
