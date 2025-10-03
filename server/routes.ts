@@ -13,6 +13,7 @@ import { socialMediaManager } from "./services/socialMediaIntegration";
 import { analyticsService } from "./services/analytics";
 import { safetyService } from "./services/safety";
 import { schedulerService } from "./services/scheduler";
+import { masterAutomation } from "./services/masterAutomation";
 import { setupPromotionStrategyRoutes } from "./routes/promotionStrategy";
 import { aiLearningEngine } from "./services/aiLearningEngine";
 import { viralGrowthEngine } from "./services/viralGrowthEngine";
@@ -1543,6 +1544,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error performing emergency stop:", error);
       res.status(500).json({ message: "Failed to perform emergency stop" });
+    }
+  });
+
+  // Master Automation routes
+  app.post('/api/automation/start', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await masterAutomation.startFullAutomation(userId);
+
+      res.json({ 
+        message: 'Full automation started',
+        status: 'running'
+      });
+    } catch (error) {
+      console.error("Error starting master automation:", error);
+      res.status(500).json({ message: "Failed to start automation" });
+    }
+  });
+
+  app.post('/api/automation/stop', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await masterAutomation.stopAutomation(userId);
+
+      res.json({ 
+        message: 'Automation stopped',
+        status: 'stopped'
+      });
+    } catch (error) {
+      console.error("Error stopping master automation:", error);
+      res.status(500).json({ message: "Failed to stop automation" });
+    }
+  });
+
+  app.get('/api/automation/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const status = await masterAutomation.getAutomationStatus(userId);
+
+      res.json(status);
+    } catch (error) {
+      console.error("Error getting automation status:", error);
+      res.status(500).json({ message: "Failed to get automation status" });
     }
   });
 

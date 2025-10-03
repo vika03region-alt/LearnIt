@@ -19,6 +19,7 @@ import PromotionStrategyManager from "@/components/PromotionStrategyManager";
 import { AILearningDashboard } from '../components/AILearningDashboard';
 import { ViralGrowthDashboard } from '../components/ViralGrowthDashboard';
 import { DominationControlCenter } from '../components/DominationControlCenter';
+import MasterAutomationControl from '../components/MasterAutomationControl';
 import { 
   Bell, 
   User, 
@@ -274,6 +275,9 @@ export default function Dashboard() {
 
             {/* Пульт управления - главная вкладка */}
             <TabsContent value="control" className="space-y-6 mt-6">
+              {/* Мастер-Автоматизация (10 шагов бизнес-процесса) */}
+              <MasterAutomationControl />
+
               {/* Инициализация клиента Lucifer */}
               <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
                 <CardContent className="p-4">
