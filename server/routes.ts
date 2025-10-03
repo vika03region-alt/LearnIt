@@ -1130,8 +1130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Image URL and prompt are required" });
       }
 
-      const { klingAIService } = await import('./services/klingAIService');
-      const videoResult = await klingAIService.generateImageToVideo(imageUrl, prompt, config);
+      const videoResult = await huggingFaceVideoService.generateImageToVideo(imageUrl, prompt, config);
 
       const aiVideo = await storage.createAIVideo({
         userId,
@@ -1147,7 +1146,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createActivityLog({
         userId,
         action: 'AI Image-to-Video Started',
+        description: `Image-to-video generation started`,
+        platformId: null,
+        status: 'success',
+        metadata: { aiVideoId: aiVideo.id, taskId: videoResult.taskId },
+      });
 
+      res.json({
+        ...videoResult,
+        id: aiVideo.id
+      });
+    } catch (error) {
+      console.error("Error generating video from image:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to generate video from image" 
+      });
+    }
+  });
 
   // === PRO PLAN ACTIVATION ===
   app.post('/api/subscription/activate-pro', isAuthenticated, async (req: any, res) => {
@@ -1220,24 +1235,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ error: 'Не удалось получить статус подписки' });
-    }
-  });
-
-        description: `Image-to-video generation started`,
-        platformId: null,
-        status: 'success',
-        metadata: { aiVideoId: aiVideo.id, taskId: videoResult.taskId },
-      });
-
-      res.json({
-        ...videoResult,
-        id: aiVideo.id
-      });
-    } catch (error) {
-      console.error("Error generating video from image:", error);
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Failed to generate video from image" 
-      });
     }
   });
 

@@ -156,17 +156,28 @@ class HuggingFaceVideoService {
       }
 
       // Hugging Face возвращает видео напрямую
-      const videoBlob = await response.blob();
+      const videoBuffer = Buffer.from(await response.arrayBuffer());
       const taskId = `hf_${Date.now()}`;
       
-      // Сохраняем видео временно (можно загрузить в Object Storage)
-      // Для простоты возвращаем blob URL
-      const videoUrl = URL.createObjectURL(videoBlob);
+      // Сохраняем видео во временный файл
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const tmpDir = '/tmp/ai-videos';
+      
+      // Создаём директорию если не существует
+      try {
+        await fs.mkdir(tmpDir, { recursive: true });
+      } catch (e) {
+        // Директория уже существует
+      }
+      
+      const videoPath = path.join(tmpDir, `${taskId}.mp4`);
+      await fs.writeFile(videoPath, videoBuffer);
 
       return {
         taskId,
         status: 'completed',
-        videoUrl,
+        videoUrl: videoPath, // Локальный путь к файлу
         cost: 0, // БЕСПЛАТНО!
         estimatedTime: '10-20 seconds',
         provider: 'Hugging Face (LTX-Video) - FREE'
@@ -218,14 +229,27 @@ class HuggingFaceVideoService {
         throw new Error(`Hugging Face API error: ${error}`);
       }
 
-      const videoBlob = await response.blob();
+      const videoBuffer = Buffer.from(await response.arrayBuffer());
       const taskId = `hf_i2v_${Date.now()}`;
-      const videoUrl = URL.createObjectURL(videoBlob);
+      
+      // Сохраняем видео во временный файл
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const tmpDir = '/tmp/ai-videos';
+      
+      try {
+        await fs.mkdir(tmpDir, { recursive: true });
+      } catch (e) {
+        // Директория уже существует
+      }
+      
+      const videoPath = path.join(tmpDir, `${taskId}.mp4`);
+      await fs.writeFile(videoPath, videoBuffer);
 
       return {
         taskId,
         status: 'completed',
-        videoUrl,
+        videoUrl: videoPath,
         cost: 0, // БЕСПЛАТНО!
         estimatedTime: '10-20 seconds',
         provider: 'Hugging Face (LTX-Video) - FREE'
