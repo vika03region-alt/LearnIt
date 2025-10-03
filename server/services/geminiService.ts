@@ -275,3 +275,176 @@ ${content}
 }
 
 export const geminiService = new GeminiService();
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
+interface GeminiResult {
+  content: string;
+  tokensUsed: number;
+  cost: number;
+}
+
+class GeminiService {
+  private model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+
+  async generateContent(prompt: string, systemInstruction?: string): Promise<GeminiResult> {
+    try {
+      const chat = this.model.startChat({
+        history: systemInstruction ? [
+          {
+            role: "user",
+            parts: [{ text: systemInstruction }],
+          },
+          {
+            role: "model",
+            parts: [{ text: "Понял, буду следовать этим инструкциям." }],
+          },
+        ] : [],
+      });
+
+      const result = await chat.sendMessage(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      // Gemini pricing: ~$0.00015 per 1K tokens (approximate)
+      const tokensUsed = text.length / 4; // Approximate
+      const cost = (tokensUsed / 1000) * 0.00015;
+
+      return {
+        content: text,
+        tokensUsed: Math.round(tokensUsed),
+        cost,
+      };
+    } catch (error) {
+      throw new Error(`Gemini API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async analyzeImage(imageData: string, prompt: string): Promise<GeminiResult> {
+    try {
+      const visionModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+      
+      const result = await visionModel.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: imageData.split(',')[1], // Remove data:image/... prefix
+            mimeType: "image/jpeg",
+          },
+        },
+      ]);
+
+      const response = await result.response;
+      const text = response.text();
+
+      const tokensUsed = text.length / 4;
+      const cost = (tokensUsed / 1000) * 0.00015;
+
+      return {
+        content: text,
+        tokensUsed: Math.round(tokensUsed),
+        cost,
+      };
+    } catch (error) {
+      throw new Error(`Gemini Vision error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async generateViralContent(
+    platform: string,
+    niche: string,
+    trend: string
+  ): Promise<GeminiResult> {
+    const prompt = `Создай вирусный контент для ${platform} в нише ${niche} на тренд: ${trend}.
+    
+Требования:
+- Цепляющий хук в первых 3 секунды
+- Эмоциональный триггер
+- Призыв к действию
+- Оптимизация под алгоритмы платформы
+
+Формат:JSON с полями title, description, hashtags, hooks`;
+
+    return this.generateContent(prompt);
+  }
+
+  async analyzeCompetitor(competitorUrl: string, platform: string): Promise<any> {
+    const prompt = `Проанализируй стратегию конкурента на ${platform}: ${competitorUrl}
+    
+Предоставь анализ:
+1. Контент-стратегия
+2. Частота публикаций
+3. Форматы контента
+4. Успешные паттерны
+5. Слабые стороны
+6. Возможности для нас
+
+Формат: JSON`;
+
+    const result = await this.generateContent(prompt);
+    return JSON.parse(result.content);
+  }
+
+  async generateMarketingStrategy(
+    businessType: string,
+    targetAudience: string,
+    budget: number,
+    platforms: string[]
+  ): Promise<any> {
+    const prompt = `Создай детальную маркетинговую стратегию:
+    
+Бизнес: ${businessType}
+Аудитория: ${targetAudience}
+Бюджет: $${budget}
+Платформы: ${platforms.join(', ')}
+
+Включи:
+1. Позиционирование
+2. Контент-план на месяц
+3. Бесплатные стратегии
+4. Платные кампании
+5. KPI и метрики
+6. План роста
+
+Формат: JSON`;
+
+    const result = await this.generateContent(prompt);
+    return JSON.parse(result.content);
+  }
+
+  async optimizeContent(content: string, platform: string): Promise<GeminiResult> {
+    const prompt = `Оптимизируй этот контент для ${platform}:
+
+${content}
+
+Улучши:
+- Хуки и CTA
+- Хештеги
+- Структуру
+- Читабельность
+- Вирусный потенциал
+
+Предоставь улучшенную версию и объяснение изменений.`;
+
+    return this.generateContent(prompt);
+  }
+
+  async generateContentIdeas(niche: string, count: number = 10): Promise<string[]> {
+    const prompt = `Сгенерируй ${count} уникальных идей для контента в нише: ${niche}
+
+Требования:
+- Актуальность
+- Вирусный потенциал
+- Разнообразие форматов
+- Практическая ценность
+
+Формат: JSON массив строк`;
+
+    const result = await this.generateContent(prompt);
+    const parsed = JSON.parse(result.content);
+    return parsed;
+  }
+}
+
+export const geminiService = new GeminiService();

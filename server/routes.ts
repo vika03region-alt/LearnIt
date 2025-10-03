@@ -375,6 +375,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === GEMINI AI ЭНДПОИНТЫ ===
+
+  // Генерация контента через Gemini
+  app.post('/api/gemini/generate-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const { prompt, systemInstruction } = req.body;
+      const { geminiService } = await import('./services/geminiService');
+      
+      const result = await geminiService.generateContent(prompt, systemInstruction);
+      
+      await storage.createActivityLog({
+        userId: req.user.claims.sub,
+        action: 'Gemini Content Generated',
+        description: `Generated content using Gemini AI`,
+        platformId: null,
+        status: 'success',
+        metadata: { tokensUsed: result.tokensUsed, cost: result.cost },
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('Gemini generation error:', error);
+      res.status(500).json({ error: 'Failed to generate content with Gemini' });
+    }
+  });
+
+  // Анализ изображения через Gemini Vision
+  app.post('/api/gemini/analyze-image', isAuthenticated, async (req: any, res) => {
+    try {
+      const { imageData, prompt } = req.body;
+      const { geminiService } = await import('./services/geminiService');
+      
+      const result = await geminiService.analyzeImage(imageData, prompt);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Gemini vision error:', error);
+      res.status(500).json({ error: 'Failed to analyze image with Gemini' });
+    }
+  });
+
+  // Генерация вирального контента через Gemini
+  app.post('/api/gemini/viral-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const { platform, niche, trend } = req.body;
+      const { geminiService } = await import('./services/geminiService');
+      
+      const result = await geminiService.generateViralContent(platform, niche, trend);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Gemini viral content error:', error);
+      res.status(500).json({ error: 'Failed to generate viral content' });
+    }
+  });
+
+  // Анализ конкурента через Gemini
+  app.post('/api/gemini/analyze-competitor', isAuthenticated, async (req: any, res) => {
+    try {
+      const { competitorUrl, platform } = req.body;
+      const { geminiService } = await import('./services/geminiService');
+      
+      const analysis = await geminiService.analyzeCompetitor(competitorUrl, platform);
+      
+      res.json(analysis);
+    } catch (error) {
+      console.error('Gemini competitor analysis error:', error);
+      res.status(500).json({ error: 'Failed to analyze competitor' });
+    }
+  });
+
+  // Генерация маркетинговой стратегии через Gemini
+  app.post('/api/gemini/marketing-strategy', isAuthenticated, async (req: any, res) => {
+    try {
+      const { businessType, targetAudience, budget, platforms } = req.body;
+      const { geminiService } = await import('./services/geminiService');
+      
+      const strategy = await geminiService.generateMarketingStrategy(
+        businessType,
+        targetAudience,
+        budget,
+        platforms
+      );
+      
+      res.json(strategy);
+    } catch (error) {
+      console.error('Gemini strategy error:', error);
+      res.status(500).json({ error: 'Failed to generate strategy' });
+    }
+  });
+
+  // Оптимизация контента через Gemini
+  app.post('/api/gemini/optimize-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const { content, platform } = req.body;
+      const { geminiService } = await import('./services/geminiService');
+      
+      const result = await geminiService.optimizeContent(content, platform);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Gemini optimization error:', error);
+      res.status(500).json({ error: 'Failed to optimize content' });
+    }
+  });
+
+  // Генерация идей для контента через Gemini
+  app.post('/api/gemini/content-ideas', isAuthenticated, async (req: any, res) => {
+    try {
+      const { niche, count } = req.body;
+      const { geminiService } = await import('./services/geminiService');
+      
+      const ideas = await geminiService.generateContentIdeas(niche, count || 10);
+      
+      res.json({ ideas });
+    } catch (error) {
+      console.error('Gemini ideas error:', error);
+      res.status(500).json({ error: 'Failed to generate ideas' });
+    }
+  });
+
   // === ИНТЕГРАЦИЯ С ПЛАТФОРМАМИ И AI-АНАЛИЗ ===
 
   // Полная интеграция с платформой и создание стратегии
