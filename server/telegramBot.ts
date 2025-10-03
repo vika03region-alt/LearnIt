@@ -1413,7 +1413,7 @@ Dashboard → Master Automation
     }
 
     try {
-      await bot!.sendMessage(chatId, '🎬 Генерирую AI видео... (20-30 секунд)\n\n✨ Используется Kling AI (профессиональное качество)\n💰 Стоимость: $0.25');
+      await bot!.sendMessage(chatId, '🎬 Генерирую AI видео...\n\n✨ Используется Kling AI (профессиональное качество)\n💰 Стоимость: $0.25\n⏱️ Время: 20-60 секунд');
 
       // Импортируем сервис
       const { klingAIService } = await import('./services/klingAIService');
@@ -1423,11 +1423,18 @@ Dashboard → Master Automation
 
       console.log(`🎬 Kling AI: Генерация видео для промпта: ${videoPrompt}`);
 
-      // Генерируем видео через Kling AI
-      const result = await klingAIService.generateTextToVideo(videoPrompt, {
+      // Шаг 1: Создаём задачу генерации видео
+      const task = await klingAIService.generateTextToVideo(videoPrompt, {
         mode: 'std',
         duration: 5
       });
+
+      console.log(`✅ Задача создана: ${task.taskId}`);
+      
+      await bot!.sendMessage(chatId, `⏳ Видео генерируется...\n📋 ID задачи: ${task.taskId}\n\n⏱️ Ожидайте 20-60 секунд...`);
+
+      // Шаг 2: Ждём завершения генерации (до 2 минут)
+      const result = await klingAIService.waitForCompletion(task.taskId, 120000, 5000);
 
       console.log(`✅ Kling AI результат:`, result);
 
@@ -1459,6 +1466,8 @@ Dashboard → Master Automation
         errorMsg += '🔑 Проблема с API ключом Kling AI\n';
       } else if (error.message?.includes('credits') || error.message?.includes('quota')) {
         errorMsg += '💰 Недостаточно кредитов Kling AI\n';
+      } else if (error.message?.includes('timeout')) {
+        errorMsg += '⏱️ Превышено время ожидания (2 минуты)\n';
       } else {
         errorMsg += `⚠️ ${error.message || 'Неизвестная ошибка'}\n`;
       }
