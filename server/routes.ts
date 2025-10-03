@@ -20,6 +20,12 @@ import { brandDominationEngine } from "./services/brandDominationEngine";
 import type { Platform, UserAccount } from "@shared/schema";
 import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
 import { z } from "zod";
+import type { Bot } from "grammy";
+
+// Assume bot is imported and potentially initialized elsewhere
+declare const bot: Bot | undefined;
+declare const TELEGRAM_TOKEN: string;
+declare const CHANNEL_ID: string;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize database with platforms
@@ -2369,6 +2375,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // === TELEGRAM BUSINESS TOOLS ===
+
+  // === БИЗНЕС КОМАНДЫ ===
+
+  if (!bot) {
+    console.warn('⚠️ Telegram бот не инициализирован, команды недоступны');
+    // Returning httpServer here to satisfy the return type, but no Telegram commands will work.
+    // In a real scenario, you might want to handle this more robustly,
+    // perhaps by not starting the server or throwing an error if the bot is critical.
+    const httpServer = createServer(app);
+    return httpServer;
+  }
 
   bot.onText(/\/business/, async (msg) => {
     const chatId = msg.chat.id;

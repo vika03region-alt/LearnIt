@@ -12,7 +12,7 @@ const grok = new OpenAI({
   baseURL: 'https://api.x.ai/v1'
 });
 
-let bot: TelegramBot | null = null;
+export let bot: TelegramBot | null = null;
 
 const contentTopics = [
   'Как ChatGPT экономит 5 часов в день специалистам',
