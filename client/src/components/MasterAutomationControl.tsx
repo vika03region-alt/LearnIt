@@ -19,12 +19,20 @@ import {
 } from 'lucide-react';
 import { isUnauthorizedError } from '@/lib/authUtils';
 
+interface AutomationStatus {
+  isActive: boolean;
+  config?: any;
+  scheduledJobs: number;
+  safetyStatus: string;
+  nextRun: string | null;
+}
+
 export default function MasterAutomationControl() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isStarting, setIsStarting] = useState(false);
 
-  const { data: automationStatus, isLoading } = useQuery({
+  const { data: automationStatus, isLoading } = useQuery<AutomationStatus>({
     queryKey: ['/api/automation/status'],
     refetchInterval: 5000,
     retry: false,

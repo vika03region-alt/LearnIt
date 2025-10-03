@@ -135,7 +135,8 @@ class SchedulerService {
 
     } catch (error) {
       job.status = 'failed';
-      await this.logJobResult(job, 'failed', error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      await this.logJobResult(job, 'failed', errorMessage);
     } finally {
       // Clean up timer
       const timer = this.timers.get(jobId);
@@ -149,7 +150,7 @@ class SchedulerService {
   async getUserJobs(userId: string): Promise<ScheduledJob[]> {
     const userJobs: ScheduledJob[] = [];
     
-    for (const [jobId, job] of this.jobs) {
+    for (const [jobId, job] of Array.from(this.jobs.entries())) {
       if (job.userId === userId) {
         userJobs.push(job);
       }
@@ -213,7 +214,7 @@ class SchedulerService {
     this.emergencyStopUsers.add(userId);
 
     // Cancel all pending jobs for this user
-    for (const [jobId, job] of this.jobs) {
+    for (const [jobId, job] of Array.from(this.jobs.entries())) {
       if (job.userId === userId && job.status === 'pending') {
         await this.cancelJob(jobId);
       }
@@ -224,7 +225,9 @@ class SchedulerService {
       userId,
       action: 'Emergency Stop',
       description: 'All automation stopped by emergency stop',
+      platformId: null,
       status: 'warning',
+      metadata: null,
     });
   }
 
@@ -236,13 +239,15 @@ class SchedulerService {
       userId,
       action: 'Automation Resumed',
       description: 'Automation resumed after emergency stop',
+      platformId: null,
       status: 'success',
+      metadata: null,
     });
   }
 
   async pauseAllUser(userId: string): Promise<void> {
     // Similar to emergency stop but less severe
-    for (const [jobId, job] of this.jobs) {
+    for (const [jobId, job] of Array.from(this.jobs.entries())) {
       if (job.userId === userId && job.status === 'pending') {
         // Delay all jobs by 1 hour
         const newScheduledTime = new Date(job.scheduledTime.getTime() + 60 * 60 * 1000);
@@ -270,7 +275,9 @@ class SchedulerService {
       userId,
       action: 'Automation Paused',
       description: 'All scheduled posts delayed by 1 hour',
+      platformId: null,
       status: 'warning',
+      metadata: null,
     });
   }
 
@@ -283,6 +290,7 @@ class SchedulerService {
       userId: job.userId,
       action: `Scheduled Post ${status}`,
       description: `${job.platform}: ${message}`,
+      platformId: null,
       status: status === 'completed' ? 'success' : status === 'failed' ? 'error' : 'warning',
       metadata: { jobId: job.id, platform: job.platform },
     });
@@ -291,9 +299,9 @@ class SchedulerService {
   // Background task to process scheduled posts
   async processScheduledPosts(): Promise<void> {
     try {
-      const allUsers = await storage.getPlatforms(); // This would need a method to get all users
+      const allPlatforms = await storage.getPlatforms(); // This would need a method to get all users
       
-      for (const user of []) { // Placeholder - need to implement getUsersWithScheduledPosts
+      for (const user of [] as Array<{id: string}>) { // Placeholder - need to implement getUsersWithScheduledPosts
         const scheduledPosts = await storage.getScheduledPosts(user.id);
         
         for (const post of scheduledPosts) {

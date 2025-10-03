@@ -239,7 +239,6 @@ class MasterAutomationService {
           title: content.topic,
           mediaUrls: videos.has(i) ? [videos.get(i)!] : [],
           scheduledAt: scheduledDate,
-          status: 'scheduled',
           aiGenerated: true,
         });
 
@@ -264,6 +263,7 @@ class MasterAutomationService {
       userId,
       action: 'Gamification Setup',
       description: 'Система очков, уровней и наград активирована',
+      platformId: null,
       status: 'success',
       metadata: {
         features: ['points', 'levels', 'achievements', 'leaderboard'],
@@ -281,6 +281,7 @@ class MasterAutomationService {
       userId,
       action: 'Viral Mechanics Setup',
       description: 'Реферальная система и челленджи запущены',
+      platformId: null,
       status: 'success',
       metadata: {
         mechanics: ['referral_links', 'challenges', 'contests', 'viral_content'],
@@ -298,6 +299,7 @@ class MasterAutomationService {
       userId,
       action: 'Monetization Setup',
       description: 'VIP доступ и платные функции настроены',
+      platformId: null,
       status: 'success',
       metadata: {
         tiers: ['free', 'basic', 'premium', 'vip'],
@@ -344,6 +346,7 @@ class MasterAutomationService {
         userId,
         action: 'Performance Analysis',
         description: `Оценка: ${analysis.score}/100`,
+        platformId: null,
         status: 'success',
         metadata: {
           analysis,
@@ -364,6 +367,7 @@ class MasterAutomationService {
       userId,
       action: 'A/B Testing Setup',
       description: `A/B тесты для ${contents.length} вариантов контента`,
+      platformId: null,
       status: 'success',
       metadata: {
         variants: contents.map((c, i) => ({ 
@@ -386,6 +390,7 @@ class MasterAutomationService {
       userId,
       action: 'Optimization & Scaling',
       description: 'Автомасштабирование на основе трендов',
+      platformId: null,
       status: 'success',
       metadata: {
         scaling_strategy: 'auto',
