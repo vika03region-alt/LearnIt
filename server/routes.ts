@@ -1896,6 +1896,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === GEMINI AI ИНТЕГРАЦИЯ ===
+
+  // Анализ контента с Gemini
+  app.post('/api/gemini/analyze-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, context } = req.body;
+
+      const { geminiService } = await import('./services/geminiService');
+      const analysis = await geminiService.analyzeContent(content, context);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Gemini Content Analysis',
+        description: 'Контент проанализирован с помощью Gemini AI',
+        status: 'success',
+        metadata: { analysis },
+      });
+
+      res.json(analysis);
+    } catch (error) {
+      console.error('Gemini analysis error:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать контент' });
+    }
+  });
+
+  // Анализ изображения с Gemini Vision
+  app.post('/api/gemini/analyze-image', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { imageData, prompt } = req.body;
+
+      const { geminiService } = await import('./services/geminiService');
+      const analysis = await geminiService.analyzeImage(imageData, prompt);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Gemini Image Analysis',
+        description: 'Изображение проанализировано с помощью Gemini Vision',
+        status: 'success',
+        metadata: { analysis },
+      });
+
+      res.json(analysis);
+    } catch (error) {
+      console.error('Gemini image analysis error:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать изображение' });
+    }
+  });
+
+  // Генерация трейдинг контента с Gemini
+  app.post('/api/gemini/generate-trading', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { type, market, trend, audience } = req.body;
+
+      const { geminiService } = await import('./services/geminiService');
+      const content = await geminiService.generateTradingContent({
+        type,
+        market,
+        trend,
+        audience,
+      });
+
+      res.json({ content });
+    } catch (error) {
+      console.error('Gemini trading content error:', error);
+      res.status(500).json({ error: 'Не удалось создать контент' });
+    }
+  });
+
+  // Мультимодальный анализ поста
+  app.post('/api/gemini/analyze-post', isAuthenticated, async (req: any, res) => {
+    try {
+      const { caption, imageData, platform } = req.body;
+
+      const { geminiService } = await import('./services/geminiService');
+      const analysis = await geminiService.analyzePostWithImage(caption, imageData, platform);
+
+      res.json(analysis);
+    } catch (error) {
+      console.error('Gemini post analysis error:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать пост' });
+    }
+  });
+
+  // Конкурентный анализ с Gemini
+  app.post('/api/gemini/analyze-competitor', isAuthenticated, async (req: any, res) => {
+    try {
+      const { competitorContent, niche } = req.body;
+
+      const { geminiService } = await import('./services/geminiService');
+      const analysis = await geminiService.analyzeCompetitor(competitorContent, niche);
+
+      res.json(analysis);
+    } catch (error) {
+      console.error('Gemini competitor analysis error:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать конкурента' });
+    }
+  });
+
+  // Адаптация контента между платформами
+  app.post('/api/gemini/adapt-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const { content, fromPlatform, toPlatform } = req.body;
+
+      const { geminiService } = await import('./services/geminiService');
+      const adaptedContent = await geminiService.adaptContentForPlatform(
+        content,
+        fromPlatform,
+        toPlatform
+      );
+
+      res.json({ content: adaptedContent });
+    } catch (error) {
+      console.error('Gemini adaptation error:', error);
+      res.status(500).json({ error: 'Не удалось адаптировать контент' });
+    }
+  });
+
+  // Персонализация контента
+  app.post('/api/gemini/personalize', isAuthenticated, async (req: any, res) => {
+    try {
+      const { content, audienceProfile } = req.body;
+
+      const { geminiService } = await import('./services/geminiService');
+      const personalizedContent = await geminiService.personalizeContent(
+        content,
+        audienceProfile
+      );
+
+      res.json({ content: personalizedContent });
+    } catch (error) {
+      console.error('Gemini personalization error:', error);
+      res.status(500).json({ error: 'Не удалось персонализировать контент' });
+    }
+  });
+
   // === УМНОЕ ПРОДВИЖЕНИЕ С API ИНТЕГРАЦИЕЙ ===
 
   // Анализ всех интегрированных платформ
