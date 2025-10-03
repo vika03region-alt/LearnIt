@@ -49,8 +49,7 @@ export default function TelegramPost() {
       platformId: number;
       mediaUrls?: string[];
     }) => {
-      const response = await apiRequest('POST', '/api/posts', data);
-      return await response.json();
+      return apiRequest('/api/posts', 'POST', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
@@ -81,12 +80,40 @@ export default function TelegramPost() {
         config: { duration: 5, mode: 'std' }
       });
     },
-    onSuccess: (data: any) => {
+    onSuccess: async (data: any) => {
+      const videoId = data.videoId;
       toast({
         title: "AI Video Generation Started! 🎬",
-        description: `Your video is being generated. Check AI Video Studio to monitor progress.`,
+        description: `Your video is being generated. It will be automatically attached when ready.`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/ai-video/user-videos'] });
+
+      const pollInterval = setInterval(async () => {
+        try {
+          const status = await apiRequest(`/api/ai-video/status/${videoId}`, 'GET');
+          
+          if (status.status === 'completed' && status.videoUrl) {
+            clearInterval(pollInterval);
+            setVideoUrl(status.videoUrl);
+            toast({
+              title: "Video Ready! ✅",
+              description: "AI-generated video has been attached to your post.",
+            });
+          } else if (status.status === 'failed') {
+            clearInterval(pollInterval);
+            toast({
+              title: "Video Generation Failed",
+              description: "The video could not be generated. Please try again.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          clearInterval(pollInterval);
+          console.error('Error polling video status:', error);
+        }
+      }, 5000);
+
+      setTimeout(() => clearInterval(pollInterval), 300000);
     },
     onError: (error: any) => {
       toast({
