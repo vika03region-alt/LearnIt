@@ -4,22 +4,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 });
 
-// Kling AI API через разные провайдеры
+// Kling AI API через PiAPI (самый дешевый: $0.24/видео)
 const KLING_API_KEY = process.env.KLING_API_KEY || '';
-const KLING_PROVIDER = process.env.KLING_PROVIDER || 'piapi'; // 'fal', 'piapi'
-
-// API endpoints для разных провайдеров (актуализировано 2025)
-const API_ENDPOINTS = {
-  fal: {
-    textToVideo: 'https://fal.run/fal-ai/kling-video/v2.1/standard/text-to-video',
-    imageToVideo: 'https://fal.run/fal-ai/kling-video/v2.1/standard/image-to-video',
-    status: 'https://fal.run/fal-ai'
-  },
-  piapi: {
-    createTask: 'https://api.piapi.ai/api/v1/task',
-    getTask: 'https://api.piapi.ai/api/v1/task'
-  }
-};
 
 export interface VideoScene {
   text: string;
@@ -31,7 +17,7 @@ export interface KlingVideoConfig {
   duration: 5 | 10;
   mode: 'std' | 'pro';
   aspectRatio?: '16:9' | '9:16' | '1:1';
-  cfgScale?: number; // 0-1, prompt adherence
+  cfgScale?: number;
   negativePrompt?: string;
 }
 
@@ -112,7 +98,7 @@ class KlingAIService {
     }
   }
 
-  // === KLING AI: TEXT-TO-VIDEO ===
+  // === KLING AI: TEXT-TO-VIDEO (PiAPI 2025) ===
   async generateTextToVideo(
     prompt: string,
     config: Partial<KlingVideoConfig> = {}
@@ -130,57 +116,25 @@ class KlingAIService {
     };
 
     try {
-      let response;
-      
-      if (KLING_PROVIDER === 'fal') {
-        // FAL.ai integration
-        response = await fetch(API_ENDPOINTS.fal, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Key ${KLING_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
+      const response = await fetch('https://api.piapi.ai/api/v1/task', {
+        method: 'POST',
+        headers: {
+          'x-api-key': KLING_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'kling',
+          task_type: 'video_generation',
+          input: {
             prompt: prompt,
-            duration: defaultConfig.duration.toString(),
+            negative_prompt: defaultConfig.negativePrompt,
             cfg_scale: defaultConfig.cfgScale,
-            mode: defaultConfig.mode,
-            negative_prompt: defaultConfig.negativePrompt
-          })
-        });
-      } else if (KLING_PROVIDER === 'piapi') {
-        // PiAPI integration
-        response = await fetch(API_ENDPOINTS.piapi, {
-          method: 'POST',
-          headers: {
-            'X-API-Key': KLING_API_KEY,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            prompt: prompt,
             duration: defaultConfig.duration,
-            mode: defaultConfig.mode,
-            aspect_ratio: defaultConfig.aspectRatio
-          })
-        });
-      } else {
-        // Pollo AI integration
-        response = await fetch(API_ENDPOINTS.pollo, {
-          method: 'POST',
-          headers: {
-            'x-api-key': KLING_API_KEY,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            input: {
-              prompt: prompt,
-              negativePrompt: defaultConfig.negativePrompt,
-              length: defaultConfig.duration,
-              mode: defaultConfig.mode
-            }
-          })
-        });
-      }
+            aspect_ratio: defaultConfig.aspectRatio,
+            mode: defaultConfig.mode
+          }
+        })
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -189,23 +143,24 @@ class KlingAIService {
 
       const data = await response.json();
 
-      // Расчет стоимости (fal.ai: $0.25 за 5 сек стандарт, $0.45 про)
-      const cost = defaultConfig.mode === 'std' ? 0.25 : 0.45;
-      const extraCost = defaultConfig.duration === 10 ? (defaultConfig.mode === 'std' ? 0.05 : 0.09) : 0;
+      // Цены PiAPI 2025: Standard $0.24/5s, $0.48/10s; Pro $0.48/5s, $0.96/10s
+      const cost = defaultConfig.mode === 'std' 
+        ? (defaultConfig.duration === 5 ? 0.24 : 0.48)
+        : (defaultConfig.duration === 5 ? 0.48 : 0.96);
 
       return {
-        taskId: data.request_id || data.task_id || data.id,
+        taskId: data.data?.task_id || data.task_id,
         status: 'queued',
-        cost: cost + extraCost,
+        cost,
         estimatedTime: '2-3 minutes',
-        provider: `Kling AI (${KLING_PROVIDER})`
+        provider: 'Kling AI (PiAPI)'
       };
     } catch (error) {
       throw new Error(`Kling video generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  // === KLING AI: IMAGE-TO-VIDEO ===
+  // === KLING AI: IMAGE-TO-VIDEO (PiAPI 2025) ===
   async generateImageToVideo(
     imageUrl: string,
     prompt: string,
@@ -223,33 +178,24 @@ class KlingAIService {
     };
 
     try {
-      const endpoint = KLING_PROVIDER === 'fal' 
-        ? 'https://api.fal.ai/v1/kling-video/v2.1/standard/image-to-video'
-        : API_ENDPOINTS[KLING_PROVIDER as keyof typeof API_ENDPOINTS];
-
-      const response = await fetch(endpoint, {
+      const response = await fetch('https://api.piapi.ai/api/v1/task', {
         method: 'POST',
         headers: {
-          [KLING_PROVIDER === 'fal' ? 'Authorization' : KLING_PROVIDER === 'piapi' ? 'X-API-Key' : 'x-api-key']: 
-            KLING_PROVIDER === 'fal' ? `Key ${KLING_API_KEY}` : KLING_API_KEY,
+          'x-api-key': KLING_API_KEY,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(
-          KLING_PROVIDER === 'fal' ? {
+        body: JSON.stringify({
+          model: 'kling',
+          task_type: 'video_generation',
+          input: {
             image_url: imageUrl,
             prompt: prompt,
-            duration: defaultConfig.duration.toString(),
+            negative_prompt: defaultConfig.negativePrompt,
             cfg_scale: defaultConfig.cfgScale,
+            duration: defaultConfig.duration,
             mode: defaultConfig.mode
-          } : {
-            input: {
-              image: imageUrl,
-              prompt: prompt,
-              length: defaultConfig.duration,
-              mode: defaultConfig.mode
-            }
           }
-        )
+        })
       });
 
       if (!response.ok) {
@@ -259,69 +205,61 @@ class KlingAIService {
 
       const data = await response.json();
 
-      const cost = defaultConfig.mode === 'std' ? 0.25 : 0.45;
-      const extraCost = defaultConfig.duration === 10 ? (defaultConfig.mode === 'std' ? 0.05 : 0.09) : 0;
+      const cost = defaultConfig.mode === 'std' 
+        ? (defaultConfig.duration === 5 ? 0.24 : 0.48)
+        : (defaultConfig.duration === 5 ? 0.48 : 0.96);
 
       return {
-        taskId: data.request_id || data.task_id || data.id,
+        taskId: data.data?.task_id || data.task_id,
         status: 'queued',
-        cost: cost + extraCost,
+        cost,
         estimatedTime: '2-3 minutes',
-        provider: `Kling AI (${KLING_PROVIDER})`
+        provider: 'Kling AI (PiAPI)'
       };
     } catch (error) {
       throw new Error(`Kling image-to-video generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  // === ПРОВЕРКА СТАТУСА ВИДЕО ===
+  // === ПРОВЕРКА СТАТУСА ВИДЕО (PiAPI 2025) ===
   async checkVideoStatus(taskId: string): Promise<VideoGenerationResult> {
     if (!KLING_API_KEY) {
       throw new Error('Kling API key not configured.');
     }
 
     try {
-      let endpoint: string;
-      let headers: Record<string, string>;
-
-      if (KLING_PROVIDER === 'fal') {
-        endpoint = `https://api.fal.ai/v1/tasks/${taskId}`;
-        headers = {
-          'Authorization': `Key ${KLING_API_KEY}`
-        };
-      } else if (KLING_PROVIDER === 'piapi') {
-        endpoint = `https://api.piapi.ai/kling/task/${taskId}`;
-        headers = {
-          'X-API-Key': KLING_API_KEY
-        };
-      } else {
-        endpoint = `https://pollo.ai/api/platform/task/${taskId}`;
-        headers = {
+      const response = await fetch(`https://api.piapi.ai/api/v1/task?task_id=${taskId}`, {
+        headers: {
           'x-api-key': KLING_API_KEY
-        };
-      }
+        }
+      });
 
-      const response = await fetch(endpoint, { headers });
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.data;
 
-      // Преобразование статуса в унифицированный формат
+      // Статусы PiAPI: pending, processing, completed, failed, staged
       let status: VideoGenerationResult['status'] = 'processing';
-      if (data.status === 'COMPLETED' || data.state === 'completed') {
+      if (data.status === 'completed') {
         status = 'completed';
-      } else if (data.status === 'FAILED' || data.state === 'failed') {
+      } else if (data.status === 'failed') {
         status = 'failed';
-      } else if (data.status === 'PROCESSING' || data.state === 'processing') {
+      } else if (data.status === 'pending' || data.status === 'processing') {
         status = 'processing';
       }
+
+      // Извлечение URL видео из ответа PiAPI
+      const videoUrl = data.output?.works?.[0]?.video?.resource || 
+                      data.output?.works?.[0]?.video?.resource_without_watermark;
 
       return {
         taskId,
         status,
-        videoUrl: data.video_url || data.output?.video_url || data.result?.video_url,
-        thumbnailUrl: data.thumbnail_url || data.output?.thumbnail_url,
-        duration: data.duration,
-        cost: 0.25, // Уже учтено при создании
-        provider: `Kling AI (${KLING_PROVIDER})`
+        videoUrl,
+        thumbnailUrl: data.output?.works?.[0]?.image?.resource,
+        duration: data.output?.works?.[0]?.video?.duration ? 
+          data.output.works[0].video.duration / 1000 : undefined,
+        cost: 0.24,
+        provider: 'Kling AI (PiAPI)'
       };
     } catch (error) {
       throw new Error(`Failed to check video status: ${error instanceof Error ? error.message : 'Unknown error'}`);
