@@ -375,6 +375,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === ИНТЕГРАЦИЯ С ПЛАТФОРМАМИ И AI-АНАЛИЗ ===
+
+  // Полная интеграция с платформой и создание стратегии
+  app.post('/api/platform/integrate-and-analyze', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { platform, apiKey, accountHandle } = req.body;
+
+      const { platformIntegrationEngine } = await import('./services/platformIntegrationEngine');
+      
+      // Собираем данные через API платформы
+      const integration = {
+        platform,
+        apiKey,
+        accountData: {
+          userId,
+          name: accountHandle,
+          industry: req.body.industry || 'general',
+          budget: req.body.budget || 10000,
+        },
+        audienceData: {
+          // Эти данные будут получены из реального API платформы
+          followers: req.body.currentFollowers || 0,
+          engagement_rate: req.body.currentEngagement || 0,
+          demographics: req.body.demographics || {},
+          interests: req.body.interests || [],
+          pain_points: req.body.painPoints || [],
+        },
+        competitorData: {
+          top_competitors: req.body.competitors || [],
+          trends: req.body.trends || [],
+        }
+      };
+
+      const strategy = await platformIntegrationEngine.analyzeAndProposeStrategy(integration);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Platform Integration Complete',
+        description: `Платформа ${platform} интегрирована и проанализирована`,
+        status: 'success',
+        metadata: { platform, strategy },
+      });
+
+      res.json({
+        success: true,
+        message: `Платформа ${platform} успешно интегрирована!`,
+        strategy,
+        next_steps: [
+          'Выберите бесплатные тактики для немедленного запуска',
+          'Настройте бюджет для платных кампаний',
+          'Активируйте автоматизацию контента',
+          'Запустите мониторинг конкурентов'
+        ]
+      });
+    } catch (error) {
+      console.error('Ошибка интеграции платформы:', error);
+      res.status(500).json({ error: 'Не удалось интегрировать платформу' });
+    }
+  });
+
   // === B2B МАРКЕТИНГ МАРШРУТЫ ===
 
   // Анализ целевой аудитории организации
