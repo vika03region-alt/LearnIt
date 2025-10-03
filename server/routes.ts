@@ -21,9 +21,9 @@ import type { Platform, UserAccount } from "@shared/schema";
 import { insertPostSchema, insertAIContentLogSchema } from "@shared/schema";
 import { z } from "zod";
 import type { Bot } from "grammy";
+import { bot } from "./telegramBot";
 
-// Assume bot is imported and potentially initialized elsewhere
-declare const bot: Bot | undefined;
+// Telegram configuration
 declare const TELEGRAM_TOKEN: string;
 declare const CHANNEL_ID: string;
 
