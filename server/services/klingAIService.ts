@@ -1,11 +1,22 @@
 import OpenAI from 'openai';
+import { fal } from '@fal-ai/client';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 });
 
+// Fal.ai API (Hunyuan Video: $0.40/видео, WAN-2.1: $0.20-0.40/видео)
+const FAL_KEY = process.env.FAL_KEY || '';
+
 // Kling AI API через PiAPI (самый дешевый: $0.24/видео)
 const KLING_API_KEY = process.env.KLING_API_KEY || '';
+
+// Конфигурация Fal.ai
+if (FAL_KEY) {
+  fal.config({
+    credentials: FAL_KEY
+  });
+}
 
 export interface VideoScene {
   text: string;
@@ -311,6 +322,83 @@ class KlingAIService {
     }
 
     throw new Error('Video generation timeout');
+  }
+
+  // === FAL.AI: HUNYUAN VIDEO (TEXT-TO-VIDEO) ===
+  async generateFalVideo(
+    prompt: string,
+    config: {
+      model?: 'hunyuan' | 'wan' | 'veo3';
+      resolution?: '480p' | '720p';
+      aspectRatio?: '16:9' | '9:16' | '1:1';
+      numFrames?: number;
+    } = {}
+  ): Promise<VideoGenerationResult> {
+    if (!FAL_KEY) {
+      throw new Error('Fal.ai API key not configured. Please set FAL_KEY environment variable.');
+    }
+
+    const model = config.model || 'hunyuan';
+    const modelEndpoints = {
+      'hunyuan': 'fal-ai/hunyuan-video',
+      'wan': 'fal-ai/wan-t2v',
+      'veo3': 'fal-ai/veo3'
+    };
+
+    const costs = {
+      'hunyuan': 0.40,
+      'wan': config.resolution === '720p' ? 0.40 : 0.20,
+      'veo3': 0.40 // базовая оценка
+    };
+
+    try {
+      console.log(`🎬 Fal.ai: Запуск генерации ${model} видео...`);
+      console.log(`📤 Промпт:`, prompt);
+
+      const input: any = {
+        prompt: prompt,
+      };
+
+      if (model === 'hunyuan') {
+        input.num_inference_steps = 30;
+        input.aspect_ratio = config.aspectRatio || '16:9';
+        input.resolution = config.resolution || '720p';
+        input.num_frames = config.numFrames || 129;
+      } else if (model === 'wan') {
+        input.resolution = config.resolution || '720p';
+      } else if (model === 'veo3') {
+        input.audio_enabled = false;
+        input.aspect_ratio = config.aspectRatio || '16:9';
+      }
+
+      const result = await fal.subscribe(modelEndpoints[model], {
+        input,
+        logs: true,
+        onQueueUpdate: (update: any) => {
+          if (update.status === 'IN_PROGRESS') {
+            console.log(`⏳ ${model}: В процессе...`);
+          }
+        }
+      });
+
+      console.log(`✅ Fal.ai результат:`, result);
+
+      if (result.data?.video?.url) {
+        return {
+          taskId: result.requestId || 'fal-' + Date.now(),
+          status: 'completed',
+          videoUrl: result.data.video.url,
+          duration: model === 'hunyuan' ? 5 : 10,
+          cost: costs[model],
+          provider: `Fal.ai (${model})`
+        };
+      } else {
+        throw new Error('Video URL not found in response');
+      }
+    } catch (error) {
+      console.error(`❌ Fal.ai ${model} ошибка:`, error);
+      throw new Error(`Fal.ai video generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 }
 
