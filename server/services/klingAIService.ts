@@ -59,6 +59,18 @@ interface ViralVideoAnalysis {
     hashtags: string[];
   };
   recommendations: string[];
+  avgViews?: number;
+  avgEngagement?: number;
+}
+
+// Interface for BrandConfig - Assuming this is defined elsewhere or should be defined here.
+// For this example, I'll define a placeholder interface.
+interface BrandConfig {
+  name: string;
+  logo?: string;
+  channel?: string;
+  colors?: string[];
+  slogan?: string;
 }
 
 class KlingAIService {
@@ -86,6 +98,8 @@ class KlingAIService {
 - topVideos: массив видео с URL, title, views, engagement, viralFactors (что сделало видео вирусным)
 - commonElements: общие элементы успеха (hooks, visualStyles, musicTypes, duration, hashtags)
 - recommendations: рекомендации для создания похожего вирусного контента
+- avgViews: среднее количество просмотров топ-видео
+- avgEngagement: средняя вовлеченность топ-видео (в %)
 
 Фокус на трейдинг/крипто/финансы контент. Используй реальные данные о популярных каналах.`;
 
@@ -99,7 +113,20 @@ class KlingAIService {
         temperature: 0.7
       });
 
-      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      const analysis: ViralVideoAnalysis = JSON.parse(response.choices[0].message.content || '{}');
+
+      // Ensure avgViews and avgEngagement are calculated if not directly provided by GPT
+      if (analysis.topVideos && analysis.topVideos.length > 0) {
+        const totalViews = analysis.topVideos.reduce((sum, video) => sum + video.views, 0);
+        analysis.avgViews = totalViews / analysis.topVideos.length;
+
+        const totalEngagement = analysis.topVideos.reduce((sum, video) => sum + video.engagement, 0);
+        analysis.avgEngagement = totalEngagement / analysis.topVideos.length;
+      } else {
+        analysis.avgViews = 0;
+        analysis.avgEngagement = 0;
+      }
+
       return analysis;
     } catch (error) {
       console.error('Ошибка анализа топовых видео:', error);
@@ -110,136 +137,142 @@ class KlingAIService {
   // === АВТОМАТИЧЕСКАЯ ГЕНЕРАЦИЯ ВИРУСНОГО ВИДЕО С БРЕНДОМ ===
   async generateViralBrandedVideo(
     topic: string,
-    brandConfig: {
-      name: string;
-      logo?: string;
-      channel?: string;
-      colors?: string[];
-      slogan?: string;
-    },
-    options?: {
-      duration?: 5 | 10;
-      mode?: 'std' | 'pro';
-      aspectRatio?: '16:9' | '9:16' | '1:1';
-      platform?: 'tiktok' | 'youtube' | 'instagram';
-    }
+    brandConfig: BrandConfig,
+    options: Partial<KlingVideoConfig> = {}
   ): Promise<{
     videoId: string;
-    analysis: ViralVideoAnalysis;
     prompt: string;
+    telegramCaption: string;
+    analysis: ViralVideoAnalysis;
     brandedElements: string[];
     cost: number;
   }> {
     try {
-      console.log(`🔥 Анализируем топовые видео по теме: ${topic}`);
+      console.log(`🔥 Создаем ВИРУСНОЕ видео для Telegram с брендом: ${brandConfig.name}`);
 
-      // 1. Анализируем популярные видео
-      const analysis = await this.analyzeTopVideos(
+      // 1. Анализируем топовые видео по теме (для Telegram используем TikTok метрики)
+      const analysis = await this.analyzeTopVideos(topic, 'tiktok', 15);
+
+      // 2. Создаем промпт с вирусными элементами + бренд (оптимизированный для Telegram)
+      const viralElements = analysis.commonElements;
+      const brandedPrompt = this.createTelegramOptimizedPrompt(
         topic,
-        options?.platform || 'tiktok',
-        5
+        brandConfig,
+        viralElements,
+        options.duration || 5
       );
 
-      console.log(`✅ Найдено ${analysis.topVideos.length} топовых видео`);
-      console.log(`📊 Вирусные факторы:`, analysis.commonElements);
+      console.log(`📝 Промпт для Telegram:\n${brandedPrompt}`);
 
-      // 2. Создаем оптимизированный промпт на основе анализа
-      const viralPrompt = this.createViralPrompt(topic, analysis, brandConfig);
+      // 3. Генерируем видео (для Telegram оптимально 9:16 или 1:1)
+      const videoConfig: KlingVideoConfig = {
+        mode: options.mode || 'pro',
+        duration: options.duration || 5,
+        aspectRatio: options.aspectRatio || '9:16',
+        cfgScale: options.cfgScale || 0.7, // Чуть выше для более точного следования промпту
+        negativePrompt: options.negativePrompt || 
+          'blurry, low quality, distorted, amateur, watermark (except brand logo), pixelated, static, boring'
+      };
 
-      console.log(`📝 Сгенерирован вирусный промпт с брендом ${brandConfig.name}`);
+      const result = await this.generateTextToVideo(brandedPrompt, videoConfig);
 
-      // 3. Генерируем видео
-      const videoResult = await this.generateVideo({
-        prompt: viralPrompt,
-        duration: options?.duration || 5,
-        mode: options?.mode || 'pro', // Для вирусного контента используем PRO
-        aspectRatio: options?.aspectRatio || '9:16', // Vertical для TikTok/Reels
-        cfgScale: 0.8, // Высокая точность следования промпту
-        negativePrompt: 'blurry, low quality, amateur, boring, static, watermark'
-      });
+      // 4. Создаем вирусную подпись для Telegram
+      const telegramCaption = this.generateTelegramCaption(
+        topic,
+        brandConfig,
+        viralElements,
+        analysis
+      );
 
-      // 4. Добавляем брендирование в метаданные
-      const brandedElements = this.extractBrandedElements(viralPrompt, brandConfig);
+      // 5. Логируем брендированные элементы
+      const brandedElements = [
+        `🏷️ Бренд: ${brandConfig.name}`,
+        `📢 Telegram: ${brandConfig.channel || '@your_channel'}`,
+        `💬 ${brandConfig.slogan || 'Подпишись для эксклюзивного контента!'}`,
+        `🎨 Фирменные цвета в видео`,
+        `🔥 Топ-хуки: ${viralElements.hooks.slice(0, 3).join(' | ')}`,
+        `📊 Потенциал: ${Math.round(analysis.avgViews).toLocaleString()} просмотров`,
+        `⚡ Вирусность: ${viralElements.avgEngagement.toFixed(1)}% вовлеченность`
+      ];
+
+      console.log('✅ Элементы для Telegram:');
+      brandedElements.forEach(el => console.log(`  ${el}`));
 
       return {
-        videoId: videoResult.taskId,
+        videoId: result.taskId,
+        prompt: brandedPrompt,
+        telegramCaption,
         analysis,
-        prompt: viralPrompt,
         brandedElements,
-        cost: videoResult.cost
+        cost: result.cost
       };
     } catch (error) {
-      throw new Error(`Не удалось создать вирусное видео: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Ошибка создания вирусного видео для Telegram:', error);
+      throw error;
     }
   }
 
-  // === СОЗДАНИЕ ВИРУСНОГО ПРОМПТА ===
-  private createViralPrompt(
+  private createTelegramOptimizedPrompt(
     topic: string,
-    analysis: ViralVideoAnalysis,
-    brandConfig: any
+    brand: BrandConfig,
+    viralElements: ViralVideoAnalysis['commonElements'], // Use the specific type
+    duration: number
   ): string {
-    const { commonElements, recommendations } = analysis;
+    const hooks = viralElements.hooks.slice(0, 2).join(', ');
+    const visualStyle = viralElements.visualStyles.slice(0, 2).join(', '); // Use visualStyles instead of visualPatterns
 
-    // Берем лучшие элементы из анализа
-    const topHooks = commonElements.hooks.slice(0, 2).join(', ');
-    const visualStyle = commonElements.visualStyles[0] || 'cinematic professional';
-    const hashtags = commonElements.hashtags.slice(0, 3).join(' ');
+    return `
+🎬 TELEGRAM VIRAL VIDEO - ${duration} SECONDS
 
-    // Создаем промпт с брендированием
-    let prompt = `${topic} video in ${visualStyle} style. `;
+TOPIC: ${topic}
 
-    // Добавляем вирусные элементы
-    prompt += `Hook: ${topHooks}. `;
+BRAND INTEGRATION:
+- Brand name "${brand.name}" subtly visible (logo watermark, channel mention at end)
+- Brand colors: ${brand.colors?.[0] || '#FFFFFF'} and ${brand.colors?.[1] || '#000000'} in background/accents
+- Channel: ${brand.channel || '@channel'} appears at 0:00:04
+${brand.slogan ? `- Slogan: "${brand.slogan}" as text overlay at end` : ''}
 
-    // БРЕНДИРОВАНИЕ - это ключевое!
-    prompt += `Brand: ${brandConfig.name} logo visible throughout. `;
+VIRAL ELEMENTS (from top performers):
+- Opening hook: ${hooks}
+- Visual style: ${visualStyle}, dynamic, eye-catching
+- Fast-paced, attention-grabbing from first frame
+- Professional quality, cinematic lighting
 
-    if (brandConfig.colors && brandConfig.colors.length > 0) {
-      prompt += `Brand colors: ${brandConfig.colors.join(', ')}. `;
-    }
+TELEGRAM OPTIMIZATION:
+- Vertical format optimized for mobile viewing
+- Clear, bold visuals that work without sound
+- Text overlays readable on small screens
+- Engaging thumbnail moment at 0:00:01
 
-    if (brandConfig.slogan) {
-      prompt += `Slogan "${brandConfig.slogan}" displayed. `;
-    }
-
-    // Добавляем визуальный стиль для максимальной вирусности
-    prompt += `Professional lighting, dynamic camera angles, engaging visuals. `;
-    prompt += `Trending format, attention-grabbing, social media optimized. `;
-
-    // Канал/контакт
-    if (brandConfig.channel) {
-      prompt += `Channel name ${brandConfig.channel} watermark. `;
-    }
-
-    prompt += `${hashtags}. High quality, viral potential, engaging content.`;
-
-    return prompt;
+STYLE: Professional trading content, modern, dynamic, high energy
+QUALITY: 4K, sharp, vibrant colors, professional cinematography
+    `.trim();
   }
 
-  // === ИЗВЛЕЧЕНИЕ БРЕНДИРОВАННЫХ ЭЛЕМЕНТОВ ===
-  private extractBrandedElements(prompt: string, brandConfig: any): string[] {
-    const elements: string[] = [];
+  private generateTelegramCaption(
+    topic: string,
+    brand: BrandConfig,
+    viralElements: ViralVideoAnalysis['commonElements'], // Use the specific type
+    analysis: ViralVideoAnalysis // Use the specific type
+  ): string {
+    const topHook = viralElements.hooks[0] || 'Check this out!'; // Default hook
+    const emoji = '🔥💰📈⚡🎯'.split('')[Math.floor(Math.random() * 5)];
 
-    elements.push(`Бренд: ${brandConfig.name}`);
+    return `
+${emoji} ${topHook}
 
-    if (brandConfig.logo) {
-      elements.push(`Логотип: ${brandConfig.logo}`);
-    }
+${topic}
 
-    if (brandConfig.channel) {
-      elements.push(`Канал: ${brandConfig.channel}`);
-    }
+${brand.slogan || 'Эксклюзивный контент для трейдеров!'}
 
-    if (brandConfig.colors) {
-      elements.push(`Цвета бренда: ${brandConfig.colors.join(', ')}`);
-    }
+📊 Основано на анализе ${analysis.topVideos.length} вирусных видео
+⚡ Средний охват: ${Math.round(analysis.avgViews || 0).toLocaleString()} просмотров
+📈 Средняя вовлеченность: ${analysis.avgEngagement?.toFixed(1) || 0}%
 
-    if (brandConfig.slogan) {
-      elements.push(`Слоган: ${brandConfig.slogan}`);
-    }
+👉 Подписывайся на канал: ${brand.channel || '@your_channel'}
 
-    return elements;
+#${topic.toLowerCase().replace(/\s+/g, '')} #trading #viral #${brand.name.toLowerCase().replace(/\s+/g, '')}
+    `.trim();
   }
 
   // === ДЕФОЛТНЫЙ АНАЛИЗ (если API недоступен) ===
@@ -267,7 +300,9 @@ class KlingAIService {
         'Use trending music',
         'Add captions for accessibility',
         'Include clear call-to-action'
-      ]
+      ],
+      avgViews: 2500000,
+      avgEngagement: 18.5
     };
   }
 

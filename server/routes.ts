@@ -1847,6 +1847,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { userId, platformId } = sessionState;
 
+      // Убедимся что пользователь существует в базе данных
+      let user = await storage.getUser(userId);
+      if (!user && req.user?.claims) {
+        // Создаем пользователя автоматически если его нет
+        user = await storage.upsertUser({
+          id: userId,
+          email: req.user.claims.email,
+          firstName: req.user.claims.first_name,
+          lastName: req.user.claims.last_name,
+          profileImageUrl: req.user.claims.profile_image_url,
+        });
+        console.log(`✅ Автоматически создан пользователь: ${user.email}`);
+      }
+
       const service = socialMediaManager.getService(platformId);
       if (!service) {
         return res.status(400).json({ error: 'Platform not supported' });
