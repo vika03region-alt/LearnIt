@@ -116,51 +116,40 @@ class KlingAIService {
     };
 
     try {
-      console.log('🎬 Отправка запроса в PiAPI Kling AI...');
-      
-      const requestBody = {
-        model: 'kling',
-        task_type: 'video_generation',
-        input: {
-          prompt: prompt,
-          negative_prompt: defaultConfig.negativePrompt,
-          cfg_scale: defaultConfig.cfgScale,
-          mode: defaultConfig.mode,
-          aspect_ratio: defaultConfig.aspectRatio,
-          duration: defaultConfig.duration
-        }
-      };
-
-      console.log('📤 Запрос:', JSON.stringify(requestBody, null, 2));
-
       const response = await fetch('https://api.piapi.ai/api/v1/task', {
         method: 'POST',
         headers: {
           'x-api-key': KLING_API_KEY,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          model: 'kling',
+          task_type: 'video_generation',
+          input: {
+            prompt: prompt,
+            negative_prompt: defaultConfig.negativePrompt,
+            cfg_scale: defaultConfig.cfgScale,
+            duration: defaultConfig.duration,
+            aspect_ratio: defaultConfig.aspectRatio,
+            mode: defaultConfig.mode
+          }
+        })
       });
 
-      console.log('📥 Статус ответа:', response.status, response.statusText);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Kling AI API error: ${error.message || response.statusText}`);
+      }
 
       const data = await response.json();
-      console.log('📥 Данные ответа:', JSON.stringify(data, null, 2));
-
-      if (!response.ok || data.code !== 200) {
-        throw new Error(`Kling AI API error: ${data.message || data.msg || response.statusText}`);
-      }
 
       // Цены PiAPI 2025: Standard $0.24/5s, $0.48/10s; Pro $0.48/5s, $0.96/10s
       const cost = defaultConfig.mode === 'std' 
         ? (defaultConfig.duration === 5 ? 0.24 : 0.48)
         : (defaultConfig.duration === 5 ? 0.48 : 0.96);
 
-      const taskId = data.data?.task_id || data.task_id;
-      console.log('✅ Задача создана:', taskId);
-
       return {
-        taskId,
+        taskId: data.data?.task_id || data.task_id,
         status: 'queued',
         cost,
         estimatedTime: '2-3 minutes',
@@ -220,11 +209,8 @@ class KlingAIService {
         ? (defaultConfig.duration === 5 ? 0.24 : 0.48)
         : (defaultConfig.duration === 5 ? 0.48 : 0.96);
 
-      const taskId = data.data?.task_id || data.task_id;
-      console.log('✅ Задача создана:', taskId);
-
       return {
-        taskId,
+        taskId: data.data?.task_id || data.task_id,
         status: 'queued',
         cost,
         estimatedTime: '2-3 minutes',
