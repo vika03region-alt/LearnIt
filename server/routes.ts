@@ -1049,7 +1049,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Topic is required" });
       }
 
-      const script = await huggingFaceVideoService.generateVideoScript(
+      const { klingAIService } = await import('./services/klingAIService');
+      const script = await klingAIService.generateVideoScript(
         topic,
         duration || 10,
         tone || 'professional'
@@ -1083,7 +1084,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Prompt is required" });
       }
 
-      const videoResult = await huggingFaceVideoService.generateTextToVideo(prompt, config);
+      const { klingAIService } = await import('./services/klingAIService');
+      const videoResult = await klingAIService.generateTextToVideo(prompt, config);
 
       // Сохранить в базу данных
       const aiVideo = await storage.createAIVideo({
@@ -1128,7 +1130,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Image URL and prompt are required" });
       }
 
-      const videoResult = await huggingFaceVideoService.generateImageToVideo(imageUrl, prompt, config);
+      const { klingAIService } = await import('./services/klingAIService');
+      const videoResult = await klingAIService.generateImageToVideo(imageUrl, prompt, config);
 
       const aiVideo = await storage.createAIVideo({
         userId,
@@ -1172,7 +1175,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Topic is required" });
       }
 
-      const result = await huggingFaceVideoService.autoGenerateVideo(topic, config);
+      const { klingAIService } = await import('./services/klingAIService');
+      const result = await klingAIService.autoGenerateVideo(topic, config);
 
       const aiVideo = await storage.createAIVideo({
         userId,
@@ -1221,7 +1225,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Проверить статус у Kling AI если еще не завершен
       if (aiVideo.status === 'processing') {
-        const status = await huggingFaceVideoService.checkVideoStatus(aiVideo.videoId);
+        const { klingAIService } = await import('./services/klingAIService');
+        const status = await klingAIService.checkVideoStatus(aiVideo.videoId);
 
         if (status.status === 'completed') {
           await storage.updateAIVideoStatus(
