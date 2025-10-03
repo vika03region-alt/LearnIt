@@ -125,6 +125,84 @@ export const aiVideos = pgTable("ai_videos", {
   completedAt: timestamp("completed_at"),
 });
 
+// Brand Style Configuration (for trend cloning)
+export const brandStyles = pgTable("brand_styles", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  name: varchar("name", { length: 100 }).notNull(), // "Lucifer Trading Style", "Crypto Pro"
+  description: text("description"), // Full brand description
+  // Visual Style
+  primaryColor: varchar("primary_color", { length: 20 }), // "#FF5733"
+  secondaryColor: varchar("secondary_color", { length: 20 }),
+  fontStyle: varchar("font_style", { length: 50 }), // "bold", "modern", "professional"
+  visualStyle: varchar("visual_style", { length: 50 }), // "cinematic", "minimalist", "dynamic"
+  // Content Style  
+  tone: varchar("tone", { length: 50 }).notNull(), // "professional", "casual", "aggressive", "educational"
+  voice: text("voice"), // "Confident crypto expert who speaks directly"
+  keywords: text("keywords").array(), // ["trading", "crypto", "bitcoin", "profit"]
+  hashtags: text("hashtags").array(), // ["#crypto", "#trading", "#bitcoin"]
+  // Video Style
+  videoStyle: text("video_style"), // "High-energy crypto charts with dramatic music, fast cuts, modern UI overlays"
+  scenePreferences: json("scene_preferences").$type<{
+    preferredLength: number; // 5, 10, 15 seconds
+    pacing: 'slow' | 'medium' | 'fast';
+    transitions: 'smooth' | 'cuts' | 'dynamic';
+    musicStyle?: string;
+    visualEffects?: string[];
+  }>(),
+  // Video Format Settings
+  aspectRatio: varchar("aspect_ratio", { length: 20 }).default('9:16'), // "9:16" for TikTok/Reels, "16:9" for YouTube
+  duration: integer("duration").default(30), // Default video duration in seconds
+  // Brand Assets
+  logoUrl: varchar("logo_url", { length: 500 }), // Brand logo for video overlay
+  logoPosition: varchar("logo_position", { length: 50 }).default('bottom-right'), // Logo placement
+  ctaText: varchar("cta_text", { length: 200 }), // Call-to-action text
+  ctaUrl: varchar("cta_url", { length: 500 }), // CTA link
+  // AI Prompts Templates
+  videoPromptTemplate: text("video_prompt_template"), // "{concept}, {videoStyle}, professional quality, {tone} tone"
+  postPromptTemplate: text("post_prompt_template"), // "Write {tone} post about {topic} using {voice}"
+  // Target Audience
+  targetAudience: text("target_audience"), // "Crypto traders 25-45, high income, tech-savvy"
+  // Settings
+  isActive: boolean("is_active").default(true),
+  isDefault: boolean("is_default").default(false), // Default style for user
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Trend Videos (for cloning popular content)
+export const trendVideos = pgTable("trend_videos", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
+  brandStyleId: integer("brand_style_id").references(() => brandStyles.id), // Which brand style to apply
+  source: varchar("source", { length: 50 }).notNull(), // "tiktok", "youtube", "instagram", "manual"
+  sourceUrl: text("source_url"), // Original video URL
+  title: text("title"),
+  description: text("description"),
+  concept: text("concept"), // AI-extracted concept
+  visualElements: text("visual_elements").array(), // ["charts", "coins", "rockets", "fire"]
+  trendScore: real("trend_score"), // 0-100 virality score
+  views: integer("views"),
+  likes: integer("likes"),
+  engagement: real("engagement"),
+  // Adaptation Results
+  adaptedPrompt: text("adapted_prompt"), // AI-generated video prompt adapted to brand
+  adaptedScript: text("adapted_script"), // AI-generated script adapted to brand
+  assetUrls: json("asset_urls").$type<{
+    logo?: string;
+    backgroundMusic?: string;
+    voiceOver?: string;
+    thumbnail?: string;
+  }>(), // URLs of assets used for cloning
+  // Cloning Status
+  status: varchar("status", { length: 20 }).default('pending'), // pending, analyzed, cloned, published
+  clonedVideoId: integer("cloned_video_id").references(() => aiVideos.id),
+  clonedPostId: integer("cloned_post_id").references(() => posts.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  analyzedAt: timestamp("analyzed_at"),
+  clonedAt: timestamp("cloned_at"),
+});
+
 // Analytics data
 export const analytics = pgTable("analytics", {
   id: serial("id").primaryKey(),
@@ -562,3 +640,23 @@ export type AIConversation = typeof aiConversations.$inferSelect;
 export type AIMessage = typeof aiMessages.$inferSelect;
 export type InsertAIConversation = z.infer<typeof insertAIConversation>;
 export type InsertAIMessage = z.infer<typeof insertAIMessage>;
+
+// Brand Style & Trend Cloning Insert/Select Schemas
+export const insertBrandStyle = createInsertSchema(brandStyles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTrendVideo = createInsertSchema(trendVideos).omit({
+  id: true,
+  createdAt: true,
+  analyzedAt: true,
+  clonedAt: true,
+});
+
+// Brand Style & Trend Cloning Types
+export type BrandStyle = typeof brandStyles.$inferSelect;
+export type TrendVideo = typeof trendVideos.$inferSelect;
+export type InsertBrandStyle = z.infer<typeof insertBrandStyle>;
+export type InsertTrendVideo = z.infer<typeof insertTrendVideo>;

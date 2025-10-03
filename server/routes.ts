@@ -2848,6 +2848,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Brand Style endpoints
+  app.post('/api/brand-styles', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const style = await storage.createBrandStyle({ ...req.body, userId });
+      res.json(style);
+    } catch (error) {
+      console.error('Error creating brand style:', error);
+      res.status(500).json({ error: 'Failed to create brand style' });
+    }
+  });
+
+  app.get('/api/brand-styles', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const styles = await storage.getUserBrandStyles(userId);
+      res.json(styles);
+    } catch (error) {
+      console.error('Error fetching brand styles:', error);
+      res.status(500).json({ error: 'Failed to fetch brand styles' });
+    }
+  });
+
+  app.get('/api/brand-styles/default', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const style = await storage.getDefaultBrandStyle(userId);
+      res.json(style || null);
+    } catch (error) {
+      console.error('Error fetching default brand style:', error);
+      res.status(500).json({ error: 'Failed to fetch default brand style' });
+    }
+  });
+
+  app.get('/api/brand-styles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const style = await storage.getBrandStyle(id);
+      if (!style) {
+        return res.status(404).json({ error: 'Brand style not found' });
+      }
+      res.json(style);
+    } catch (error) {
+      console.error('Error fetching brand style:', error);
+      res.status(500).json({ error: 'Failed to fetch brand style' });
+    }
+  });
+
+  app.put('/api/brand-styles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const style = await storage.updateBrandStyle(id, req.body);
+      res.json(style);
+    } catch (error) {
+      console.error('Error updating brand style:', error);
+      res.status(500).json({ error: 'Failed to update brand style' });
+    }
+  });
+
+  app.post('/api/brand-styles/:id/set-default', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      await storage.setDefaultBrandStyle(userId, id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error setting default brand style:', error);
+      res.status(500).json({ error: 'Failed to set default brand style' });
+    }
+  });
+
+  // Trend Video endpoints
+  app.post('/api/trends', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const trend = await storage.createTrendVideo({ ...req.body, userId });
+      res.json(trend);
+    } catch (error) {
+      console.error('Error creating trend:', error);
+      res.status(500).json({ error: 'Failed to create trend' });
+    }
+  });
+
+  app.get('/api/trends', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const trends = await storage.getTrendVideos(userId, limit);
+      res.json(trends);
+    } catch (error) {
+      console.error('Error fetching trends:', error);
+      res.status(500).json({ error: 'Failed to fetch trends' });
+    }
+  });
+
+  app.get('/api/trends/top', isAuthenticated, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const trends = await storage.getTopTrends(limit);
+      res.json(trends);
+    } catch (error) {
+      console.error('Error fetching top trends:', error);
+      res.status(500).json({ error: 'Failed to fetch top trends' });
+    }
+  });
+
+  app.get('/api/trends/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const trend = await storage.getTrendVideo(id);
+      if (!trend) {
+        return res.status(404).json({ error: 'Trend not found' });
+      }
+      res.json(trend);
+    } catch (error) {
+      console.error('Error fetching trend:', error);
+      res.status(500).json({ error: 'Failed to fetch trend' });
+    }
+  });
+
+  app.get('/api/trends/:id/with-style', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const result = await storage.getTrendWithBrandStyle(id);
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching trend with style:', error);
+      res.status(500).json({ error: 'Failed to fetch trend with style' });
+    }
+  });
+
+  app.put('/api/trends/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const trend = await storage.updateTrendVideo(id, req.body);
+      res.json(trend);
+    } catch (error) {
+      console.error('Error updating trend:', error);
+      res.status(500).json({ error: 'Failed to update trend' });
+    }
+  });
+
+  app.put('/api/trends/:id/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, clonedVideoId, clonedPostId } = req.body;
+      const trend = await storage.updateTrendVideoStatus(id, status, clonedVideoId, clonedPostId);
+      res.json(trend);
+    } catch (error) {
+      console.error('Error updating trend status:', error);
+      res.status(500).json({ error: 'Failed to update trend status' });
+    }
+  });
+
+  app.get('/api/trends/pending/with-style', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const trends = await storage.getPendingTrendsWithDefaultStyle(userId, limit);
+      res.json(trends);
+    } catch (error) {
+      console.error('Error fetching pending trends with style:', error);
+      res.status(500).json({ error: 'Failed to fetch pending trends' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

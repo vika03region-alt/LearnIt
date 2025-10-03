@@ -4,6 +4,14 @@ This is a comprehensive social media automation platform called "Lucifer Trading
 
 ## Recent Changes (October 2025)
 
+### Brand Style & Trend Cloning System (Latest)
+- **Database Schema**: Created `brandStyles` and `trendVideos` tables for automated trend adaptation to brand identity
+- **Brand Style Features**: Complete brand configuration with logo/CTA assets, video format settings (aspect ratio, duration), visual/content style (colors, tone, voice), and AI prompt templates
+- **Trend Video System**: Track trending videos from multiple sources (TikTok, YouTube, Instagram) with virality metrics, AI-extracted concepts, and brand adaptation results
+- **Relational Design**: Full integration between trends and brand styles via `brandStyleId` foreign key with adaptation output storage (adaptedPrompt, adaptedScript, assetUrls)
+- **Storage Layer**: Comprehensive CRUD operations plus combined queries (getTrendWithBrandStyle, getTrendsForBrandStyle, getPendingTrendsWithDefaultStyle) for efficient workflow execution
+- **Architecture Validated**: Architect-approved implementation ready for Trend Analysis service integration
+
 ### Kling AI Video Generation Integration
 - **AI Video Service**: Integrated Kling AI for automated video generation from text prompts and images with text-to-video and image-to-video modes
 - **Cost Efficiency**: Leverages Kling AI free tier (66 daily credits = 6 videos/day) at $0.25/video for paid generation
