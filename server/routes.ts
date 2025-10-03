@@ -1147,6 +1147,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createActivityLog({
         userId,
         action: 'AI Image-to-Video Started',
+
+
+  // === PRO PLAN ACTIVATION ===
+  app.post('/api/subscription/activate-pro', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { monetizationService } = await import('./services/monetization');
+      
+      const result = await monetizationService.activateProPlan(userId);
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Pro Features Unlocked',
+        description: '🚀 Все премиум-функции разблокированы',
+        status: 'success',
+        metadata: {
+          payment: 50,
+          features: [
+            '10,000 AI кредитов/месяц',
+            'Неограниченные посты',
+            '5 платформ',
+            'Продвинутая аналитика',
+            'Вирусный движок',
+            'Автопродвижение',
+            'Конкурентная разведка',
+            'AI обучение'
+          ]
+        }
+      });
+
+      res.json({
+        success: true,
+        message: '🎉 PRO ПЛАН АКТИВИРОВАН!',
+        plan: result.plan,
+        features: result.features,
+        unlocked: [
+          '✅ Unlimited AI контент',
+          '✅ Viral Growth Engine',
+          '✅ Brand Domination',
+          '✅ Competitor Surveillance',
+          '✅ Auto Promotion Bot',
+          '✅ Deep Analytics',
+          '✅ AI Learning System',
+          '✅ Priority Support'
+        ]
+      });
+    } catch (error) {
+      console.error('Ошибка активации Pro:', error);
+      res.status(500).json({ error: 'Не удалось активировать Pro план' });
+    }
+  });
+
+  // Проверка статуса подписки
+  app.get('/api/subscription/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      res.json({
+        active: true,
+        plan: 'pro',
+        credits: 10000,
+        features: {
+          unlimitedPosts: true,
+          platforms: 5,
+          advancedAI: true,
+          viralEngine: true,
+          analytics: true,
+          autoPromotion: true
+        },
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Не удалось получить статус подписки' });
+    }
+  });
+
         description: `Image-to-video generation started`,
         platformId: null,
         status: 'success',
