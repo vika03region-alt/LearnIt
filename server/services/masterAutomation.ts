@@ -50,10 +50,10 @@ class MasterAutomationService {
       console.log('📊 ШАГ 1/10: Сбор данных и анализ трендов (Grok AI)');
       const trendsData = await this.collectTrendsData(config.topics);
 
-      console.log('✍️ ШАГ 2/10: Генерация контента (OpenAI + Grok)');
+      console.log('✍️ ШАГ 2/10: Генерация контента (Grok AI - массовый контент)');
       const contents = await this.generateDailyContent(config, trendsData);
 
-      console.log('🎬 ШАГ 3/10: Генерация AI видео (Hugging Face - FREE)');
+      console.log('🎬 ШАГ 3/10: Генерация AI видео (Kling AI - #1 качество)');
       const videos = await this.generateVideosForContent(config.userId, contents);
 
       console.log('📅 ШАГ 4/10: Планирование постов (Scheduler)');
