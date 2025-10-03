@@ -31,11 +31,12 @@ Preferred communication style: Simple, everyday language.
 - **Data Relationships**: Proper foreign key relationships between users, platforms, and their associated data
 
 ## Service Layer Architecture
-- **AI Content Service**: OpenAI GPT-5 integration for content generation with cost tracking
+- **Gemini AI Service**: Google Gemini 2.0 Flash for niche analysis, content generation, and trend analysis (primary AI engine, 100x cost reduction)
+- **AI Content Service**: OpenAI GPT-5 integration for advanced content generation features
 - **Social Media Service**: Platform-specific API integrations with unified interface
 - **Safety Service**: Rate limiting and safety monitoring with platform-specific controls
 - **Analytics Service**: Dashboard data aggregation and performance tracking
-- **Scheduler Service**: Background job processing with emergency stop capabilities
+- **Scheduler Service**: Background job processing with emergency stop capabilities (3 daily posts at 09:00, 15:00, 20:00)
 - **Storage Service**: Centralized data access layer with type-safe operations
 
 ## Safety and Rate Limiting
@@ -67,7 +68,9 @@ Preferred communication style: Simple, everyday language.
 - **class-variance-authority**: Utility for managing component variants
 
 ## AI and External Services
-- **OpenAI API**: GPT-5 integration for AI-powered content generation
+- **Google Gemini AI**: Primary AI service for niche analysis and content generation (Gemini 2.0 Flash - 100x cheaper than OpenAI)
+- **OpenAI API**: GPT-5 integration for advanced AI-powered features
+- **Fal.ai**: Video generation service ($0.20 per video)
 - **Social Media APIs**: Platform-specific integrations for Instagram, TikTok, YouTube, and Telegram
 - **Authentication Provider**: Replit OpenID Connect for user authentication
 
