@@ -211,6 +211,7 @@ export function startTelegramBot() {
 /clonetrend [id] - клонировать тренд
 
 📊 *ДРУГОЕ*:
+/checkchannel - проверить канал
 /post - пост в канал
 /stats - статистика`, { parse_mode: 'Markdown' });
       } else {
@@ -230,11 +231,95 @@ export function startTelegramBot() {
 /clonetrend [id] - клонировать тренд
 
 📊 *ДРУГОЕ*:
+/checkchannel - проверить канал
 /post - пост в канал
 /stats - статистика`, { parse_mode: 'Markdown' });
       }
     } catch (error: any) {
       await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+    }
+  });
+
+  // === КОМАНДА ПРОВЕРКИ КАНАЛА ===
+  
+  bot.onText(/\/checkchannel/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id.toString() || '';
+    
+    try {
+      await ensureUser(userId, msg.from?.username);
+      
+      await bot!.sendMessage(chatId, '🔍 Проверяю канал @IIPRB...');
+      
+      // Проверка 1: Получение информации о канале
+      let channelInfo;
+      try {
+        channelInfo = await bot!.getChat(CHANNEL_ID);
+      } catch (error: any) {
+        await bot!.sendMessage(chatId, `❌ *Ошибка: Не могу получить доступ к каналу*\n\nПричина: ${error.message}\n\nУбедитесь что:\n1. Канал существует: ${CHANNEL_ID}\n2. Бот добавлен как администратор\n3. Бот имеет права на публикацию`, { parse_mode: 'Markdown' });
+        return;
+      }
+      
+      // Проверка 2: Получение количества подписчиков
+      let memberCount = 'не определено';
+      try {
+        const count = await bot!.getChatMemberCount(CHANNEL_ID);
+        memberCount = count.toString();
+      } catch (error) {
+        console.log('Не удалось получить количество подписчиков');
+      }
+      
+      // Проверка 3: Проверка прав бота
+      let botStatus;
+      let canPost = false;
+      try {
+        const botInfo = await bot!.getMe();
+        botStatus = await bot!.getChatMember(CHANNEL_ID, botInfo.id);
+        canPost = botStatus.status === 'administrator' && 
+                  (botStatus as any).can_post_messages === true;
+      } catch (error) {
+        console.log('Не удалось проверить права бота');
+      }
+      
+      // Проверка 4: Тестовая отправка (опционально)
+      let testMessageSent = false;
+      if (canPost) {
+        try {
+          const testMsg = await bot!.sendMessage(CHANNEL_ID, '🔧 Тестовое сообщение - проверка работы бота');
+          await bot!.deleteMessage(CHANNEL_ID, testMsg.message_id.toString());
+          testMessageSent = true;
+        } catch (error) {
+          console.log('Тестовое сообщение не отправлено:', error);
+        }
+      }
+      
+      // Формирование отчета
+      const statusEmoji = canPost && testMessageSent ? '✅' : '⚠️';
+      const report = `${statusEmoji} *ПРОВЕРКА КАНАЛА*
+
+📢 *Канал:* ${CHANNEL_ID}
+📊 *Тип:* ${channelInfo.type}
+${channelInfo.title ? `📝 *Название:* ${channelInfo.title}` : ''}
+${channelInfo.description ? `📋 *Описание:* ${channelInfo.description}` : ''}
+👥 *Подписчиков:* ${memberCount}
+
+🤖 *Статус бота:*
+${botStatus ? `▫️ Роль: ${botStatus.status}` : '▫️ Роль: не определена'}
+${canPost ? '✅ Может публиковать посты' : '❌ НЕ может публиковать'}
+${testMessageSent ? '✅ Тестовое сообщение отправлено и удалено' : ''}
+
+${canPost && testMessageSent ? '🎉 *Канал настроен правильно и готов к работе!*' : '⚠️ *Требуется настройка:*\n1. Добавьте бота как администратора\n2. Дайте право на публикацию постов'}
+
+📅 *Расписание автопостинга:*
+▫️ 09:00 - Утренний пост
+▫️ 15:00 - Дневной пост  
+▫️ 20:00 - Вечерний пост
+▫️ 12:00 Пн/Чт - Опросы`;
+
+      await bot!.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+      
+    } catch (error: any) {
+      await bot!.sendMessage(chatId, `❌ Ошибка проверки: ${error.message}`);
     }
   });
 
