@@ -26,18 +26,97 @@ const contentTopics = [
   'Нейрохакинг: как улучшить мышление с помощью AI'
 ];
 
-// Автоматическая регистрация пользователя
-async function ensureUser(telegramId: string, username?: string): Promise<void> {
+// Глубокий анализ ниши клиента
+async function analyzeClientNiche(userId: string, username?: string): Promise<string> {
+  try {
+    const prompt = `
+Ты эксперт по анализу бизнес-ниш и целевой аудитории. Проведи глубокий анализ ниши клиента.
+
+КЛИЕНТ: ${username || userId}
+
+ЗАДАЧА:
+1. Определи потенциальную нишу на основе username/контекста
+2. Проанализируй конкурентное окружение
+3. Найди уникальные точки дифференциации
+4. Определи целевую аудиторию (демография, боли, желания)
+5. Предложи контент-стратегию для соцсетей
+6. Дай ТОП-3 рекомендации для быстрого роста
+
+ФОРМАТ ОТВЕТА:
+🎯 НИША: [определенная ниша]
+
+📊 АНАЛИЗ КОНКУРЕНТОВ:
+- Топ игроки: [список]
+- Их слабые стороны: [список]
+
+💎 УНИКАЛЬНОСТЬ:
+[что выделит клиента]
+
+👥 ЦЕЛЕВАЯ АУДИТОРИЯ:
+- Демография: [возраст, пол, локация]
+- Боли: [проблемы аудитории]
+- Желания: [что хотят получить]
+
+📱 КОНТЕНТ-СТРАТЕГИЯ:
+- Форматы: [типы контента]
+- Темы: [топ-5 тем]
+- Частота: [рекомендации]
+
+🚀 ТОП-3 ДЕЙСТВИЯ ДЛЯ РОСТА:
+1. [действие]
+2. [действие]  
+3. [действие]
+
+Будь конкретным и практичным!
+    `;
+
+    const response = await grok.chat.completions.create({
+      model: 'grok-2-latest',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 1500
+    });
+
+    return response.choices[0].message.content || 'Ошибка анализа';
+  } catch (error) {
+    console.error('Ошибка анализа ниши:', error);
+    return '❌ Не удалось выполнить анализ ниши. Попробуйте позже.';
+  }
+}
+
+// Автоматическая регистрация пользователя с анализом ниши
+async function ensureUser(telegramId: string, username?: string): Promise<{ isNew: boolean; analysis?: string }> {
   try {
     const existingUser = await storage.getUser(telegramId);
+    
     if (!existingUser) {
+      // Регистрируем нового пользователя
       await storage.upsertUser({
         id: telegramId,
         email: username ? `${username}@telegram.bot` : `${telegramId}@telegram.bot`,
         name: username || `User ${telegramId}`,
       });
+      
       console.log(`✅ Новый пользователь зарегистрирован: ${telegramId}`);
+      
+      // Делаем глубокий анализ ниши
+      console.log(`🔍 Запуск анализа ниши для: ${username || telegramId}`);
+      const analysis = await analyzeClientNiche(telegramId, username);
+      
+      // Сохраняем анализ в activity log
+      await storage.createActivityLog({
+        userId: telegramId,
+        platformId: 1, // Telegram
+        action: 'Niche Analysis',
+        description: 'Deep niche analysis on first login',
+        status: 'completed',
+        metadata: { analysis }
+      });
+      
+      return { isNew: true, analysis };
     }
+    
+    return { isNew: false };
   } catch (error) {
     console.error('Ошибка регистрации пользователя:', error);
     throw error;
@@ -168,25 +247,61 @@ export function startTelegramBot() {
     const userId = msg.from?.id.toString() || '';
     const username = msg.from?.username;
     
-    await ensureUser(userId, username);
-    
-    await bot!.sendMessage(chatId, `👋 Добро пожаловать в AI Content Creator!
+    try {
+      const result = await ensureUser(userId, username);
+      
+      if (result.isNew && result.analysis) {
+        // Новый пользователь - показываем анализ ниши
+        await bot!.sendMessage(chatId, `👋 Добро пожаловать в AI Content Creator!
 
-🎨 *BRAND STYLE* - управление стилем бренда:
+🔍 *АНАЛИЗ ВАШЕЙ НИШИ*
+(генерируется AI...)`, { parse_mode: 'Markdown' });
+        
+        // Отправляем полный анализ
+        await bot!.sendMessage(chatId, result.analysis, { parse_mode: 'Markdown' });
+        
+        // Меню команд
+        await bot!.sendMessage(chatId, `
+📱 *ДОСТУПНЫЕ КОМАНДЫ:*
+
+🎨 *BRAND STYLE*:
 /brandstyle - создать новый бренд
 /mybrand - показать активный бренд
 /listbrands - все ваши бренды
-/setdefault [id] - установить бренд по умолчанию
+/setdefault [id] - установить default
 
-📈 *TREND VIDEOS* - клонирование трендов:
-/addtrend [url] - добавить тренд вручную
+📈 *TREND VIDEOS*:
+/addtrend [url] - добавить тренд
 /toptrends [limit] - топ трендов
 /mytrends - ваши тренды
-/clonetrend [id] - клонировать тренд с AI видео!
+/clonetrend [id] - клонировать тренд
 
-📊 *Другие команды*:
-/post - опубликовать пост
+📊 *ДРУГОЕ*:
+/post - пост в канал
 /stats - статистика`, { parse_mode: 'Markdown' });
+      } else {
+        // Существующий пользователь
+        await bot!.sendMessage(chatId, `👋 С возвращением!
+
+🎨 *BRAND STYLE*:
+/brandstyle - создать новый бренд
+/mybrand - показать активный бренд
+/listbrands - все ваши бренды
+/setdefault [id] - установить default
+
+📈 *TREND VIDEOS*:
+/addtrend [url] - добавить тренд
+/toptrends [limit] - топ трендов
+/mytrends - ваши тренды
+/clonetrend [id] - клонировать тренд
+
+📊 *ДРУГОЕ*:
+/post - пост в канал
+/stats - статистика`, { parse_mode: 'Markdown' });
+      }
+    } catch (error: any) {
+      await bot!.sendMessage(chatId, `❌ Ошибка: ${error.message}`);
+    }
   });
 
   // === BRAND STYLE КОМАНДЫ ===
