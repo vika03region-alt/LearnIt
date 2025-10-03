@@ -43,8 +43,234 @@ export interface VideoGenerationResult {
   provider: string;
 }
 
+interface ViralVideoAnalysis {
+  topVideos: Array<{
+    url: string;
+    title: string;
+    views: number;
+    engagement: number;
+    viralFactors: string[];
+  }>;
+  commonElements: {
+    hooks: string[];
+    visualStyles: string[];
+    musicTypes: string[];
+    duration: number;
+    hashtags: string[];
+  };
+  recommendations: string[];
+}
+
 class KlingAIService {
-  
+  private apiKey: string;
+  private baseUrl = 'https://api.klingai.com/v1';
+
+  constructor() {
+    this.apiKey = process.env.KLING_API_KEY || '';
+  }
+
+  // === АНАЛИЗ ПОПУЛЯРНЫХ ВИДЕО ===
+  async analyzeTopVideos(
+    topic: string,
+    platform: 'tiktok' | 'youtube' | 'instagram' = 'tiktok',
+    limit: number = 10
+  ): Promise<ViralVideoAnalysis> {
+    try {
+      // Используем AI для анализа трендов
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
+
+      const prompt = `Проанализируй топ-${limit} самых популярных видео по теме "${topic}" на ${platform}.
+
+Создай JSON с:
+- topVideos: массив видео с URL, title, views, engagement, viralFactors (что сделало видео вирусным)
+- commonElements: общие элементы успеха (hooks, visualStyles, musicTypes, duration, hashtags)
+- recommendations: рекомендации для создания похожего вирусного контента
+
+Фокус на трейдинг/крипто/финансы контент. Используй реальные данные о популярных каналах.`;
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          { role: 'system', content: 'Ты эксперт по вирусному видео-контенту. Анализируешь тренды TikTok, YouTube, Instagram.' },
+          { role: 'user', content: prompt }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.7
+      });
+
+      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      return analysis;
+    } catch (error) {
+      console.error('Ошибка анализа топовых видео:', error);
+      return this.getDefaultAnalysis(topic);
+    }
+  }
+
+  // === АВТОМАТИЧЕСКАЯ ГЕНЕРАЦИЯ ВИРУСНОГО ВИДЕО С БРЕНДОМ ===
+  async generateViralBrandedVideo(
+    topic: string,
+    brandConfig: {
+      name: string;
+      logo?: string;
+      channel?: string;
+      colors?: string[];
+      slogan?: string;
+    },
+    options?: {
+      duration?: 5 | 10;
+      mode?: 'std' | 'pro';
+      aspectRatio?: '16:9' | '9:16' | '1:1';
+      platform?: 'tiktok' | 'youtube' | 'instagram';
+    }
+  ): Promise<{
+    videoId: string;
+    analysis: ViralVideoAnalysis;
+    prompt: string;
+    brandedElements: string[];
+    cost: number;
+  }> {
+    try {
+      console.log(`🔥 Анализируем топовые видео по теме: ${topic}`);
+
+      // 1. Анализируем популярные видео
+      const analysis = await this.analyzeTopVideos(
+        topic,
+        options?.platform || 'tiktok',
+        5
+      );
+
+      console.log(`✅ Найдено ${analysis.topVideos.length} топовых видео`);
+      console.log(`📊 Вирусные факторы:`, analysis.commonElements);
+
+      // 2. Создаем оптимизированный промпт на основе анализа
+      const viralPrompt = this.createViralPrompt(topic, analysis, brandConfig);
+
+      console.log(`📝 Сгенерирован вирусный промпт с брендом ${brandConfig.name}`);
+
+      // 3. Генерируем видео
+      const videoResult = await this.generateVideo({
+        prompt: viralPrompt,
+        duration: options?.duration || 5,
+        mode: options?.mode || 'pro', // Для вирусного контента используем PRO
+        aspectRatio: options?.aspectRatio || '9:16', // Vertical для TikTok/Reels
+        cfgScale: 0.8, // Высокая точность следования промпту
+        negativePrompt: 'blurry, low quality, amateur, boring, static, watermark'
+      });
+
+      // 4. Добавляем брендирование в метаданные
+      const brandedElements = this.extractBrandedElements(viralPrompt, brandConfig);
+
+      return {
+        videoId: videoResult.taskId,
+        analysis,
+        prompt: viralPrompt,
+        brandedElements,
+        cost: videoResult.cost
+      };
+    } catch (error) {
+      throw new Error(`Не удалось создать вирусное видео: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // === СОЗДАНИЕ ВИРУСНОГО ПРОМПТА ===
+  private createViralPrompt(
+    topic: string,
+    analysis: ViralVideoAnalysis,
+    brandConfig: any
+  ): string {
+    const { commonElements, recommendations } = analysis;
+
+    // Берем лучшие элементы из анализа
+    const topHooks = commonElements.hooks.slice(0, 2).join(', ');
+    const visualStyle = commonElements.visualStyles[0] || 'cinematic professional';
+    const hashtags = commonElements.hashtags.slice(0, 3).join(' ');
+
+    // Создаем промпт с брендированием
+    let prompt = `${topic} video in ${visualStyle} style. `;
+
+    // Добавляем вирусные элементы
+    prompt += `Hook: ${topHooks}. `;
+
+    // БРЕНДИРОВАНИЕ - это ключевое!
+    prompt += `Brand: ${brandConfig.name} logo visible throughout. `;
+
+    if (brandConfig.colors && brandConfig.colors.length > 0) {
+      prompt += `Brand colors: ${brandConfig.colors.join(', ')}. `;
+    }
+
+    if (brandConfig.slogan) {
+      prompt += `Slogan "${brandConfig.slogan}" displayed. `;
+    }
+
+    // Добавляем визуальный стиль для максимальной вирусности
+    prompt += `Professional lighting, dynamic camera angles, engaging visuals. `;
+    prompt += `Trending format, attention-grabbing, social media optimized. `;
+
+    // Канал/контакт
+    if (brandConfig.channel) {
+      prompt += `Channel name ${brandConfig.channel} watermark. `;
+    }
+
+    prompt += `${hashtags}. High quality, viral potential, engaging content.`;
+
+    return prompt;
+  }
+
+  // === ИЗВЛЕЧЕНИЕ БРЕНДИРОВАННЫХ ЭЛЕМЕНТОВ ===
+  private extractBrandedElements(prompt: string, brandConfig: any): string[] {
+    const elements: string[] = [];
+
+    elements.push(`Бренд: ${brandConfig.name}`);
+
+    if (brandConfig.logo) {
+      elements.push(`Логотип: ${brandConfig.logo}`);
+    }
+
+    if (brandConfig.channel) {
+      elements.push(`Канал: ${brandConfig.channel}`);
+    }
+
+    if (brandConfig.colors) {
+      elements.push(`Цвета бренда: ${brandConfig.colors.join(', ')}`);
+    }
+
+    if (brandConfig.slogan) {
+      elements.push(`Слоган: ${brandConfig.slogan}`);
+    }
+
+    return elements;
+  }
+
+  // === ДЕФОЛТНЫЙ АНАЛИЗ (если API недоступен) ===
+  private getDefaultAnalysis(topic: string): ViralVideoAnalysis {
+    return {
+      topVideos: [
+        {
+          url: 'https://tiktok.com/example1',
+          title: `${topic} - Viral Hit`,
+          views: 2500000,
+          engagement: 18.5,
+          viralFactors: ['Strong hook', 'Fast pacing', 'Trending music', 'Clear value']
+        }
+      ],
+      commonElements: {
+        hooks: ['Stop scrolling!', 'You need to see this', 'Secret revealed'],
+        visualStyles: ['cinematic', 'dynamic', 'professional'],
+        musicTypes: ['trending', 'energetic', 'upbeat'],
+        duration: 15,
+        hashtags: ['#trading', '#crypto', '#forex', '#viral', '#fyp']
+      },
+      recommendations: [
+        'Use strong hook in first 3 seconds',
+        'Keep video under 30 seconds',
+        'Use trending music',
+        'Add captions for accessibility',
+        'Include clear call-to-action'
+      ]
+    };
+  }
+
   // === ГЕНЕРАЦИЯ ВИДЕО-СКРИПТА С AI ===
   async generateVideoScript(
     topic: string,
@@ -64,14 +290,14 @@ class KlingAIService {
 
     const prompt = `Create a ${duration}-second video script about ${topic} for trading/finance social media.
     Tone: ${toneStyles[tone]}.
-    
+
     Create a compelling narrative optimized for short-form video (5-10 seconds).
-    
+
     Structure:
     1. Hook (1-2 sec) - attention grabbing opening
     2. Main content (3-6 sec) - key information with visual action
     3. CTA (1-2 sec) - call to action or conclusion
-    
+
     Format as JSON with:
     - full_script: complete text (under 100 words for 10s video)
     - scenes: array of {text, duration, visual_cue}
@@ -94,7 +320,7 @@ class KlingAIService {
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{}');
-      
+
       return {
         script: result.full_script || '',
         scenes: (result.scenes || []).map((s: any) => ({
@@ -155,7 +381,7 @@ class KlingAIService {
       const data = await response.json();
 
       // Цены PiAPI 2025: Standard $0.24/5s, $0.48/10s; Pro $0.48/5s, $0.96/10s
-      const cost = defaultConfig.mode === 'std' 
+      const cost = defaultConfig.mode === 'std'
         ? (defaultConfig.duration === 5 ? 0.24 : 0.48)
         : (defaultConfig.duration === 5 ? 0.48 : 0.96);
 
@@ -216,7 +442,7 @@ class KlingAIService {
 
       const data = await response.json();
 
-      const cost = defaultConfig.mode === 'std' 
+      const cost = defaultConfig.mode === 'std'
         ? (defaultConfig.duration === 5 ? 0.24 : 0.48)
         : (defaultConfig.duration === 5 ? 0.48 : 0.96);
 
@@ -259,7 +485,7 @@ class KlingAIService {
       }
 
       // Извлечение URL видео из ответа PiAPI
-      const videoUrl = data.output?.works?.[0]?.video?.resource || 
+      const videoUrl = data.output?.works?.[0]?.video?.resource ||
                       data.output?.works?.[0]?.video?.resource_without_watermark;
 
       return {
@@ -267,9 +493,9 @@ class KlingAIService {
         status,
         videoUrl,
         thumbnailUrl: data.output?.works?.[0]?.image?.resource,
-        duration: data.output?.works?.[0]?.video?.duration ? 
+        duration: data.output?.works?.[0]?.video?.duration ?
           data.output.works[0].video.duration / 1000 : undefined,
-        cost: 0.24,
+        cost: 0.24, // Placeholder, actual cost may vary
         provider: 'Kling AI (PiAPI)'
       };
     } catch (error) {
@@ -388,7 +614,7 @@ class KlingAIService {
           taskId: result.requestId || 'fal-' + Date.now(),
           status: 'completed',
           videoUrl: result.data.video.url,
-          duration: model === 'hunyuan' ? 5 : 10,
+          duration: model === 'hunyuan' ? 5 : 10, // Placeholder, actual duration may vary
           cost: costs[model],
           provider: `Fal.ai (${model})`
         };

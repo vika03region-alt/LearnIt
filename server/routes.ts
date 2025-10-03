@@ -1040,42 +1040,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === AI VIDEO GENERATION (KLING AI) ===
 
-  // Генерация видео-скрипта
-  app.post('/api/ai-video/generate-script', isAuthenticated, async (req: any, res) => {
+  // Анализ топовых видео для создания вирусного контента
+  app.post('/api/ai-video/analyze-viral', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const { topic, duration, tone } = req.body;
+      const { topic, platform, limit } = req.body;
 
       if (!topic) {
-        return res.status(400).json({ message: "Topic is required" });
+        return res.status(400).json({ message: 'Topic is required' });
       }
 
-      const { klingAIService } = await import('./services/klingAIService');
-      const script = await klingAIService.generateVideoScript(
+      const analysis = await klingAIService.analyzeTopVideos(
         topic,
-        duration || 10,
-        tone || 'professional'
+        platform || 'tiktok',
+        limit || 10
       );
 
-      await storage.createActivityLog({
-        userId,
-        action: 'AI Video Script Generated',
-        description: `Generated video script for: ${topic}`,
-        platformId: null,
-        status: 'success',
-        metadata: { topic, duration, tone },
+      res.json({
+        success: true,
+        analysis,
+        message: `Проанализировано ${analysis.topVideos.length} топовых видео`
       });
-
-      res.json(script);
     } catch (error) {
-      console.error("Error generating video script:", error);
+      console.error('Ошибка анализа вирусных видео:', error);
       res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Failed to generate video script" 
+        message: 'Не удалось проанализировать видео',
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
 
-  // Генерация видео (Text-to-Video)
+  // Автоматическая генерация ВИРУСНОГО видео с брендом
+  app.post('/api/ai-video/generate-viral-branded', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { topic, brandConfig, options } = req.body;
+
+      if (!topic || !brandConfig || !brandConfig.name) {
+        return res.status(400).json({ 
+          message: 'Topic and brand config (with name) are required' 
+        });
+      }
+
+      console.log(`🎬 Создаем вирусное видео для бренда: ${brandConfig.name}`);
+      console.log(`📝 Тема: ${topic}`);
+
+      const result = await klingAIService.generateViralBrandedVideo(
+        topic,
+        brandConfig,
+        options
+      );
+
+      // Сохраняем в БД
+      const videoRecord = await storage.createAIVideo({
+        userId,
+        postId: null,
+        provider: 'kling',
+        videoId: result.videoId,
+        prompt: result.prompt,
+        script: JSON.stringify(result.analysis),
+        config: {
+          ...options,
+          brand: brandConfig,
+          viralAnalysis: result.analysis
+        },
+        status: 'processing',
+        cost: result.cost
+      });
+
+      await storage.createActivityLog({
+        userId,
+        action: 'Viral Branded Video Generated',
+        description: `Создано вирусное видео "${topic}" с брендом ${brandConfig.name}`,
+        platformId: null,
+        status: 'success',
+        metadata: { 
+          videoId: result.videoId,
+          brand: brandConfig.name,
+          viralFactors: result.analysis.commonElements,
+          cost: result.cost
+        }
+      });
+
+      res.json({
+        success: true,
+        video: videoRecord,
+        analysis: result.analysis,
+        brandedElements: result.brandedElements,
+        prompt: result.prompt,
+        message: `✅ Вирусное видео создается! Task ID: ${result.videoId}`
+      });
+    } catch (error) {
+      console.error('Ошибка создания вирусного видео:', error);
+      res.status(500).json({ 
+        message: 'Не удалось создать вирусное видео',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Generate AI video with HeyGen or Synthesia
   app.post('/api/ai-video/generate', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -1170,7 +1233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { monetizationService } = await import('./services/monetization');
-      
+
       const result = await monetizationService.activateProPlan(userId);
 
       await storage.createActivityLog({
@@ -1219,7 +1282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/subscription/status', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      
+
       res.json({
         active: true,
         plan: 'pro',

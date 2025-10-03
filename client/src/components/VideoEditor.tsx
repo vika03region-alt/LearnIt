@@ -51,6 +51,13 @@ export function VideoEditor({ topic, onGenerate, onSave }: VideoEditorProps) {
   const [textPrompt, setTextPrompt] = useState("");
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [klingMethod, setKlingMethod] = useState<'text' | 'image'>('text');
+  const [viralAnalysis, setViralAnalysis] = useState<any>(null);
+  const [brandConfig, setBrandConfig] = useState({
+    name: '',
+    channel: '',
+    slogan: '',
+    colors: ['#8B5CF6', '#EC4899']
+  });
 
   const addScene = () => {
     setScenes([...scenes, { text: "", duration: 5, visualCue: "" }]);
@@ -223,6 +230,124 @@ export function VideoEditor({ topic, onGenerate, onSave }: VideoEditorProps) {
                 />
               </div>
             )}
+
+            {/* ВИРУСНАЯ ГЕНЕРАЦИЯ С БРЕНДОМ */}
+            <div className="bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 p-4 rounded-lg space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+                <h3 className="font-semibold">🔥 Вирусная Генерация с Брендом</h3>
+              </div>
+              
+              <p className="text-sm text-muted-foreground">
+                Система проанализирует топовые видео и создаст максимально популярное видео с вашим брендом
+              </p>
+
+              {/* Brand Config */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="brand-name">Название бренда *</Label>
+                  <Input
+                    id="brand-name"
+                    placeholder="TradingPro"
+                    value={brandConfig.name}
+                    onChange={(e) => setBrandConfig({ ...brandConfig, name: e.target.value })}
+                    data-testid="input-brand-name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="brand-channel">Канал/Username</Label>
+                  <Input
+                    id="brand-channel"
+                    placeholder="@tradingpro"
+                    value={brandConfig.channel}
+                    onChange={(e) => setBrandConfig({ ...brandConfig, channel: e.target.value })}
+                    data-testid="input-brand-channel"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="brand-slogan">Слоган (опц.)</Label>
+                  <Input
+                    id="brand-slogan"
+                    placeholder="Trade Smarter, Not Harder"
+                    value={brandConfig.slogan}
+                    onChange={(e) => setBrandConfig({ ...brandConfig, slogan: e.target.value })}
+                    data-testid="input-brand-slogan"
+                  />
+                </div>
+              </div>
+
+              {/* Анализ вирусных видео */}
+              {viralAnalysis && (
+                <div className="bg-white dark:bg-gray-800 p-3 rounded border border-purple-200 dark:border-purple-700">
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    📊 Анализ топ-видео
+                  </h4>
+                  <div className="text-sm space-y-1">
+                    <p>✅ Проанализировано: {viralAnalysis.topVideos?.length || 0} видео</p>
+                    <p>🎯 Вирусные факторы: {viralAnalysis.commonElements?.hooks?.slice(0, 2).join(', ')}</p>
+                    <p>📈 Средний просмотр: {viralAnalysis.topVideos?.[0]?.views?.toLocaleString() || 'N/A'}</p>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                onClick={async () => {
+                  if (!brandConfig.name) {
+                    alert('Введите название бренда!');
+                    return;
+                  }
+                  if (!textPrompt) {
+                    alert('Введите тему видео!');
+                    return;
+                  }
+
+                  try {
+                    // 1. Анализируем топовые видео
+                    const analysisResponse = await fetch('/api/ai-video/analyze-viral', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        topic: textPrompt,
+                        platform: config.aspectRatio === '9:16' ? 'tiktok' : 'youtube'
+                      })
+                    });
+                    
+                    const analysisData = await analysisResponse.json();
+                    setViralAnalysis(analysisData.analysis);
+
+                    // 2. Генерируем видео с брендом
+                    const videoResponse = await fetch('/api/ai-video/generate-viral-branded', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        topic: textPrompt,
+                        brandConfig,
+                        options: {
+                          duration: config.duration,
+                          mode: config.klingMode,
+                          aspectRatio: config.aspectRatio,
+                          platform: config.aspectRatio === '9:16' ? 'tiktok' : 'youtube'
+                        }
+                      })
+                    });
+
+                    const videoData = await videoResponse.json();
+                    console.log('🎬 Вирусное видео создается:', videoData);
+                    alert(`✅ Вирусное видео с брендом ${brandConfig.name} создается!\n\n` +
+                          `📊 Использованы вирусные элементы из топ-видео\n` +
+                          `🎯 Task ID: ${videoData.video?.videoId || 'N/A'}`);
+                  } catch (error) {
+                    console.error('Ошибка:', error);
+                    alert('❌ Ошибка создания вирусного видео');
+                  }
+                }}
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                data-testid="button-generate-viral-branded"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                🔥 Создать Вирусное Видео с Брендом
+              </Button>
+            </div>
 
             {/* Text Prompt */}
             <div>
