@@ -1835,6 +1835,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === УМНОЕ ПРОДВИЖЕНИЕ С API ИНТЕГРАЦИЕЙ ===
+
+  // Анализ всех интегрированных платформ
+  app.get('/api/smart-promotion/analyze', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { smartPromotionManager } = await import('./services/smartPromotionManager');
+      
+      const integrations = await smartPromotionManager.analyzeIntegratedPlatforms(userId);
+      
+      res.json({
+        integrations,
+        message: 'Анализ платформ завершен',
+      });
+    } catch (error) {
+      console.error('Ошибка анализа платформ:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать платформы' });
+    }
+  });
+
+  // Генерация плана продвижения (бесплатный + платный)
+  app.post('/api/smart-promotion/generate-plan', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { smartPromotionManager } = await import('./services/smartPromotionManager');
+      
+      const integrations = await smartPromotionManager.analyzeIntegratedPlatforms(userId);
+      const plan = await smartPromotionManager.generatePromotionPlan(userId, integrations);
+      
+      await storage.createActivityLog({
+        userId,
+        action: 'Promotion Plan Generated',
+        description: 'Создан план продвижения с бесплатной и платной стратегиями',
+        status: 'success',
+        metadata: { plan },
+      });
+
+      res.json({
+        plan,
+        message: 'План продвижения создан',
+      });
+    } catch (error) {
+      console.error('Ошибка генерации плана:', error);
+      res.status(500).json({ error: 'Не удалось создать план продвижения' });
+    }
+  });
+
+  // Запуск кампании продвижения
+  app.post('/api/smart-promotion/launch', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { planType } = req.body; // 'free' или 'paid'
+      const { smartPromotionManager } = await import('./services/smartPromotionManager');
+      
+      const integrations = await smartPromotionManager.analyzeIntegratedPlatforms(userId);
+      const plan = await smartPromotionManager.generatePromotionPlan(userId, integrations);
+      const results = await smartPromotionManager.executePromotionPlan(userId, plan, planType);
+
+      res.json({
+        results,
+        message: `${planType === 'paid' ? 'Платная' : 'Бесплатная'} кампания запущена`,
+      });
+    } catch (error) {
+      console.error('Ошибка запуска кампании:', error);
+      res.status(500).json({ error: 'Не удалось запустить кампанию' });
+    }
+  });
+
+  // Получение рекомендаций для достижения лидерства
+  app.get('/api/smart-promotion/leadership-plan', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { smartPromotionManager } = await import('./services/smartPromotionManager');
+      
+      const integrations = await smartPromotionManager.analyzeIntegratedPlatforms(userId);
+      const plan = await smartPromotionManager.generatePromotionPlan(userId, integrations);
+
+      res.json({
+        leadership: plan.marketLeadership,
+        message: 'План достижения лидерства готов',
+      });
+    } catch (error) {
+      console.error('Ошибка получения плана лидерства:', error);
+      res.status(500).json({ error: 'Не удалось получить план лидерства' });
+    }
+  });
+
   // Setup advanced promotion strategy routes
   setupPromotionStrategyRoutes(app);
 

@@ -17,9 +17,10 @@ import { MasterAutomationControl } from "./components/MasterAutomationControl";
 import { SimplifiedAIDashboard } from "./components/SimplifiedAIDashboard";
 import TelegramPost from "@/pages/TelegramPost";
 import AIVideoStudio from "@/pages/AIVideoStudio";
+import SmartPromotionHub from "@/components/SmartPromotionHub";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   return (
     <Switch>
@@ -31,6 +32,9 @@ function Router() {
           <Route path="/platform/:platformId" component={PlatformDetails} />
           <Route path="/ai-content" component={AIContent} />
           <Route path="/ai-assistant" component={AIAssistant} />
+          <Route path="/smart-promotion" element={
+            <SmartPromotionHub userId={user?.id || ''} />
+          } />
           <Route path="/safety" component={SafetyCenter} />
           <Route path="/scheduler" component={Scheduler} />
           <Route path="/settings" component={Settings} />
