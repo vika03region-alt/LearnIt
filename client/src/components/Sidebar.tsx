@@ -19,7 +19,8 @@ import {
   BarChart3,
   Target,
   Users,
-  MessageSquare
+  MessageSquare,
+  Video
 } from "lucide-react";
 import { SiTiktok, SiTelegram } from "react-icons/si";
 
@@ -168,6 +169,20 @@ export default function Sidebar() {
             >
               <Brain className="w-5 h-5" />
               {!collapsed && <span>AI Контент</span>}
+            </Link>
+
+            <Link 
+              href="/ai-video"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                location === "/ai-video"
+                  ? "bg-gradient-to-r from-purple-600 to-pink-700 text-white shadow-sm"
+                  : "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+              )}
+              data-testid="link-ai-video"
+            >
+              <Video className="w-5 h-5" />
+              {!collapsed && <span>AI Video Studio</span>}
             </Link>
 
             <Link 
