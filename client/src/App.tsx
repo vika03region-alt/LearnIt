@@ -13,6 +13,8 @@ import SafetyCenter from "@/pages/SafetyCenter";
 import Scheduler from "@/pages/Scheduler";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
+import { MasterAutomationControl } from "./components/MasterAutomationControl";
+import { SimplifiedAIDashboard } from "./components/SimplifiedAIDashboard";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -30,6 +32,8 @@ function Router() {
           <Route path="/safety" component={SafetyCenter} />
           <Route path="/scheduler" component={Scheduler} />
           <Route path="/settings" component={Settings} />
+          <Route path="/automation" component={MasterAutomationControl} />
+          <Route path="/ai-dashboard" component={SimplifiedAIDashboard} />
         </>
       )}
       <Route component={NotFound} />
