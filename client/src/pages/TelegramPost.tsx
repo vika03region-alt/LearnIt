@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Send, MessageSquare } from "lucide-react";
+import { ArrowLeft, Send, MessageSquare, Sparkles, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 
 export default function TelegramPost() {
@@ -68,6 +68,30 @@ export default function TelegramPost() {
       toast({
         title: "Post Creation Failed",
         description: error.message || "Failed to create post",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const generateAIVideoMutation = useMutation({
+    mutationFn: async () => {
+      const topic = title || content.substring(0, 100);
+      return apiRequest('/api/ai-video/auto-generate', 'POST', {
+        topic,
+        config: { duration: 5, mode: 'std' }
+      });
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "AI Video Generation Started! 🎬",
+        description: `Your video is being generated. Check AI Video Studio to monitor progress.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/ai-video/user-videos'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate AI video",
         variant: "destructive",
       });
     },
@@ -175,6 +199,26 @@ export default function TelegramPost() {
                       {content.length} characters
                     </p>
                   </div>
+
+                  <Button
+                    onClick={() => generateAIVideoMutation.mutate()}
+                    disabled={generateAIVideoMutation.isPending || !content.trim()}
+                    variant="outline"
+                    className="w-full bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800"
+                    data-testid="button-generate-ai-video"
+                  >
+                    {generateAIVideoMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Generating AI Video...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
+                        Generate AI Video (Kling AI - Free)
+                      </>
+                    )}
+                  </Button>
 
                   <Button
                     onClick={handleSubmit}
