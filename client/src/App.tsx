@@ -15,6 +15,8 @@ import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 import { MasterAutomationControl } from "./components/MasterAutomationControl";
 import { SimplifiedAIDashboard } from "./components/SimplifiedAIDashboard";
+import TelegramPost from "@/pages/TelegramPost";
+import AIVideoStudio from "@/pages/AIVideoStudio";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -34,6 +36,8 @@ function Router() {
           <Route path="/settings" component={Settings} />
           <Route path="/automation" component={MasterAutomationControl} />
           <Route path="/ai-dashboard" component={SimplifiedAIDashboard} />
+          <Route path="/telegram-post" component={TelegramPost} />
+          <Route path="/video-studio" component={AIVideoStudio} />
         </>
       )}
       <Route component={NotFound} />
