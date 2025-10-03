@@ -1,0 +1,60 @@
+CREATE TABLE "brand_styles" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"user_id" varchar NOT NULL,
+	"name" varchar(100) NOT NULL,
+	"description" text,
+	"primary_color" varchar(20),
+	"secondary_color" varchar(20),
+	"font_style" varchar(50),
+	"visual_style" varchar(50),
+	"tone" varchar(50) NOT NULL,
+	"voice" text,
+	"keywords" text[],
+	"hashtags" text[],
+	"video_style" text,
+	"scene_preferences" json,
+	"video_prompt_template" text,
+	"post_prompt_template" text,
+	"target_audience" text,
+	"is_active" boolean DEFAULT true,
+	"is_default" boolean DEFAULT false,
+	"created_at" timestamp DEFAULT now(),
+	"updated_at" timestamp DEFAULT now(),
+	"aspect_ratio" varchar(20) DEFAULT '9:16',
+	"duration" integer DEFAULT 30,
+	"logo_url" varchar(500),
+	"logo_position" varchar(50) DEFAULT 'bottom-right',
+	"cta_text" varchar(200),
+	"cta_url" varchar(500)
+);
+CREATE TABLE "trend_videos" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"user_id" varchar,
+	"source" varchar(50) NOT NULL,
+	"source_url" text,
+	"title" text,
+	"description" text,
+	"concept" text,
+	"visual_elements" text[],
+	"trend_score" real,
+	"views" integer,
+	"likes" integer,
+	"engagement" real,
+	"status" varchar(20) DEFAULT 'pending',
+	"cloned_video_id" integer,
+	"cloned_post_id" integer,
+	"created_at" timestamp DEFAULT now(),
+	"analyzed_at" timestamp,
+	"cloned_at" timestamp,
+	"brand_style_id" integer,
+	"adapted_prompt" text,
+	"adapted_script" text,
+	"asset_urls" json
+);
+ALTER TABLE "brand_styles" ADD CONSTRAINT "brand_styles_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "trend_videos" ADD CONSTRAINT "trend_videos_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "trend_videos" ADD CONSTRAINT "trend_videos_cloned_video_id_ai_videos_id_fk" FOREIGN KEY ("cloned_video_id") REFERENCES "public"."ai_videos"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "trend_videos" ADD CONSTRAINT "trend_videos_cloned_post_id_posts_id_fk" FOREIGN KEY ("cloned_post_id") REFERENCES "public"."posts"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "trend_videos" ADD CONSTRAINT "trend_videos_brand_style_id_brand_styles_id_fk" FOREIGN KEY ("brand_style_id") REFERENCES "public"."brand_styles"("id") ON DELETE no action ON UPDATE no action;
+Failed to validate database migrations
+Cannot validate statements, stage already exists
