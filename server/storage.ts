@@ -48,7 +48,7 @@ import {
   type InsertTrendVideo,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import * as crypto from 'crypto';
 
 // Encryption utilities for sensitive data
@@ -181,7 +181,7 @@ export interface IStorage {
   updateTrendVideo(id: number, updates: Partial<InsertTrendVideo>): Promise<TrendVideo>;
   updateTrendVideoStatus(id: number, status: string, clonedVideoId?: number, clonedPostId?: number): Promise<TrendVideo>;
   getTopTrends(limit?: number): Promise<TrendVideo[]>;
-  
+
   // Combined Trend + Brand Style queries
   getTrendWithBrandStyle(trendId: number): Promise<{ trend: TrendVideo; brandStyle: BrandStyle | null }>;
   getTrendsForBrandStyle(brandStyleId: number, limit?: number): Promise<TrendVideo[]>;
@@ -253,7 +253,13 @@ export class DatabaseStorage implements IStorage {
     const [account] = await db
       .select()
       .from(userAccounts)
-      .where(and(eq(userAccounts.userId, userId), eq(userAccounts.platformId, platformId)));
+      .where(
+        and(
+          eq(userAccounts.userId, userId),
+          eq(userAccounts.platformId, platformId)
+        )
+      )
+      .limit(1);
     return account;
   }
 
@@ -334,7 +340,7 @@ export class DatabaseStorage implements IStorage {
     if (publishedAt) {
       updates.publishedAt = publishedAt;
     }
-    
+
     const [updatedPost] = await db
       .update(posts)
       .set(updates)
@@ -892,14 +898,14 @@ export class DatabaseStorage implements IStorage {
 
   async getTrendVideos(userId?: string, limit: number = 50): Promise<TrendVideo[]> {
     const query = db.select().from(trendVideos);
-    
+
     if (userId) {
       return await query
         .where(eq(trendVideos.userId, userId))
         .orderBy(desc(trendVideos.createdAt))
         .limit(limit);
     }
-    
+
     return await query
       .orderBy(desc(trendVideos.createdAt))
       .limit(limit);
@@ -933,7 +939,7 @@ export class DatabaseStorage implements IStorage {
     if (clonedPostId) updates.clonedPostId = clonedPostId;
     if (status === 'analyzed') updates.analyzedAt = new Date();
     if (status === 'cloned') updates.clonedAt = new Date();
-    
+
     const [updated] = await db
       .update(trendVideos)
       .set(updates)
@@ -957,13 +963,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(trendVideos)
       .where(eq(trendVideos.id, trendId));
-    
+
     if (!trend) {
       throw new Error('Trend not found');
     }
 
     let brandStyle: BrandStyle | null = null;
-    
+
     if (trend.brandStyleId) {
       [brandStyle] = await db
         .select()

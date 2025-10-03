@@ -278,14 +278,41 @@ export function VideoEditor({ topic, onGenerate, onSave }: VideoEditorProps) {
 
               {/* Анализ вирусных видео */}
               {viralAnalysis && (
-                <div className="bg-white dark:bg-gray-800 p-3 rounded border border-purple-200 dark:border-purple-700">
-                  <h4 className="font-medium mb-2 flex items-center gap-2">
-                    📊 Анализ топ-видео
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <p>✅ Проанализировано: {viralAnalysis.topVideos?.length || 0} видео</p>
-                    <p>🎯 Вирусные факторы: {viralAnalysis.commonElements?.hooks?.slice(0, 2).join(', ')}</p>
-                    <p>📈 Средний просмотр: {viralAnalysis.topVideos?.[0]?.views?.toLocaleString() || 'N/A'}</p>
+                <div className="space-y-3">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded border border-purple-200 dark:border-purple-700">
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      📊 Анализ топ-видео для Telegram
+                    </h4>
+                    <div className="text-sm space-y-1">
+                      <p>✅ Проанализировано: {viralAnalysis.topVideos?.length || 0} видео</p>
+                      <p>🎯 Вирусные хуки: {viralAnalysis.commonElements?.hooks?.slice(0, 2).join(', ')}</p>
+                      <p>📈 Средний охват: {viralAnalysis.topVideos?.[0]?.views?.toLocaleString() || 'N/A'}</p>
+                      <p>⚡ Вовлеченность: {viralAnalysis.commonElements?.avgEngagement?.toFixed(1) || 'N/A'}%</p>
+                    </div>
+                  </div>
+
+                  {/* Превью подписи для Telegram */}
+                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      📱 Превью для Telegram канала
+                    </h4>
+                    <div className="text-sm bg-white dark:bg-gray-800 p-3 rounded border whitespace-pre-line">
+                      🔥 {viralAnalysis.commonElements?.hooks?.[0] || 'Вирусный хук'}
+                      
+                      {textPrompt}
+                      
+                      {brandConfig.slogan || 'Эксклюзивный контент!'}
+                      
+                      📊 Анализ топ-видео
+                      ⚡ Высокий потенциал охвата
+                      
+                      👉 {brandConfig.channel || '@your_channel'}
+                      
+                      #{textPrompt.toLowerCase().replace(/\s+/g, '').slice(0, 20)} #trading #{brandConfig.name.toLowerCase()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      💡 Эта подпись будет автоматически добавлена к видео в Telegram
+                    </p>
                   </div>
                 </div>
               )}
