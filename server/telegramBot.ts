@@ -2,6 +2,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import cron from 'node-cron';
 import OpenAI from 'openai';
 import { storage } from './storage.js';
+import { trendCloningService } from './services/trendCloning.js';
 
 const TELEGRAM_TOKEN = process.env.BOTTG || '';
 const CHANNEL_ID = '@IIPRB';
@@ -18,6 +19,18 @@ let pollingActive = false;
 
 // Хранилище последних постов пользователей для публикации
 const userPosts = new Map<number, string>();
+
+// Хранилище состояний для интерактивного создания бренд-стиля
+const brandStyleStates = new Map<number, {
+  step: 'name' | 'tone' | 'colors' | 'videoStyle' | 'done';
+  data: {
+    name?: string;
+    tone?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    videoStyle?: string;
+  };
+}>();
 
 // 🛡️ ЗАЩИТА ОТ СПАМА И RATE LIMITING
 const userCommandTimestamps = new Map<number, number[]>();
@@ -466,6 +479,20 @@ export async function startTelegramBot() {
 /mystats - Твоя статистика использования ⭐
 /help - Полный список команд 📋
 
+<b>🎨 БРЕНД-СТИЛИ</b>
+━━━━━━━━━━━━━━━━━━━━━━━
+/brandstyle - Создать новый бренд-стиль 🎨
+/mybrand - Текущий default стиль ⭐
+/listbrands - Список всех брендов 📋
+/setdefault [id] - Установить как default ✅
+
+<b>🔥 TREND VIDEOS</b>
+━━━━━━━━━━━━━━━━━━━━━━━
+/addtrend [url] - Добавить тренд вручную 📥
+/toptrends [лимит] - Топ трендов по популярности 🏆
+/mytrends - Мои сохранённые тренды 📋
+/clonetrend [id] - Клонировать тренд 🎬
+
 ━━━━━━━━━━━━━━━━━━━━━━━
 💬 <b>AI АССИСТЕНТ (Grok AI)</b>
 Просто напиши вопрос - отвечу моментально!
@@ -556,6 +583,30 @@ export async function startTelegramBot() {
 /pause - Остановить автопостинг
 /resume - Возобновить автопостинг
 /mystats - Твоя статистика использования
+
+<b>🎨 БРЕНД-СТИЛИ</b>
+━━━━━━━━━━━━━━━━━━━━━━━
+/brandstyle - Создать бренд-стиль
+  Интерактивное создание: название, тон, цвета, стиль видео
+  
+/mybrand - Текущий default бренд-стиль
+/listbrands - Все ваши бренд-стили
+/setdefault [id] - Установить как default
+  Пример: /setdefault 5
+
+<b>🔥 TREND VIDEOS</b>
+━━━━━━━━━━━━━━━━━━━━━━━
+/addtrend [url] - Добавить вирусный тренд
+  Пример: /addtrend https://tiktok.com/@user/video/123
+  
+/toptrends [лимит] - Топ трендов по популярности
+  Пример: /toptrends 20
+  
+/mytrends - Мои сохранённые тренды
+  Показать тренды со статусами: pending/analyzed/cloned
+  
+/clonetrend [id] - Клонировать тренд в своём стиле
+  Пример: /clonetrend 42
 
 <b>💬 AI АССИСТЕНТ (Grok AI)</b>
 ━━━━━━━━━━━━━━━━━━━━━━━
@@ -2478,6 +2529,728 @@ ${error.message || 'Неизвестная ошибка'}`;
       await bot!.sendMessage(chatId, `🔍 ЭКСПРЕСС-АУДИТ:\n\n${audit}`);
     } catch (error) {
       await bot!.sendMessage(chatId, '❌ Ошибка аудита.');
+    }
+  });
+
+  // ====================================
+  // БРЕНД-СТИЛИ
+  // ====================================
+
+  // 1. /brandstyle - интерактивное создание бренд-стиля
+  bot.onText(/\/brandstyle/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    // Получаем userId из chatId
+    const user = await storage.getUser(chatId.toString());
+    if (!user) {
+      await bot!.sendMessage(chatId, '❌ Пользователь не найден. Пожалуйста, зарегистрируйтесь в системе.');
+      return;
+    }
+
+    // Начинаем интерактивное создание
+    brandStyleStates.set(chatId, {
+      step: 'name',
+      data: {}
+    });
+
+    await bot!.sendMessage(chatId, `🎨 <b>СОЗДАНИЕ БРЕНД-СТИЛЯ</b>
+
+Давайте создадим уникальный стиль для вашего бренда!
+
+<b>Шаг 1 из 4: Название</b>
+Как назовём этот бренд-стиль?
+
+Пример: "Crypto Expert", "Professional Trading", "Casual Vibe"`, 
+      { parse_mode: 'HTML' }
+    );
+  });
+
+  // 2. /mybrand - показать текущий default бренд-стиль
+  bot.onText(/\/mybrand/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    try {
+      const user = await storage.getUser(chatId.toString());
+      if (!user) {
+        await bot!.sendMessage(chatId, '❌ Пользователь не найден.');
+        return;
+      }
+
+      const brandStyle = await storage.getDefaultBrandStyle(user.id);
+
+      if (!brandStyle) {
+        await bot!.sendMessage(chatId, `🎨 <b>ВАШ БРЕНД-СТИЛЬ</b>
+
+У вас пока нет бренд-стиля по умолчанию.
+
+💡 Создайте его командой /brandstyle`, 
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      const message = `🎨 <b>ВАШ БРЕНД-СТИЛЬ (DEFAULT)</b>
+
+<b>📝 Название:</b> ${brandStyle.name}
+<b>🎭 Тон:</b> ${brandStyle.tone}
+${brandStyle.primaryColor ? `<b>🎨 Основной цвет:</b> ${brandStyle.primaryColor}` : ''}
+${brandStyle.secondaryColor ? `<b>🎨 Дополнительный цвет:</b> ${brandStyle.secondaryColor}` : ''}
+${brandStyle.videoStyle ? `<b>🎬 Стиль видео:</b> ${brandStyle.videoStyle}` : ''}
+${brandStyle.visualStyle ? `<b>✨ Визуальный стиль:</b> ${brandStyle.visualStyle}` : ''}
+${brandStyle.fontStyle ? `<b>🔤 Шрифт:</b> ${brandStyle.fontStyle}` : ''}
+
+<b>📊 ID:</b> ${brandStyle.id}
+<b>📅 Создан:</b> ${brandStyle.createdAt ? new Date(brandStyle.createdAt).toLocaleDateString('ru-RU') : 'Неизвестно'}
+
+💡 /listbrands - все ваши бренд-стили`;
+
+      await bot!.sendMessage(chatId, message, { parse_mode: 'HTML' });
+    } catch (error) {
+      console.error('Error fetching default brand style:', error);
+      await bot!.sendMessage(chatId, '❌ Ошибка получения бренд-стиля. Попробуйте позже.');
+    }
+  });
+
+  // 3. /listbrands - список всех брендов пользователя
+  bot.onText(/\/listbrands/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    try {
+      const user = await storage.getUser(chatId.toString());
+      if (!user) {
+        await bot!.sendMessage(chatId, '❌ Пользователь не найден.');
+        return;
+      }
+
+      const brandStyles = await storage.getUserBrandStyles(user.id);
+
+      if (!brandStyles || brandStyles.length === 0) {
+        await bot!.sendMessage(chatId, `🎨 <b>ВАШИ БРЕНД-СТИЛИ</b>
+
+У вас пока нет бренд-стилей.
+
+💡 Создайте первый командой /brandstyle`, 
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      let message = `🎨 <b>ВАШИ БРЕНД-СТИЛИ</b> (${brandStyles.length})\n\n`;
+
+      brandStyles.forEach((style: any, index: number) => {
+        const defaultBadge = style.isDefault ? '⭐ DEFAULT' : '';
+        message += `${index + 1}. <b>${style.name}</b> ${defaultBadge}\n`;
+        message += `   • ID: ${style.id}\n`;
+        message += `   • Тон: ${style.tone}\n`;
+        message += `   • Статус: ${style.isActive ? '✅ Активен' : '❌ Неактивен'}\n`;
+        message += `   • Создан: ${new Date(style.createdAt).toLocaleDateString('ru-RU')}\n\n`;
+      });
+
+      message += `\n💡 /setdefault [id] - установить как default\n`;
+      message += `💡 /mybrand - текущий default стиль`;
+
+      await bot!.sendMessage(chatId, message, { parse_mode: 'HTML' });
+    } catch (error) {
+      console.error('Error fetching brand styles:', error);
+      await bot!.sendMessage(chatId, '❌ Ошибка получения списка бренд-стилей. Попробуйте позже.');
+    }
+  });
+
+  // 4. /setdefault [id] - установить бренд как default
+  bot.onText(/\/setdefault(?:\s+(\d+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const styleId = match && match[1] ? parseInt(match[1]) : null;
+
+    if (!styleId) {
+      await bot!.sendMessage(chatId, `❌ Укажите ID бренд-стиля!
+
+Пример: /setdefault 5
+
+💡 Посмотрите список: /listbrands`);
+      return;
+    }
+
+    try {
+      const user = await storage.getUser(chatId.toString());
+      if (!user) {
+        await bot!.sendMessage(chatId, '❌ Пользователь не найден.');
+        return;
+      }
+
+      await storage.setDefaultBrandStyle(user.id, styleId);
+
+      await bot!.sendMessage(chatId, `✅ <b>УСПЕШНО!</b>
+
+Бренд-стиль ID ${styleId} установлен как default.
+
+💡 /mybrand - посмотреть текущий стиль`, 
+        { parse_mode: 'HTML' }
+      );
+    } catch (error) {
+      console.error('Error setting default brand style:', error);
+      await bot!.sendMessage(chatId, '❌ Ошибка установки default бренд-стиля. Проверьте ID и попробуйте снова.');
+    }
+  });
+
+  // Обработчик текстовых сообщений для интерактивного создания бренд-стиля
+  bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    const text = msg.text;
+
+    if (!text || text.startsWith('/')) return;
+
+    const state = brandStyleStates.get(chatId);
+    if (!state) return;
+
+    try {
+      const user = await storage.getUser(chatId.toString());
+      if (!user) {
+        brandStyleStates.delete(chatId);
+        await bot!.sendMessage(chatId, '❌ Пользователь не найден.');
+        return;
+      }
+
+      switch (state.step) {
+        case 'name':
+          state.data.name = text;
+          state.step = 'tone';
+          await bot!.sendMessage(chatId, `✅ Название сохранено: <b>${text}</b>
+
+<b>Шаг 2 из 4: Тон общения</b>
+Выберите тон для вашего бренда:
+
+• <b>professional</b> - профессиональный
+• <b>casual</b> - непринуждённый
+• <b>aggressive</b> - агрессивный
+• <b>educational</b> - образовательный
+
+Напишите один из вариантов:`, 
+            { parse_mode: 'HTML' }
+          );
+          break;
+
+        case 'tone':
+          const validTones = ['professional', 'casual', 'aggressive', 'educational'];
+          if (!validTones.includes(text.toLowerCase())) {
+            await bot!.sendMessage(chatId, `❌ Неверный тон! Выберите один из:
+professional, casual, aggressive, educational`);
+            return;
+          }
+          state.data.tone = text.toLowerCase();
+          state.step = 'colors';
+          await bot!.sendMessage(chatId, `✅ Тон сохранён: <b>${text}</b>
+
+<b>Шаг 3 из 4: Цвета</b>
+Введите основной цвет бренда в формате HEX.
+
+Пример: #FF5733 или #000000
+
+💡 Можете пропустить, написав "skip"`, 
+            { parse_mode: 'HTML' }
+          );
+          break;
+
+        case 'colors':
+          if (text.toLowerCase() !== 'skip') {
+            if (!/^#[0-9A-F]{6}$/i.test(text)) {
+              await bot!.sendMessage(chatId, `❌ Неверный формат цвета!
+
+Используйте HEX формат: #FF5733
+Или напишите "skip" для пропуска`);
+              return;
+            }
+            state.data.primaryColor = text.toUpperCase();
+          }
+          state.step = 'videoStyle';
+          await bot!.sendMessage(chatId, `${text.toLowerCase() !== 'skip' ? '✅ Цвет сохранён: <b>' + text + '</b>' : '⏭️ Цвет пропущен'}
+
+<b>Шаг 4 из 4: Стиль видео</b>
+Опишите желаемый стиль для AI видео.
+
+Пример: "Динамичные крипто-графики с драматичной музыкой, быстрые переходы"
+
+💡 Можете пропустить, написав "skip"`, 
+            { parse_mode: 'HTML' }
+          );
+          break;
+
+        case 'videoStyle':
+          if (text.toLowerCase() !== 'skip') {
+            state.data.videoStyle = text;
+          }
+
+          // Создаём бренд-стиль через storage
+          await bot!.sendMessage(chatId, '⏳ Создаю бренд-стиль...');
+
+          const newBrandStyle = await storage.createBrandStyle({
+            userId: user.id,
+            name: state.data.name!,
+            tone: state.data.tone!,
+            primaryColor: state.data.primaryColor || null,
+            videoStyle: state.data.videoStyle || null,
+            isDefault: false
+          });
+
+          await bot!.sendMessage(chatId, `✅ <b>БРЕНД-СТИЛЬ СОЗДАН!</b>
+
+🎨 <b>${newBrandStyle.name}</b>
+• ID: ${newBrandStyle.id}
+• Тон: ${newBrandStyle.tone}
+${newBrandStyle.primaryColor ? `• Цвет: ${newBrandStyle.primaryColor}` : ''}
+${newBrandStyle.videoStyle ? `• Стиль видео: ${newBrandStyle.videoStyle}` : ''}
+
+💡 Установите его как default:
+/setdefault ${newBrandStyle.id}
+
+💡 Все ваши стили:
+/listbrands`, 
+            { parse_mode: 'HTML' }
+          );
+
+          // Очищаем состояние
+          brandStyleStates.delete(chatId);
+          break;
+      }
+    } catch (error) {
+      console.error('Error in brand style creation flow:', error);
+      await bot!.sendMessage(chatId, '❌ Ошибка при создании бренд-стиля. Попробуйте снова с /brandstyle');
+      brandStyleStates.delete(chatId);
+    }
+  });
+
+  // ====================================
+  // TREND VIDEOS
+  // ====================================
+
+  // 1. /addtrend [url] - добавить тренд вручную
+  bot.onText(/\/addtrend(?:\s+(.+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const url = match?.[1]?.trim();
+
+    if (!url) {
+      await bot!.sendMessage(chatId, `❌ <b>Укажите URL видео</b>
+
+Использование:
+/addtrend [url]
+
+Примеры:
+• /addtrend https://www.tiktok.com/@user/video/123
+• /addtrend https://youtube.com/watch?v=abc123
+• /addtrend https://instagram.com/reel/xyz789
+
+💡 Поддерживаются TikTok, YouTube, Instagram`, 
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    try {
+      // Определяем source из URL
+      let source = 'manual';
+      let title = '';
+      
+      if (url.includes('tiktok.com')) {
+        source = 'tiktok';
+        title = 'TikTok Trend';
+      } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        source = 'youtube';
+        title = 'YouTube Trend';
+      } else if (url.includes('instagram.com')) {
+        source = 'instagram';
+        title = 'Instagram Reel';
+      }
+
+      // Извлекаем ID из URL для title
+      const urlParts = url.split('/');
+      const videoId = urlParts[urlParts.length - 1] || urlParts[urlParts.length - 2];
+      if (videoId && videoId.length < 50) {
+        title += ` ${videoId.substring(0, 20)}`;
+      }
+
+      // Получаем userId из базы
+      const telegramUserId = chatId.toString();
+      
+      // Создаем тренд в базе
+      const trend = await storage.createTrendVideo({
+        userId: telegramUserId,
+        source,
+        sourceUrl: url,
+        title,
+        description: `Добавлено вручную из ${source}`,
+        status: 'pending'
+      });
+
+      await bot!.sendMessage(chatId, `✅ <b>ТРЕНД ДОБАВЛЕН!</b>
+
+🆔 <b>ID:</b> ${trend.id}
+📱 <b>Источник:</b> ${source.toUpperCase()}
+🔗 <b>URL:</b> ${url.substring(0, 50)}...
+📊 <b>Статус:</b> pending
+
+💡 Команды:
+• /toptrends - все топ тренды
+• /mytrends - ваши тренды
+• /clonetrend ${trend.id} - клонировать`,
+        { parse_mode: 'HTML' }
+      );
+
+    } catch (error) {
+      console.error('Error adding trend:', error);
+      await bot!.sendMessage(chatId, '❌ Ошибка при добавлении тренда. Попробуйте снова.');
+    }
+  });
+
+  // 2. /toptrends [limit] - показать топ трендов по trendScore
+  bot.onText(/\/toptrends(?:\s+(\d+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const limit = match?.[1] ? parseInt(match[1]) : 10;
+
+    if (limit < 1 || limit > 50) {
+      await bot!.sendMessage(chatId, '❌ Лимит должен быть от 1 до 50');
+      return;
+    }
+
+    try {
+      const trends = await storage.getTopTrends(limit);
+
+      if (!trends || trends.length === 0) {
+        await bot!.sendMessage(chatId, `📊 <b>ТОП ТРЕНДОВ</b>
+
+Трендов пока нет!
+
+💡 Добавьте первый:
+/addtrend [url]`, 
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      let message = `🏆 <b>ТОП ${trends.length} ТРЕНДОВ</b>\n\n`;
+
+      trends.forEach((trend: any, index: number) => {
+        const emoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📌';
+        
+        message += `${emoji} <b>#${trend.id}</b> - ${trend.title || 'Без названия'}\n`;
+        message += `📱 Источник: ${trend.source?.toUpperCase() || 'N/A'}\n`;
+        
+        if (trend.views) message += `👁 Просмотры: ${trend.views.toLocaleString()}\n`;
+        if (trend.likes) message += `❤️ Лайки: ${trend.likes.toLocaleString()}\n`;
+        if (trend.engagement) message += `📊 Вовлечённость: ${trend.engagement.toFixed(1)}%\n`;
+        if (trend.trendScore) message += `🔥 Тренд-скор: ${trend.trendScore.toFixed(1)}/100\n`;
+        
+        message += `\n`;
+      });
+
+      message += `\n💡 /clonetrend [id] - клонировать тренд`;
+
+      // Отправляем с инлайн кнопками для первых 5
+      const keyboard = {
+        inline_keyboard: trends.slice(0, 5).map((trend: any) => [{
+          text: `🎬 Клонировать #${trend.id}`,
+          callback_data: `clone_trend_${trend.id}`
+        }])
+      };
+
+      await bot!.sendMessage(chatId, message, { 
+        parse_mode: 'HTML',
+        reply_markup: keyboard
+      });
+
+    } catch (error) {
+      console.error('Error getting top trends:', error);
+      await bot!.sendMessage(chatId, '❌ Ошибка при получении трендов. Попробуйте позже.');
+    }
+  });
+
+  // 3. /mytrends - показать тренды пользователя
+  bot.onText(/\/mytrends/, async (msg) => {
+    const chatId = msg.chat.id;
+    const telegramUserId = chatId.toString();
+
+    try {
+      const trends = await storage.getTrendVideos(telegramUserId, 20);
+
+      if (!trends || trends.length === 0) {
+        await bot!.sendMessage(chatId, `📋 <b>МОИ ТРЕНДЫ</b>
+
+У вас пока нет сохранённых трендов!
+
+💡 Добавьте первый:
+/addtrend [url]
+
+Или посмотрите топ:
+/toptrends`, 
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      let message = `📋 <b>ВАШИ ТРЕНДЫ (${trends.length})</b>\n\n`;
+
+      // Группируем по статусам
+      const pending = trends.filter((t: any) => t.status === 'pending');
+      const analyzed = trends.filter((t: any) => t.status === 'analyzed');
+      const cloned = trends.filter((t: any) => t.status === 'cloned');
+      const published = trends.filter((t: any) => t.status === 'published');
+
+      if (pending.length > 0) {
+        message += `⏳ <b>PENDING (${pending.length})</b>\n`;
+        pending.forEach((trend: any) => {
+          message += `• #${trend.id} - ${trend.title || 'Без названия'} (${trend.source})\n`;
+        });
+        message += `\n`;
+      }
+
+      if (analyzed.length > 0) {
+        message += `🔍 <b>ANALYZED (${analyzed.length})</b>\n`;
+        analyzed.forEach((trend: any) => {
+          message += `• #${trend.id} - ${trend.title || 'Без названия'} (${trend.source})\n`;
+        });
+        message += `\n`;
+      }
+
+      if (cloned.length > 0) {
+        message += `🎬 <b>CLONED (${cloned.length})</b>\n`;
+        cloned.forEach((trend: any) => {
+          message += `• #${trend.id} - ${trend.title || 'Без названия'} (${trend.source})\n`;
+        });
+        message += `\n`;
+      }
+
+      if (published.length > 0) {
+        message += `✅ <b>PUBLISHED (${published.length})</b>\n`;
+        published.forEach((trend: any) => {
+          message += `• #${trend.id} - ${trend.title || 'Без названия'} (${trend.source})\n`;
+        });
+        message += `\n`;
+      }
+
+      message += `\n💡 /clonetrend [id] - клонировать\n`;
+      message += `💡 /toptrends - все топ тренды`;
+
+      await bot!.sendMessage(chatId, message, { parse_mode: 'HTML' });
+
+    } catch (error) {
+      console.error('Error getting user trends:', error);
+      await bot!.sendMessage(chatId, '❌ Ошибка при получении трендов. Попробуйте позже.');
+    }
+  });
+
+  // 4. /clonetrend [id] - клонировать тренд
+  bot.onText(/\/clonetrend(?:\s+(\d+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const trendId = match?.[1] ? parseInt(match[1]) : null;
+
+    if (!trendId) {
+      await bot!.sendMessage(chatId, `❌ <b>Укажите ID тренда</b>
+
+Использование:
+/clonetrend [id]
+
+Пример:
+/clonetrend 42
+
+💡 Посмотрите доступные тренды:
+• /toptrends - топ трендов
+• /mytrends - ваши тренды`, 
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    try {
+      const telegramUserId = chatId.toString();
+
+      const { trend, brandStyle } = await storage.getTrendWithBrandStyle(trendId);
+
+      if (!trend) {
+        await bot!.sendMessage(chatId, `❌ Тренд #${trendId} не найден`);
+        return;
+      }
+
+      const defaultStyle = await storage.getDefaultBrandStyle(telegramUserId);
+
+      if (!defaultStyle && !brandStyle) {
+        await bot!.sendMessage(chatId, `⚠️ <b>НУЖЕН БРЕНД-СТИЛЬ</b>
+
+Для клонирования трендов нужен бренд-стиль!
+
+💡 Создайте его:
+/brandstyle
+
+Это займёт всего 2 минуты и позволит
+создавать видео в вашем уникальном стиле! 🎨`,
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      const styleToUse = brandStyle || defaultStyle;
+
+      const progressMsg = await bot!.sendMessage(chatId, `🎬 <b>ГЕНЕРИРУЮ ВИДЕО...</b>
+
+🎨 Адаптирую тренд под бренд: ${styleToUse?.name}
+⏳ Это может занять 20-40 секунд...
+
+📊 Процесс:
+1️⃣ Анализ тренда ✓
+2️⃣ Адаптация под бренд...
+3️⃣ Генерация видео через Fal.ai...
+
+💰 Стоимость: ~$0.20 (модель WAN)`,
+        { parse_mode: 'HTML' }
+      );
+
+      console.log(`🎬 Начинаем клонирование тренда ${trendId} для пользователя ${telegramUserId}`);
+
+      const result = await trendCloningService.cloneTrendVideo(trendId, telegramUserId);
+
+      await bot!.deleteMessage(chatId, progressMsg.message_id);
+
+      if (!result.success) {
+        await bot!.sendMessage(chatId, `❌ <b>ОШИБКА ГЕНЕРАЦИИ</b>
+
+${result.error || 'Не удалось создать видео'}
+
+💡 Попробуйте:
+• Проверить наличие бренд-стиля: /mybrand
+• Попробовать другой тренд: /toptrends
+• Повторить через минуту`,
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      if (result.videoUrl) {
+        await bot!.sendMessage(chatId, `✅ <b>ВИДЕО ГОТОВО!</b>
+
+🎬 Тренд #${trendId} успешно клонирован
+🎨 Бренд: ${styleToUse?.name}
+💰 Стоимость: $${result.cost.toFixed(2)}
+
+🎥 Видео адаптировано под ваш стиль и готово к публикации!`,
+          { parse_mode: 'HTML' }
+        );
+
+        try {
+          await bot!.sendVideo(chatId, result.videoUrl, {
+            caption: `🎬 Клонированный тренд #${trendId}\n🎨 Стиль: ${styleToUse?.name}`,
+            reply_markup: {
+              inline_keyboard: [[
+                { text: '📤 Опубликовать', callback_data: `publish_cloned_${result.aiVideoId}` }
+              ]]
+            }
+          });
+        } catch (videoError) {
+          console.error('Ошибка отправки видео:', videoError);
+          await bot!.sendMessage(chatId, `🔗 Видео доступно по ссылке:\n${result.videoUrl}
+
+📤 Чтобы опубликовать, скопируйте ссылку и отправьте через /uploadvideo`,
+            {
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: '📤 Опубликовать', callback_data: `publish_cloned_${result.aiVideoId}` }
+                ]]
+              }
+            }
+          );
+        }
+
+      } else {
+        await bot!.sendMessage(chatId, `⏳ <b>ВИДЕО В ОБРАБОТКЕ</b>
+
+🎬 Тренд #${trendId} клонирован
+📊 Статус: generating
+💰 Стоимость: $${result.cost.toFixed(2)}
+
+Видео генерируется... Это может занять 1-2 минуты.
+🆔 AI Video ID: ${result.aiVideoId}
+
+💡 Проверьте статус позже или дождитесь уведомления`,
+          { parse_mode: 'HTML' }
+        );
+      }
+
+    } catch (error) {
+      console.error('Error cloning trend:', error);
+      await bot!.sendMessage(chatId, `❌ <b>КРИТИЧЕСКАЯ ОШИБКА</b>
+
+${error instanceof Error ? error.message : 'Неизвестная ошибка'}
+
+💡 Попробуйте снова через минуту или обратитесь в поддержку`,
+        { parse_mode: 'HTML' }
+      );
+    }
+  });
+
+  // Обработка callback для кнопок клонирования
+  bot.on('callback_query', async (query) => {
+    if (!query.data) return;
+
+    if (query.data.startsWith('clone_trend_')) {
+      const trendId = parseInt(query.data.replace('clone_trend_', ''));
+      const chatId = query.message?.chat.id;
+
+      if (chatId) {
+        await bot!.answerCallbackQuery(query.id, { text: 'Клонирование...' });
+        await bot!.sendMessage(chatId, `/clonetrend ${trendId}`);
+      }
+    }
+
+    if (query.data.startsWith('publish_cloned_')) {
+      const aiVideoId = parseInt(query.data.replace('publish_cloned_', ''));
+      const chatId = query.message?.chat.id;
+
+      if (chatId) {
+        await bot!.answerCallbackQuery(query.id, { text: '📤 Публикую видео...' });
+
+        try {
+          const aiVideo = await storage.getAIVideo(aiVideoId);
+
+          if (!aiVideo || !aiVideo.videoUrl) {
+            await bot!.sendMessage(chatId, '❌ Видео не найдено или еще не готово');
+            return;
+          }
+
+          const telegramPlatform = await storage.getPlatformByName('telegram');
+          
+          if (!telegramPlatform) {
+            await bot!.sendMessage(chatId, '❌ Telegram платформа не найдена');
+            return;
+          }
+
+          const caption = `🎬 AI-сгенерированное видео\n\n${(aiVideo.prompt || 'No prompt').substring(0, 200)}...`;
+
+          await bot!.sendVideo(CHANNEL_ID, aiVideo.videoUrl, {
+            caption: caption.substring(0, 1024)
+          });
+
+          const post = await storage.createPost({
+            userId: aiVideo.userId,
+            platformId: telegramPlatform.id,
+            content: caption,
+            title: `AI Video ${aiVideoId}`,
+            publishedAt: new Date(),
+            mediaUrls: [aiVideo.videoUrl]
+          });
+
+          await bot!.sendMessage(chatId, `✅ <b>ВИДЕО ОПУБЛИКОВАНО!</b>
+
+📺 Канал: ${CHANNEL_ID}
+🎬 AI Video ID: ${aiVideoId}
+💾 Post ID: ${post.id}
+💰 Стоимость генерации: $${aiVideo.cost?.toFixed(2) || '0.00'}
+
+🎯 Видео опубликовано в канале и сохранено в базу!`,
+            { parse_mode: 'HTML' }
+          );
+
+        } catch (error) {
+          console.error('Error publishing cloned video:', error);
+          await bot!.sendMessage(chatId, `❌ Ошибка публикации: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        }
+      }
     }
   });
 
